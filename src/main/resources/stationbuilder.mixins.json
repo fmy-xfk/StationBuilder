@@ -1,0 +1,18 @@
+{
+  "required": true,
+  "package": "cn.myfrank.stationbuilder.mixin",
+  "plugin": "cn.myfrank.stationbuilder.mixin.StationBuilderMixinPlugin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "mtr.EnumPSDAPGItemAccessor",
+    "mtr.EnumPSDAPGTypeAccessor",
+    "mtr.ItemPSDAPGBaseAccessor",
+    "mtr.ItemRailModifierAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+	}
+}
