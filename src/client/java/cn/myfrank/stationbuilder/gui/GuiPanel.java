@@ -246,10 +246,10 @@ public class GuiPanel extends GuiControl {
 
     // 递归处理滚轮、键盘等
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
         if (!isVisible() || !isMouseOver(mouseX, mouseY)) return false;
         for (int i = controls.size() - 1; i >= 0; i--) {
-            if (controls.get(i).isVisible() && controls.get(i).mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) return true;
+            if (controls.get(i).isVisible() && controls.get(i).mouseScrolled(mouseX, mouseY, amount)) return true;
         }
         return false;
     }

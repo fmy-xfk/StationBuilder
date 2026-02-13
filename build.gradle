@@ -46,10 +46,10 @@ dependencies {
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
-	// MTR 本体
+	// MTR
 	modImplementation "maven.modrinth:minecraft-transit-railway:FABRIC-${project.mtr_version}+${project.minecraft_version}"
-	// MSD FABRIC 1.4.0 for MTR 4.0.0+1.20.4
-	modImplementation "curse.maven:station-decoration-790307:6893840"
+	// MSD FABRIC 1.4.0 for MTR 4.0.0+1.20.1
+	modImplementation "curse.maven:station-decoration-790307:6893835"
 }
 
 processResources {

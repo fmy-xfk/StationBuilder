@@ -39,7 +39,7 @@ public class PresetSaveScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        this.renderBackground(context, mouseX, mouseY, delta);
+        this.renderBackground(context);
         context.drawCenteredTextWithShadow(textRenderer, getTitle(), width / 2, height / 2 - 30, 0xFFFFFF);
         this.nameField.render(context, mouseX, mouseY, delta);
         super.render(context, mouseX, mouseY, delta);
