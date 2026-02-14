@@ -100,6 +100,7 @@ public class RailBuilderItem extends Item {
             List<Text> tooltip,
             TooltipContext context
     ) {
+        tooltip.add(Text.translatable("tooltip.stationbuilder.rail_builder"));
         var lastPair = RailBuilderState.getLastNodesAndAngle(stack);
         if (lastPair == null) return;
         var lastNodes = lastPair.left();
@@ -107,7 +108,7 @@ public class RailBuilderItem extends Item {
         BlockPos last = lastNodes.get(0);
         tooltip.add(
             Text.translatable(
-                "tooltip.stationbuilder.rail_builder.start_pos",
+                "tooltip.stationbuilder.start_pos",
                 last.getX(),
                 last.getY(),
                 last.getZ()

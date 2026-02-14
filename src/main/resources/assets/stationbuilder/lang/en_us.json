@@ -98,6 +98,11 @@
   "gui.stationbuilder.catenary_block": "Connector",
   "gui.stationbuilder.catenary_bridge_pillar": "On-bridge pillar",
   "gui.stationbuilder.catenary_tunnel_pillar": "In-tunnel pillar",
+  "gui.stationbuilder.minecraft_block": "Block (Not supported yet)",
+  "gui.stationbuilder.msd_catenary": "Soft",
+  "gui.stationbuilder.msd_electric": "Wire",
+  "gui.stationbuilder.msd_rigid_catenary": "Rigid",
+  "gui.stationbuilder.msd_rigid_soft_catenary": "Rigid soft",
   "message.stationbuilder.rail_builder.fail": "%d rail(s) failed.",
   "message.stationbuilder.rail_builder.min_radius": "R = %sm, L = %sm",
   "message.stationbuilder.rail_builder.straight_line": "Straight",
@@ -105,6 +110,10 @@
   "message.stationbuilder.rail_builder.invalid_rail": "The rail type %s is invalid, defaulting to speed 160.",
   "message.stationbuilder.rail_builder.start": "Started building rail at position [%d, %d, %d].",
   "message.stationbuilder.rail_builder.end": "Completed rail construction.",
-  "tooltip.stationbuilder.rail_builder.start_pos": "Start: (%d, %d, %d)",
-  "message.stationbuilder.rail_builder.no_mtr": "This tool needs Minecraft Transit Railway, which is not installed."
+  "message.stationbuilder.rail_builder.no_mtr": "This tool needs Minecraft Transit Railway, which is not installed.",
+  "tooltip.stationbuilder.rail_builder.line1": "Right click to build.",
+  "tooltip.stationbuilder.rail_builder.line2": "Shift + right click to configure.",
+  "tooltip.stationbuilder.rail_builder.line3": "Press V to stop. (Modifiable)",
+  "tooltip.stationbuilder.start_pos": "Start: (%d, %d, %d)",
+  "tooltip.stationbuilder.station_builder": "Right click on the block to configure and build.\n"
 }

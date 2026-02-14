@@ -339,7 +339,7 @@ public class MTRIntegration {
     }
 
     private static BlockPos addCatenaryNode(
-            ServerWorld world, Vec3d center, Vec3d tangent,  boolean isLeftest, boolean isRightest,
+            ServerWorld world, Vec3d center, Vec3d tangent, boolean isLeftest, boolean isRightest,
             @Nullable BlockPos lastCatenaryNode, boolean top
     ) {
         Direction dir = horizontalDirectionFromVec(tangent);
@@ -353,7 +353,7 @@ public class MTRIntegration {
             }
             MSDIntegration.placeCatenaryNode(world, catenaryPos, dir, top);
             if (lastCatenaryNode != null) {
-                MSDIntegration.connectCatenary(world, lastCatenaryNode, catenaryPos, 1);
+                MSDIntegration.connectCatenary(world, lastCatenaryNode, catenaryPos, CatenaryTypeMapping.MSDCatenary);
             }
             return catenaryPos;
         }

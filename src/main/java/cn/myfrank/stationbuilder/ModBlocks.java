@@ -25,6 +25,7 @@ public class ModBlocks {
     public static final BlockItem STATION_BUILDER_ITEM = new BlockItem(STATION_BUILDER, new Item.Settings()){
         @Override
         public void appendTooltip(ItemStack stack, World world, List<Text> tooltip, TooltipContext context) {
+            tooltip.add(Text.translatable("tooltip.stationbuilder.station_builder"));
             if (stack.hasNbt() && stack.getNbt().contains("BlockEntityTag")) {
                 tooltip.add(Text.translatable("gui.stationbuilder.include_config").formatted(Formatting.GOLD));
             }

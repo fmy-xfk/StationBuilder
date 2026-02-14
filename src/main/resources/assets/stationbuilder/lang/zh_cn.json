@@ -98,6 +98,11 @@
   "gui.stationbuilder.catenary_block": "连接方块",
   "gui.stationbuilder.catenary_bridge_pillar": "桥梁支柱",
   "gui.stationbuilder.catenary_tunnel_pillar": "隧道支柱",
+  "gui.stationbuilder.minecraft_block": "原版方块(暂不支持)",
+  "gui.stationbuilder.msd_catenary": "柔性接触网",
+  "gui.stationbuilder.msd_electric": "电线",
+  "gui.stationbuilder.msd_rigid_catenary": "刚性接触网",
+  "gui.stationbuilder.msd_rigid_soft_catenary": "刚柔过渡",
   "message.stationbuilder.rail_builder.fail": "%d条轨道失败",
   "message.stationbuilder.rail_builder.min_radius": "半径%sm，长度%sm",
   "message.stationbuilder.rail_builder.straight_line": "直线",
@@ -105,6 +110,10 @@
   "message.stationbuilder.rail_builder.invalid_rail": "轨道类型 %s 无效，已默认使用速度160。",
   "message.stationbuilder.rail_builder.start": "已开始在位置 [%d, %d, %d] 建造轨道。",
   "message.stationbuilder.rail_builder.end": "已完成轨道建造。",
-  "tooltip.stationbuilder.rail_builder.start_pos": "起点：(%d, %d, %d)",
-  "message.stationbuilder.rail_builder.no_mtr": "该工具需要Minecraft Transit Railway，但是尚未安装。"
+  "message.stationbuilder.rail_builder.no_mtr": "该工具需要Minecraft Transit Railway，但是尚未安装。",
+  "tooltip.stationbuilder.rail_builder.line1": "右键建造。",
+  "tooltip.stationbuilder.rail_builder.line2": "Shift + 右键配置。",
+  "tooltip.stationbuilder.rail_builder.line3": "按V停止建造(可修改)。",
+  "tooltip.stationbuilder.start_pos": "起点：(%d, %d, %d)",
+  "tooltip.stationbuilder.station_builder": "右键方块以配置和建造。"
 }

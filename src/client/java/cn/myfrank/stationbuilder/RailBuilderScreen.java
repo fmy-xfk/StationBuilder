@@ -39,14 +39,20 @@ public class RailBuilderScreen extends GuiScreen {
         syncCatenaryEnabled(button);
     }, BUTTON_WIDTH, INPUT_HEIGHT);
     private final GuiLabelTextField catenarySpacingInput = new GuiLabelTextField(getText("catenary_spacing"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("50"));
-    private final GuiLabelSlot catenaryBlockInput = new GuiLabelSlot(getText("catenary_block"), INPUT_WIDTH_S, INPUT_HEIGHT,
-            StationBuilder.isMsdLoaded() ? new Identifier("msd", "catenary_connector") : new Identifier("minecraft", "iron_bars"), false);
-    private final GuiLabelSlot catenaryBridgePillarInput = new GuiLabelSlot(getText("catenary_bridge_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT,
-            StationBuilder.isMsdLoaded() ? new Identifier("msd", "catenary_with_long") : new Identifier("minecraft", "stone_brick_wall"), false);
-    private final GuiLabelSlot catenaryTunnelPillarInput = new GuiLabelSlot(getText("catenary_tunnel_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT,
-            StationBuilder.isMsdLoaded() ? new Identifier("msd", "catenary_with_long_top") : new Identifier("minecraft", "stone_brick_wall"), false);
+    private int catenaryModeIndex = 0;
+    private final GuiButton catenaryModeButton = new GuiButton(getText("catenary"), (button) -> {
+        catenaryModeIndex = (catenaryModeIndex + 1) % CatenaryTypeMapping.values().length;
+        syncCatenaryMode(button);
+    }, BUTTON_WIDTH, INPUT_HEIGHT);
+    private final GuiLabelSlot catenaryBridgePillarInput = new GuiLabelSlot(getText("catenary_bridge_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("msd", "catenary_with_long"), false);
+    private final GuiLabelSlot catenaryTunnelPillarInput = new GuiLabelSlot(getText("catenary_tunnel_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("msd", "catenary_with_long_top"), false);
     private final GhostInventory ghostInventory = new GhostInventory();
 
+    private void syncCatenaryMode(GuiButton button) {
+        var type = CatenaryTypeMapping.values()[catenaryModeIndex];
+        button.setMessage(Text.translatable("gui.stationbuilder." + type.getName()));
+    }
+    
     private void syncCatenaryEnabled(GuiButton button) {
         button.setMessage(useCatenary ? getText("catenary_enabled") : getText("catenary_disabled"));
     }
@@ -121,8 +127,12 @@ public class RailBuilderScreen extends GuiScreen {
         if (nbt.contains("catenarySpacing", NbtElement.INT_TYPE)) {
             this.catenarySpacingInput.setText(String.valueOf(nbt.getInt("catenarySpacing")));
         }
-        if (nbt.contains("catenaryBlock", NbtElement.STRING_TYPE)) {
-            this.catenaryBlockInput.setBlockId(new Identifier(nbt.getString("catenaryBlock")));
+        if (nbt.contains("catenaryModeIndex", NbtElement.INT_TYPE)) {
+            this.catenaryModeIndex = nbt.getInt("catenaryModeIndex");
+            syncCatenaryMode(catenaryModeButton);
+        } else {
+            this.catenaryModeIndex = 1;
+            syncCatenaryMode(catenaryModeButton);
         }
         if (nbt.contains("catenaryBridgePillar", NbtElement.STRING_TYPE)) {
             this.catenaryBridgePillarInput.setBlockId(new Identifier(nbt.getString("catenaryBridgePillar")));
@@ -153,7 +163,7 @@ public class RailBuilderScreen extends GuiScreen {
         nbt.putDouble("tunnelWidth", Double.parseDouble(tunnelWidthInput.getText()));
         nbt.putBoolean("useCatenary", useCatenary);
         nbt.putInt("catenarySpacing", Integer.parseInt(catenarySpacingInput.getText()));
-        nbt.putString("catenaryBlock", catenaryBlockInput.getBlockId().toString());
+        nbt.putInt("catenaryModeIndex", catenaryModeIndex);
         nbt.putString("catenaryBridgePillar", catenaryBridgePillarInput.getBlockId().toString());
         nbt.putString("catenaryTunnelPillar", catenaryTunnelPillarInput.getBlockId().toString());
         return nbt;
@@ -201,7 +211,7 @@ public class RailBuilderScreen extends GuiScreen {
                 .addControl(new GuiLabel(getText("catenary")))
                 .addControl(catenaryEnableButton)
                 .addControl(catenarySpacingInput)
-                .addControl(catenaryBlockInput)
+                .addControl(catenaryModeButton)
                 .addControl(catenaryBridgePillarInput)
                 .addControl(catenaryTunnelPillarInput)
                 .setDirection(PanelDirection.VERTICAL);
