@@ -39,6 +39,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 
 public class MTRIntegration {
+    private static final double EPS = 1e-6;
+
     public static Identifier getDefaultRailType() {
         return new Identifier("mtr", "rail_connector_160");
     }
@@ -360,8 +362,7 @@ public class MTRIntegration {
 
     private static void clearHeights(Vec3d center, Vec3d normal, ServerWorld world, RailBuilderConfig config,
              boolean isLeftest, boolean isRightest, boolean clearCatenary) {
-        double topWidth = config.ballastTopWidth;
-        double halfWidth = topWidth / 2.0;
+        double halfWidth = config.ballastTopWidth / 2.0 + EPS;
         int baseY = (int) Math.floor(center.y);
         var XZs = RailMath.getPositions(center, normal, config.tunnelHeight + 3);
         int height = 0;
@@ -393,10 +394,8 @@ public class MTRIntegration {
             boolean isLeftest, boolean isRightest
     ) {
         final int ballastHeight = config.ballastMaxThickness;
-        double topWidth = config.ballastTopWidth;
-        double halfTopWidth = topWidth / 2;
-        double bottomWidth = config.ballastBottomWidth;
-        double halfBottomWidth = bottomWidth / 2;
+        double halfTopWidth = config.ballastTopWidth / 2.0 + EPS;
+        double halfBottomWidth = config.ballastBottomWidth / 2.0 + EPS;
         for (int y = 0; y < ballastHeight; y++) {
             double halfWidth = lerp(halfTopWidth, halfBottomWidth, (double) y / ballastHeight);
             Vec3d layerCenter = center.add(0, -y - 1, 0);
@@ -415,12 +414,13 @@ public class MTRIntegration {
             Vec3d center, Vec3d normal, ServerWorld world, RailBuilderConfig config, boolean clearCatenary,
             BuildingMode.Up ubm, BuildingMode.Down dbm, boolean isLeftest, boolean isRightest, boolean pillar
     ) {
-        double tunnelWidth = config.ballastTopWidth + 2; // also overpass width
-        double halfBallastWidth = config.ballastTopWidth / 2.0;
-        double halfWidth = tunnelWidth / 2.0;
+        double EPS = 1e-6;
+        double halfBallastWidth = config.ballastTopWidth / 2.0 + EPS;
+        double halfTunnelWidth = config.tunnelWidth / 2.0 + EPS;
+        double halfBridgeWidth = config.bridgeWidth / 2.0 + EPS;
         double halfPillarWidth = 1.5;
         int blockY = (int) Math.floor(center.y);
-        var blockXZs = RailMath.getPositions(center, normal, halfWidth);
+        var blockXZs = RailMath.getPositions(center, normal, Math.max(halfTunnelWidth, halfBridgeWidth));
         ArrayList<BlockPos> overpass_walls = new ArrayList<>();
         int blockIndex = -1;
         for (var block: blockXZs) {
@@ -428,7 +428,7 @@ public class MTRIntegration {
             int x = block.x(), z = block.z();
             Vec3d p = new Vec3d(x + 0.5, blockY + 0.5, z + 0.5);
             double dist = Math.abs((p.x - center.x) * normal.x + (p.z - center.z) * normal.z);
-            if (dbm == BuildingMode.Down.Bridge) {
+            if (dbm == BuildingMode.Down.Bridge && dist <= halfBridgeWidth) {
                 var bridgeBlockState = Registries.BLOCK.get(config.bridgeBlock).getDefaultState();
                 if ((isLeftest && blockIndex == 0) || (isRightest && blockIndex == blockXZs.size() - 1)) {
                     var pos = new BlockPos(x, blockY - 1, z);
@@ -445,6 +445,10 @@ public class MTRIntegration {
                     world.setBlockState(posD, bridgeBlockState, 3);
                     var pos = new BlockPos(x, blockY - 1, z);
                     world.setBlockState(pos, Registries.BLOCK.get(config.ballastBlock).getDefaultState(), 3);
+                    var posU = new BlockPos(x, blockY, z);
+                    if (!isRailNode(world, posU)) {
+                        clearBlock(world, posU, clearCatenary);
+                    }
                 }
                 if (pillar && dist <= halfPillarWidth) {
                     var pos = new BlockPos(x, blockY - 2, z);
@@ -460,7 +464,7 @@ public class MTRIntegration {
                     }
                 }
             }
-            if (ubm == BuildingMode.Up.Tunnel) {
+            if (ubm == BuildingMode.Up.Tunnel && dist <= halfTunnelWidth) {
                 var posTop = new BlockPos(x, blockY + config.tunnelHeight, z);
                 if (!isRailNode(world, posTop)) {
                     world.setBlockState(posTop, Registries.BLOCK.get(config.tunnelWallBlock).getDefaultState(), 3);
@@ -532,7 +536,8 @@ public class MTRIntegration {
 
         if (maxLength < 0) return; // No rail created.
         int segments = (int) Math.floor(maxLength / 0.5);
-        // First round: basic ballast and building modes detection
+
+        // First round: building modes detection
         byte[][] ubm2 = new byte[count][segments + 1];
         byte[][] dbm2 = new byte[count][segments + 1];
         boolean[] reverse = new boolean[count];
@@ -642,9 +647,8 @@ public class MTRIntegration {
             byte[] upBuildingModes, byte[] downBuildingModes
     ) {
         final int thickBallastHeight = config.ballastMaxThickness;
-        final double topWidth = config.ballastTopWidth;
-        final double tunnelWidth = topWidth + 2; // also overpass width
-        final double halfWidth = tunnelWidth / 2.0;
+        final double halfTunnelWidth = config.tunnelWidth / 2.0 + EPS;
+        final double halfBridgeWidth = config.bridgeWidth / 2.0 + EPS;
         var math = rail.railMath;
 
         // Determine building modes for upper and lower attachments
@@ -656,7 +660,7 @@ public class MTRIntegration {
 
             // Stretch left and right from the center point, and get a bundle of BlockPos
             int blockY = (int) Math.floor(center.y);
-            var blockXZs = RailMath.getPositions(center, normal, halfWidth);
+            var blockXZs = RailMath.getPositions(center, normal, Math.max(halfTunnelWidth, halfBridgeWidth));
 
             // Determine building modes
             BuildingMode.Up ubm = BuildingMode.Up.Clear;
