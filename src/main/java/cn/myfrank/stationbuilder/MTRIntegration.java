@@ -266,10 +266,10 @@ public class MTRIntegration {
                 for(double s = 0; s <= rail.railMath.getLength(); s += 0.1) {
                     points.add(toVec3d(rail.railMath.getPosition(s, false)));
                 }
-                return new TestConnectResult(true, radius, points);
+                return new TestConnectResult(true, radius, rail.railMath.getLength(), points);
             }
         }
-        return new TestConnectResult(false, 0, new ArrayList<>());
+        return new TestConnectResult(false, 0, 0, new ArrayList<>());
     }
 
     @Nullable

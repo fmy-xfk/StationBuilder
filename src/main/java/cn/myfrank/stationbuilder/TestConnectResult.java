@@ -8,11 +8,12 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 
-public record TestConnectResult(boolean success, double radius, ArrayList<Vec3d> positions) {
+public record TestConnectResult(boolean success, double radius, double length, ArrayList<Vec3d> positions) {
     public NbtCompound toNbt() {
         NbtCompound nbt = new NbtCompound();
         nbt.putBoolean("success", success);
         nbt.putDouble("radius", radius);
+        nbt.putDouble("length", length);
 
         if (positions != null) {
             NbtList positionsList = new NbtList();
@@ -36,7 +37,7 @@ public record TestConnectResult(boolean success, double radius, ArrayList<Vec3d>
     public static TestConnectResult fromNbt(@NotNull NbtCompound nbt) {
         boolean success = nbt.getBoolean("success");
         double radius = nbt.getDouble("radius");
-
+        double length = nbt.getDouble("length");
         ArrayList<Vec3d> positions = new ArrayList<>();
 
         if (nbt.contains("positions", NbtElement.LIST_TYPE)) {
@@ -53,6 +54,6 @@ public record TestConnectResult(boolean success, double radius, ArrayList<Vec3d>
             }
         }
 
-        return new TestConnectResult(success, radius, positions);
+        return new TestConnectResult(success, radius, length,positions);
     }
 }

@@ -115,7 +115,7 @@ public class StationBuilderClient implements ClientModInitializer {
 			float angle = player.getYaw();
 			Vec3d textPos = getPreviewCenterPos(lastNodes, targetPos);
 			var d = getDelta(lastNodes, targetPos);
-			double minRadius = 1e9;
+			double minRadius = 1e9, minLength = 1e9;
 			int successCount = 0;
 
 			for (int i = 0; i < lastNodes.size(); ++i) {
@@ -134,7 +134,10 @@ public class StationBuilderClient implements ClientModInitializer {
 					if (preview.success()) {
 						successCount += 1;
 						renderCurve(matrices, context.consumers(), context.camera(), preview.positions());
-						if (preview.radius() > 0) minRadius = Math.min(minRadius, preview.radius());
+						if (preview.radius() > 0) {
+							minRadius = Math.min(minRadius, preview.radius());
+							minLength = Math.min(minLength, preview.length());
+						}
 					}
 				}
 			}
@@ -149,7 +152,7 @@ public class StationBuilderClient implements ClientModInitializer {
 			}
 			if (successCount > 0) {
 				if (minRadius < 1e9) {
-					extras += Text.translatable("message.stationbuilder.rail_builder.min_radius", String.format("%.2f", minRadius)).getString();
+					extras += Text.translatable("message.stationbuilder.rail_builder.min_radius", String.format("%.2f", minRadius), String.format("%.2f", minLength)).getString();
 				} else {
 					extras += Text.translatable("message.stationbuilder.rail_builder.straight_line").getString();
 				}
