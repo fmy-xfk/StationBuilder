@@ -2,6 +2,10 @@
 
 > Create decorated railways and stations with few clicks!
 
++ Curseforge: https://www.curseforge.com/minecraft/mc-mods/station-builder
++ Modrinth: https://modrinth.com/mod/station-builder
++ mcmod.cn (Chinese): https://www.mcmod.cn/class/24815.html
+
 Station Builder provides 2 tools for convenient construction of continuous rails and train stations.
 
 + Station Builder: A block to create train station with multiple platforms and tracks. Pillars, canopys, saftey lines/doors, and ballasts are created automatically in one click. **NOTE:** Saftey lines/doors needs [Minecraft Transit Railway](https://modrinth.com/mod/minecraft-transit-railway) to work.
@@ -32,7 +36,7 @@ This mod is developed using Fabric, and in its very early preview. Bugs are like
 ![rail_builder_gui](imgs/rail_builder_gui.png)
 
 ## Development Plan
-As most function of this mod requires Minecraft Transit Railway (MTR), the mod currently will not support higher version than MTR does. This mod currently only supports 1.20.4 for Fabric, but work will be done in recent future in the following sequence:
+As most function of this mod requires Minecraft Transit Railway (MTR), the mod currently will not support higher version than MTR does. This mod currently only supports 1.20.4 and 1.20.1 for Fabric (version 1.20 may use the jar of 1.20.1, but bugs may exist), but work will be done in recent future in the following sequence:
 
 1. Allow the Rail Builder to work without MTR.
 
