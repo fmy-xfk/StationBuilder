@@ -102,7 +102,10 @@ public class RailGenerator {
 
         // Build rails
         TickScheduler.schedule(1, () -> {
-            MTRIntegration.buildRails(startPositions, endPositions, player.getUuid(), world, config);
+            var failToPlaceCatenaryNode = MTRIntegration.buildRails(startPositions, endPositions, player.getUuid(), world, config);
+            if (failToPlaceCatenaryNode) {
+                player.sendMessage(Text.translatable("message.stationbuilder.rail_builder.catenary_node_failed"), true);
+            }
         });
 
         if(anySuccess) {

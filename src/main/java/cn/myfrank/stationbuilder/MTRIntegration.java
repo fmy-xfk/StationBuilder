@@ -340,7 +340,7 @@ public class MTRIntegration {
 
     private static BlockPos addCatenaryNode(
             ServerWorld world, Vec3d center, Vec3d tangent, boolean isLeftest, boolean isRightest,
-            @Nullable BlockPos lastCatenaryNode, boolean top
+            @Nullable BlockPos lastCatenaryNode, Identifier block
     ) {
         Direction dir = horizontalDirectionFromVec(tangent);
         int blockY = (int) Math.floor(center.getY());
@@ -351,7 +351,9 @@ public class MTRIntegration {
             } else {
                 dir = dir.rotateYCounterclockwise();
             }
-            MSDIntegration.placeCatenaryNode(world, catenaryPos, dir, top);
+            if (!MSDIntegration.placeCatenaryNode(world, catenaryPos, dir, block)){
+                return null;
+            }
             if (lastCatenaryNode != null) {
                 MSDIntegration.connectCatenary(world, lastCatenaryNode, catenaryPos, CatenaryTypeMapping.MSDCatenary);
             }
@@ -517,7 +519,7 @@ public class MTRIntegration {
         return AB.x * AR.z - AB.z * AR.x;
     }
 
-    public static void buildRails(
+    public static boolean buildRails(
             ArrayList<BlockPos> startPositions, ArrayList<BlockPos> endPositions,
             UUID uuid, ServerWorld world, RailBuilderConfig config) {
         int count = startPositions.size();
@@ -534,7 +536,7 @@ public class MTRIntegration {
             }
         }
 
-        if (maxLength < 0) return; // No rail created.
+        if (maxLength < 0) return false; // No rail created.
         int segments = (int) Math.floor(maxLength / 0.5);
 
         // First round: building modes detection
@@ -625,6 +627,7 @@ public class MTRIntegration {
         }
 
         // Build catenary
+        boolean failToPlaceCatenaryNode = false;
         for(int i = 0; i < count; i++) {
             BlockPos lastCatenaryNode = null;
             var rail = rails[i];
@@ -636,10 +639,16 @@ public class MTRIntegration {
                 var center = tuple.get(0);
                 var tangent = tuple.get(1);
                 var thisUbm = BuildingMode.Up.fromValue(ubm[j]);
-                lastCatenaryNode = addCatenaryNode(world, center, tangent, isLeftest[i], isRightest[i],
-                        lastCatenaryNode, thisUbm == BuildingMode.Up.Tunnel);
+                if (isLeftest[i] || isRightest[i]) {
+                    lastCatenaryNode = addCatenaryNode(world, center, tangent, isLeftest[i], isRightest[i], lastCatenaryNode,
+                            thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar);
+                    if (lastCatenaryNode == null) {
+                        failToPlaceCatenaryNode = true;
+                    }
+                }
             }
         }
+        return failToPlaceCatenaryNode;
     }
 
     public static void calcBuildingMode(

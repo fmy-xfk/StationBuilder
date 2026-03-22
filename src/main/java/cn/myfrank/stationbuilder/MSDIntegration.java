@@ -5,6 +5,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.block.Block;
 
 import org.mtr.core.data.Position;
 import org.mtr.mapping.holder.BlockState;
@@ -33,16 +34,15 @@ public class MSDIntegration {
         }
     }
 
-    public static void placeCatenaryNode(ServerWorld world, BlockPos pos, Direction direction, boolean top) {
-        var state = (top ? Blocks.CATENARY_WITH_LONG_TOP : Blocks.CATENARY_WITH_LONG).get().getDefaultState();
-        state = state.with(new Property<>(DirectionHelper.FACING.data), direction);
-        world.setBlockState(pos, state.data, 3);
-    }
-
-    public static void placeCatenaryNode(ServerWorld world, BlockPos pos, Direction direction, Identifier block) {
+    public static boolean placeCatenaryNode(ServerWorld world, BlockPos pos, Direction direction, Identifier block) {
         var state = new org.mtr.mapping.holder.BlockState(Registries.BLOCK.get(block).getDefaultState());
-        state = state.with(new Property<>(DirectionHelper.FACING.data), direction);
+        try{
+            state = state.with(new Property<>(DirectionHelper.FACING.data), direction);
+        } catch(Exception e) {
+            return false;
+        }
         world.setBlockState(pos, state.data, 3);
+        return true;
     }
 
     private static boolean connectCatenary(ServerWorld world, BlockPos a, BlockPos b, CatenaryType c) {
@@ -78,7 +78,7 @@ public class MSDIntegration {
     }
 
     public static boolean connectCatenary(ServerWorld world, BlockPos a, BlockPos b, CatenaryTypeMapping type) {
-        if (type == CatenaryTypeMapping.MinecraftBlock) return false;
+        // if (type == CatenaryTypeMapping.MinecraftBlock) return false;
         var catenaryType = switch (type) {
             case MSDCatenary -> CatenaryType.CATENARY;
             case MSDElectric -> CatenaryType.ELECTRIC;

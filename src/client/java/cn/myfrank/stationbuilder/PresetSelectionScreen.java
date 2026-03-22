@@ -11,7 +11,6 @@ import java.util.List;
 
 public class PresetSelectionScreen extends Screen {
     private final StationEditorScreen parent;
-    private List<String> presets;
 
     public PresetSelectionScreen(StationEditorScreen parent) {
         super(Text.translatable("gui.stationbuilder.presets"));
@@ -21,7 +20,7 @@ public class PresetSelectionScreen extends Screen {
     @Override
     protected void init() {
         if (client == null) return;
-        presets = PresetManager.getPresetList();
+        List<String> presets = PresetManager.getPresetList();
         int centerX = width / 2;
 
         // 渲染预设列表按钮

@@ -1,7 +1,7 @@
 package cn.myfrank.stationbuilder;
 
 public enum CatenaryTypeMapping {
-   MinecraftBlock(0),
+   // MinecraftBlock(0),
    MSDCatenary(1),
    MSDElectric(2),
    MSDRigidCatenary(3),
@@ -13,20 +13,21 @@ public enum CatenaryTypeMapping {
       this.value = value;
    }
    public CatenaryTypeMapping fromValue(int value) {
-      switch(value) {
-         case 1: return MSDCatenary;
-         case 2: return MSDElectric;
-         case 3: return MSDRigidCatenary;
-         case 4: return MSDRigidSoftCatenary;
-         default: return MinecraftBlock;
-      }
+       return switch (value) {
+           case 1 -> MSDCatenary;
+           case 2 -> MSDElectric;
+           case 3 -> MSDRigidCatenary;
+           case 4 -> MSDRigidSoftCatenary;
+           //default -> MinecraftBlock;
+           default -> throw new IllegalStateException("Unexpected value: " + value);
+       };
    }
    public int getValue() {
       return value;
    }
    public String getName() {
       return switch(this) {
-         case MinecraftBlock -> "minecraft_block";
+         //case MinecraftBlock -> "minecraft_block";
          case MSDCatenary -> "msd_catenary";
          case MSDElectric -> "msd_electric";
          case MSDRigidCatenary -> "msd_rigid_catenary";

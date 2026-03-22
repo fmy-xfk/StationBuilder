@@ -115,5 +115,6 @@
   "tooltip.stationbuilder.rail_builder.line2": "Shift + 右键配置。",
   "tooltip.stationbuilder.rail_builder.line3": "按V停止建造(可修改)。",
   "tooltip.stationbuilder.start_pos": "起点：(%d, %d, %d)",
-  "tooltip.stationbuilder.station_builder": "右键方块以配置和建造。"
+  "tooltip.stationbuilder.station_builder": "右键方块以配置和建造。",
+  "message.stationbuilder.rail_builder.catenary_node_failed": "无效接触网节点方块。"
 }

@@ -81,7 +81,7 @@
   "gui.stationbuilder.ballast_bottom_width": "Bottom width",
   "gui.stationbuilder.bridge": "Bridge",
   "gui.stationbuilder.bridge_clear_span": "Clear span",
-  "gui.stationbuilder.bridge_guardrail_block": "Guard rail",
+  "gui.stationbuilder.bridge_guardrail_block": "Guardrail",
   "gui.stationbuilder.bridge_block": "Siding",
   "gui.stationbuilder.bridge_pillar_block": "Pillar",
   "gui.stationbuilder.bridge_width": "Width",
@@ -115,5 +115,6 @@
   "tooltip.stationbuilder.rail_builder.line2": "Shift + right click to configure.",
   "tooltip.stationbuilder.rail_builder.line3": "Press V to stop. (Modifiable)",
   "tooltip.stationbuilder.start_pos": "Start: (%d, %d, %d)",
-  "tooltip.stationbuilder.station_builder": "Right click on the block to configure and build.\n"
+  "tooltip.stationbuilder.station_builder": "Right click on the block to configure and build.",
+  "message.stationbuilder.rail_builder.catenary_node_failed": "Invalid catenary node block."
 }

@@ -71,11 +71,13 @@ public class RailMath {
             }
         }
         Collections.reverse(left);
-        int leftLastIndex = left.size() - 1;
-        if (Objects.equals(left.get(leftLastIndex), right.get(0))) {
-            left.remove(leftLastIndex);
+        if (!left.isEmpty() && !right.isEmpty()){
+            int leftLastIndex = left.size() - 1;
+            if(Objects.equals(left.get(leftLastIndex), right.get(0))) {
+                left.remove(leftLastIndex);
+            }
+            left.addAll(right);
         }
-        left.addAll(right);
         return left;
     }
 

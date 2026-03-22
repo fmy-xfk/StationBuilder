@@ -171,10 +171,25 @@ public class RailBuilderScreen extends GuiScreen {
     
     @Override
     protected void initControls() {
-        int w = (width - 15) / 4, h = 115, h2 = 75;
+        int w = (width - 15) / 4, h = 110;
         var topPanel = new GuiPanel(width - 15, h);
         topPanel.setGap(2);
         topPanel.setDirection(PanelDirection.HORIZONTAL);
+
+        var bottomPanel = new GuiPanel(width - 15, h);
+        bottomPanel.setGap(2);
+        bottomPanel.setDirection(PanelDirection.HORIZONTAL);
+
+        var railPanel = new GuiPanel(w, h);
+        railPanel
+                .addControl(new GuiLabel(getText("rail")))
+                .addControl(railCountInput)
+                .addControl(railSpacingInput)
+                .addControl(railTypeInput)
+                .setDirection(PanelDirection.VERTICAL);
+        railPanel.setCrossAlign(CrossAlignMode.START);
+        railPanel.setGap(2);
+
         var ballastPanel = new GuiPanel(w, h);
         ballastPanel.addControl(new GuiLabel(getText("ballast")))
             .addControl(ballastBlockInput)
@@ -184,7 +199,8 @@ public class RailBuilderScreen extends GuiScreen {
             .setDirection(PanelDirection.VERTICAL);
         ballastPanel.setCrossAlign(CrossAlignMode.START);
         ballastPanel.setGap(2);
-        var bridgePanel = new GuiPanel(w, h);
+
+        var bridgePanel = new GuiPanel(w + 5, h);
         bridgePanel
             .addControl(new GuiLabel(getText("bridge")))
             .addControl(bridgeClearSpanInput)
@@ -195,6 +211,7 @@ public class RailBuilderScreen extends GuiScreen {
             .setDirection(PanelDirection.VERTICAL);
         bridgePanel.setCrossAlign(CrossAlignMode.START);
         bridgePanel.setGap(2);
+
         var tunnelPanel = new GuiPanel(w, h);
         tunnelPanel
             .addControl(new GuiLabel(getText("tunnel")))
@@ -206,7 +223,8 @@ public class RailBuilderScreen extends GuiScreen {
             .setDirection(PanelDirection.VERTICAL);
         tunnelPanel.setCrossAlign(CrossAlignMode.START);
         tunnelPanel.setGap(2);
-        var catenaryPanel = new GuiPanel(w, h);
+
+        var catenaryPanel = new GuiPanel(w * 2, h);
         catenaryPanel
                 .addControl(new GuiLabel(getText("catenary")))
                 .addControl(catenaryEnableButton)
@@ -217,21 +235,7 @@ public class RailBuilderScreen extends GuiScreen {
                 .setDirection(PanelDirection.VERTICAL);
         catenaryPanel.setCrossAlign(CrossAlignMode.START);
         catenaryPanel.setGap(2);
-        topPanel.addControl(ballastPanel).addControl(bridgePanel).addControl(tunnelPanel).addControl(catenaryPanel);
-        addControl(topPanel);
-        
-        var bottomPanel = new GuiPanel(width - 15, height - h - 25);
-        bottomPanel.setGap(5);
-        bottomPanel.setDirection(PanelDirection.HORIZONTAL);
-        var railPanel = new GuiPanel(w, h2);
-        railPanel
-            .addControl(new GuiLabel(getText("rail")))
-            .addControl(railCountInput)
-            .addControl(railSpacingInput)
-            .addControl(railTypeInput)
-            .setDirection(PanelDirection.VERTICAL);
-        railPanel.setCrossAlign(CrossAlignMode.START);
-        railPanel.setGap(2);
+
         ghostInventory.addSlot(ballastBlockInput)
             .addSlot(railTypeInput)
             .addSlot(bridgeGuardRailBlockInput)
@@ -239,8 +243,14 @@ public class RailBuilderScreen extends GuiScreen {
             .addSlot(bridgePillarBlockInput)
             .addSlot(tunnelWallBlockInput)
             .addSlot(tunnelCeilingBlockInput)
-            .addSlot(tunnelFloorBlockInput);
-        bottomPanel.addControl(railPanel).addControl(ghostInventory);
+            .addSlot(tunnelFloorBlockInput)
+            .addSlot(catenaryBridgePillarInput)
+            .addSlot(catenaryTunnelPillarInput);
+
+        topPanel.addControl(railPanel).addControl(ballastPanel).addControl(catenaryPanel);
+        addControl(topPanel);
+
+        bottomPanel.addControl(bridgePanel).addControl(tunnelPanel).addControl(ghostInventory);
         addControl(bottomPanel);
     }
 

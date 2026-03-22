@@ -59,7 +59,6 @@ public class RailBuilderItem extends Item {
         if (!world.isClient) {
             BlockPos pos = context.getBlockPos();
             var serverWorld = ((ServerPlayerEntity) player).getServerWorld();
-
             if (!MTRIntegration.isRailNode(serverWorld, pos) && !world.getBlockState(pos).isReplaceable()) {
                 pos = pos.offset(context.getSide());
             }
@@ -100,7 +99,9 @@ public class RailBuilderItem extends Item {
             List<Text> tooltip,
             TooltipContext context
     ) {
-        tooltip.add(Text.translatable("tooltip.stationbuilder.rail_builder"));
+        tooltip.add(Text.translatable("tooltip.stationbuilder.rail_builder.line1"));
+        tooltip.add(Text.translatable("tooltip.stationbuilder.rail_builder.line2"));
+        tooltip.add(Text.translatable("tooltip.stationbuilder.rail_builder.line3"));
         var lastPair = RailBuilderState.getLastNodesAndAngle(stack);
         if (lastPair == null) return;
         var lastNodes = lastPair.left();
