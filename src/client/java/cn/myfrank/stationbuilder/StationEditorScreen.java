@@ -9,9 +9,13 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.nbt.NbtSizeTracker;
 import net.minecraft.network.PacketByteBuf;
+import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Properties;
+import net.minecraft.structure.StructureTemplate;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -20,9 +24,11 @@ import org.jetbrains.annotations.NotNull;
 
 import static cn.myfrank.stationbuilder.StationBuilder.SAVE_DATA_PACKET;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 public class StationEditorScreen extends GuiScreen {
     private static final int BTN_WIDTH_XL = 75;
@@ -172,6 +178,10 @@ public class StationEditorScreen extends GuiScreen {
     private final GuiLabelSlot pidBlockSlot = new GuiLabelSlot(getText("pids_block"), INPUT_WIDTH, INPUT_HEIGHT,
             new Identifier("mtr", "pids_1"), false);
 
+    public int getSelectedIndex() {
+        return canvas != null ? canvas.getSelectedIndex() : -1;
+    }
+
     public StationEditorScreen(BlockPos pos, Direction facing, NbtCompound nbt) {
         super(getText("station_builder"));
         this.pos = pos;
@@ -242,6 +252,8 @@ public class StationEditorScreen extends GuiScreen {
     }
     @Override
     protected void initControls() {
+        int savedIndex = this.canvas != null ? this.canvas.getSelectedIndex() : -1;
+
         rootPanel.setGap(2);
         int width = this.width - (
                 rootPanel.getMarginLeft() + rootPanel.getPaddingLeft() +
@@ -264,6 +276,9 @@ public class StationEditorScreen extends GuiScreen {
 
         this.canvas = new GuiRectCanvas(width, 34);
         SyncCanvasWithElements();
+        if (savedIndex >= 0) {
+            this.canvas.select(savedIndex);
+        }
         addControl(canvas);
 
         int elemOpPanelHeight = 24;
@@ -326,6 +341,8 @@ public class StationEditorScreen extends GuiScreen {
 
         bottomPanel.setMajorAlign(GuiPanel.MajorAlignMode.END);
         addControl(bottomPanel);
+
+        refreshPropertyArea();
     }
 
     private void initProperties(GuiPanel panel) {
@@ -341,6 +358,7 @@ public class StationEditorScreen extends GuiScreen {
         GuiPanel trackProperties = new GuiPanel(propertyPanelWidth, middlePanelHeight);
         initProperties(trackProperties);
 
+        trackBallastField.slotChanged.clear();
         trackBallastField.slotChanged.addHandler((sender, e) -> {
             int index = canvas.getSelectedIndex();
             if (index >= 0 && elements.get(index) instanceof TrackElement t) {
@@ -369,6 +387,7 @@ public class StationEditorScreen extends GuiScreen {
         GuiPanel p = new GuiScrollablePanel(w, h);
         initProperties(p);
 
+        psdEndSlot.slotChanged.clear();
         psdEndSlot.slotChanged.addHandler((sender, e) -> {
             int index = canvas.getSelectedIndex();
             if (index >= 0 && elements.get(index) instanceof PlatformElement pe) {
@@ -376,6 +395,7 @@ public class StationEditorScreen extends GuiScreen {
             }
         });
 
+        psdGlassSlot.slotChanged.clear();
         psdGlassSlot.slotChanged.addHandler((sender, e) -> {
             int index = canvas.getSelectedIndex();
             if (index >= 0 && elements.get(index) instanceof PlatformElement pe) {
@@ -383,10 +403,35 @@ public class StationEditorScreen extends GuiScreen {
             }
         });
 
+        psdDoorSlot.slotChanged.clear();
         psdDoorSlot.slotChanged.addHandler((sender, e) -> {
             int index = canvas.getSelectedIndex();
             if (index >= 0 && elements.get(index) instanceof PlatformElement pe) {
                 pe.psdDoorId = e.newId;
+            }
+        });
+
+        doorOffsetField.getTextField().textChanged.clear();
+        doorOffsetField.getTextField().textChanged.addHandler((sender, e) -> {
+            int index = canvas.getSelectedIndex();
+            if (index >= 0 && elements.get(index) instanceof PlatformElement pe) {
+                try { pe.doorStartOffset = Integer.parseInt(e.newText); } catch (Exception ignored) {}
+            }
+        });
+
+        doorSpacingField.getTextField().textChanged.clear();
+        doorSpacingField.getTextField().textChanged.addHandler((sender, e) -> {
+            int index = canvas.getSelectedIndex();
+            if (index >= 0 && elements.get(index) instanceof PlatformElement pe) {
+                try { pe.doorSpacing = Integer.parseInt(e.newText); } catch (Exception ignored) {}
+            }
+        });
+
+        pidBlockSlot.slotChanged.clear();
+        pidBlockSlot.slotChanged.addHandler((sender, e) -> {
+            int index = canvas.getSelectedIndex();
+            if (index >= 0 && elements.get(index) instanceof PlatformElement pe) {
+                pe.pidBlockId = e.newId;
             }
         });
 
@@ -401,17 +446,21 @@ public class StationEditorScreen extends GuiScreen {
         GuiPanel base = new GuiScrollablePanel(propertyPanelWidth, middlePanelHeight);
         initProperties(base);
         var topPanel = new GuiPanel(propertyPanelWidth, INPUT_HEIGHT);
+
+        platformLengthField.getTextField().textChanged.clear();
         platformLengthField.getTextField().textChanged.addHandler((sender, e) -> {
             int index = canvas.getSelectedIndex();
             if (index >= 0 && elements.get(index) instanceof PlatformElement p)
                 try { p.width = Integer.parseInt(e.newText); } catch (Exception ex) {}
         });
+
+        platformSafetyField.slotChanged.clear();
         platformSafetyField.slotChanged.addHandler((sender, e) -> {
             int index = canvas.getSelectedIndex();
             if (index >= 0 && elements.get(index) instanceof PlatformElement p) {
                 p.safetyBlock = e.newId;
                 autoRotate.setVisible(net.minecraft.registry.Registries.BLOCK.get(p.safetyBlock).
-                        getDefaultState().contains(Properties.HORIZONTAL_FACING));
+                        getDefaultState().contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING));
             }
         });
 
@@ -421,9 +470,9 @@ public class StationEditorScreen extends GuiScreen {
         for (int i = 0; i < 5; i++) {
             final int fieldIndex = i;
             weightFields[i] = new GuiLabelSlotInput(
-                    Text.translatable("gui.stationbuilder.platform_blocks", i + 1),
+                    net.minecraft.text.Text.translatable("gui.stationbuilder.platform_blocks", i + 1),
                     INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("minecraft", "stone"),
-                    false, Text.empty()
+                    false, net.minecraft.text.Text.empty()
             );
             weightFields[i].getTextField().textChanged.addHandler((sender, e) -> {
                 int selectedCanvasIndex = canvas.getSelectedIndex();
@@ -432,8 +481,7 @@ public class StationEditorScreen extends GuiScreen {
                         if (fieldIndex < p.mixSlots.length) {
                             p.mixSlots[fieldIndex].weight = Double.parseDouble(e.newText);
                         }
-                    } catch (Exception ignored) {
-                    }
+                    } catch (Exception ignored) {}
                 }
             });
             base.addControl(weightFields[i]);
@@ -445,6 +493,7 @@ public class StationEditorScreen extends GuiScreen {
         GuiPanel p = new GuiScrollablePanel(w0, h0);
         initProperties(p);
 
+        pillarBlockSlot.slotChanged.clear();
         pillarBlockSlot.slotChanged.addHandler((sender, e) -> {
             int index = canvas.getSelectedIndex();
             if (index >= 0 && elements.get(index) instanceof PlatformElement pe) {
@@ -452,6 +501,7 @@ public class StationEditorScreen extends GuiScreen {
             }
         });
 
+        pillarSpacingField.getTextField().textChanged.clear();
         pillarSpacingField.getTextField().textChanged.addHandler((sender, e) -> {
             int index = canvas.getSelectedIndex();
             if (index >= 0 && elements.get(index) instanceof PlatformElement pe) {
@@ -459,6 +509,7 @@ public class StationEditorScreen extends GuiScreen {
             }
         });
 
+        pillarOffsetField.getTextField().textChanged.clear();
         pillarOffsetField.getTextField().textChanged.addHandler((sender, e) -> {
             int index = canvas.getSelectedIndex();
             if (index >= 0 && elements.get(index) instanceof PlatformElement pe) {
@@ -466,6 +517,7 @@ public class StationEditorScreen extends GuiScreen {
             }
         });
 
+        lightBlockSlot.slotChanged.clear();
         lightBlockSlot.slotChanged.addHandler((sender, e) -> {
             int index = canvas.getSelectedIndex();
             if (index >= 0 && elements.get(index) instanceof PlatformElement pe) {
@@ -486,6 +538,7 @@ public class StationEditorScreen extends GuiScreen {
         GuiPanel p = new GuiScrollablePanel(w0, h0);
         initProperties(p);
 
+        canopyHeightField.getTextField().textChanged.clear();
         canopyHeightField.getTextField().textChanged.addHandler((sender, e) -> {
             int index = canvas.getSelectedIndex();
             if (index >= 0 && elements.get(index) instanceof PlatformElement pe) {
@@ -493,6 +546,7 @@ public class StationEditorScreen extends GuiScreen {
             }
         });
 
+        canopySlabSlot.slotChanged.clear();
         canopySlabSlot.slotChanged.addHandler((sender, e) -> {
             int index = canvas.getSelectedIndex();
             if (index >= 0 && elements.get(index) instanceof PlatformElement pe) {
@@ -511,14 +565,109 @@ public class StationEditorScreen extends GuiScreen {
     private @NotNull GuiPanel getBuildingProperties(int propertyPanelWidth, int middlePanelHeight) {
         GuiPanel buildingProperties = new GuiPanel(propertyPanelWidth, middlePanelHeight);
         initProperties(buildingProperties);
-        buildingPresetField.setText("matchbox");
+
+        buildingPresetField.getTextField().textChanged.clear();
         buildingPresetField.getTextField().textChanged.addHandler((sender, e) -> {
             int index = canvas.getSelectedIndex();
             if (index >= 0 && elements.get(index) instanceof BuildingElement b)
                 b.presetName = e.newText;
         });
+
+        // ---- 添加“浏览”按钮（打开列表屏幕） ----
+        GuiButton browseButton = new GuiButton(
+                net.minecraft.text.Text.translatable("gui.stationbuilder.browse"),
+                b -> {
+                    if (client != null) {
+                        client.setScreen(new BuildingSelectionScreen(this, buildingPresetField.getTextField()));
+                    }
+                },
+                60, INPUT_HEIGHT
+        );
+        // ---- 添加“导入文件”按钮 ----
+        GuiButton importButton = new GuiButton(
+                net.minecraft.text.Text.translatable("gui.stationbuilder.import_file"),
+                b -> openFileChooser(),
+                60, INPUT_HEIGHT
+        );
         buildingProperties.addControl(buildingPresetField);
+        buildingProperties.addControl(browseButton);
+        buildingProperties.addControl(importButton);
         return buildingProperties;
+    }
+
+    public void openFileChooser() {
+        String path;
+
+        // 使用 LWJGL 的 MemoryStack 分配内存，避免内存泄漏
+        try (org.lwjgl.system.MemoryStack stack = org.lwjgl.system.MemoryStack.stackPush()) {
+            // 分配指针缓冲区来存放过滤规则
+            org.lwjgl.PointerBuffer filters = stack.mallocPointer(4);
+            filters.put(stack.UTF8("*.nbt"));
+            filters.put(stack.UTF8("*.schem"));
+            filters.put(stack.UTF8("*.schematic"));
+            filters.put(stack.UTF8("*.litematic"));
+            filters.flip();
+
+            // 调用 TinyFileDialogs 打开原生文件选择器 (注意: 会阻塞当前线程直到对话框关闭)
+            path = org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_openFileDialog(
+                    "Select Structure File", // 对话框标题
+                    null,                    // 默认路径
+                    filters,                 // 过滤器
+                    "Structure files (*.nbt, *.schem, *.schematic, *.litematic)", // 过滤器描述
+                    false                    // 是否允许多选
+            );
+        }
+
+        if (path != null) {
+            java.io.File file = new java.io.File(path);
+
+            // 使用异步去加载结构文件，防止卡死主线程太久
+            java.util.concurrent.CompletableFuture.supplyAsync(() -> loadStructureFromFile(file))
+                    .thenAcceptAsync(template -> {
+                        if (template != null) {
+                            String name = file.getName().replaceFirst("\\.[^.]+$", "");
+                            BuildingTemplateManager.addTemplate(name, template);
+
+                            // 更新文本框
+                            buildingPresetField.setText(name);
+                            // 更新当前选中的建筑元素
+                            int index = canvas.getSelectedIndex();
+                            if (index >= 0 && elements.get(index) instanceof BuildingElement b) {
+                                b.presetName = name;
+                                SyncCanvasWithElements();
+                            }
+                            if (client != null && client.player != null) {
+                                client.player.sendMessage(net.minecraft.text.Text.translatable("gui.stationbuilder.import_success", name), false);
+                            }
+                        } else {
+                            if (client != null && client.player != null) {
+                                client.player.sendMessage(net.minecraft.text.Text.translatable("gui.stationbuilder.import_fail"), true);
+                            }
+                        }
+                    }, client::execute);
+        }
+    }
+
+    private StructureTemplate loadStructureFromFile(File file) {
+        String name = file.getName().toLowerCase();
+        try {
+            if (name.endsWith(".nbt")) {
+                NbtCompound nbt = NbtIo.readCompressed(file.toPath(), NbtSizeTracker.ofUnlimitedBytes());
+                StructureTemplate template = new StructureTemplate();
+                template.readNbt(Registries.BLOCK.getReadOnlyWrapper(), nbt);
+                return template;
+            } else if (name.endsWith(".schem") || name.endsWith(".schematic")) {
+                return SchematicLoaderUtil.loadSchematic(file.toPath());
+            } else if (name.endsWith(".litematic")) {
+                // Litematic 也可用 schematic4j 读取（SchematicReader 自动识别）
+                return SchematicLoaderUtil.loadSchematic(file.toPath());
+            } else {
+                return null;
+            }
+        } catch (Exception e) {
+            StationBuilder.LOGGER.error("Failed to load structure file: {}", file, e);
+            return null;
+        }
     }
 
     private @NotNull GuiPanel getEmptyProperties(int propertyPanelWidth, int middlePanelHeight) {
@@ -531,6 +680,7 @@ public class StationEditorScreen extends GuiScreen {
     }
 
     private void SyncCanvasWithElements() {
+        int oldIndex = this.canvas.getSelectedIndex();
         canvas.clear();
         for (var element : elements) {
             if (element instanceof PlatformElement p) {
@@ -540,6 +690,9 @@ public class StationEditorScreen extends GuiScreen {
             } else if (element instanceof TrackElement t) {
                 canvas.addRect(t.getWidth() * 3, "T");
             }
+        }
+        if (oldIndex >= 0) {
+            canvas.select(oldIndex);
         }
     }
 

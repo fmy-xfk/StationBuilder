@@ -58,6 +58,7 @@ public class StationBuilder implements ModInitializer {
 	public void onInitialize() {
 		ModBlocks.register();
 		ModItems.register();
+		BuildingTemplateManager.loadTemplates();
 		TickScheduler.init();
 		
 		ServerPlayNetworking.registerGlobalReceiver(SAVE_DATA_PACKET, (server, player, handler, buf, responseSender) -> {

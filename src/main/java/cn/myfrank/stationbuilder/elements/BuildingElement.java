@@ -1,5 +1,6 @@
 package cn.myfrank.stationbuilder.elements;
 
+import cn.myfrank.stationbuilder.BuildingTemplateManager;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.PacketByteBuf;
 
@@ -17,7 +18,11 @@ public class BuildingElement extends StationElement {
     }
 
     @Override public Type getType() { return Type.BUILDING; }
-    @Override public int getWidth() { return 8; } // 简易站房设为8宽
+    @Override public int getWidth() {
+        return BuildingTemplateManager.getTemplate(presetName)
+                .map(t -> t.getSize().getX())
+                .orElse(8); // 如果没找到模板，默认8宽
+    }
     @Override public void write(PacketByteBuf buf) {
         buf.writeEnumConstant(getType());
         buf.writeString(presetName);

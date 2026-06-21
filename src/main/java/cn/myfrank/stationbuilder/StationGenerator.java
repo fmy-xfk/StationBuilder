@@ -93,37 +93,93 @@ public class StationGenerator {
 
     // --- 站房生成逻辑 ---
     private static void generateBuilding(ServerWorld world, BlockPos pos, Direction facing, BuildingElement element, int length) {
-        StructureTemplateManager manager = world.getStructureTemplateManager();
-        Optional<StructureTemplate> template = manager.getTemplate(new Identifier("stationbuilder", element.presetName));
+        Optional<StructureTemplate> custom = BuildingTemplateManager.getTemplate(element.presetName);
+        StructureTemplate template = null;
 
-        // 定义“右侧”方向，用于横向构件
+        if (custom.isPresent()) {
+            template = custom.get();
+        } else {
+            StructureTemplateManager manager = world.getStructureTemplateManager();
+            Identifier templateId;
+            if (element.presetName.contains(":")) {
+                templateId = new Identifier(element.presetName);
+            } else {
+                templateId = new Identifier("stationbuilder", element.presetName);
+            }
+            template = manager.getTemplate(templateId).orElse(null);
+        }
+
         Direction right = facing.rotateYClockwise();
 
-        if (template.isPresent()) {
+        if (template != null) {
+            BlockRotation rot = getRotationFromDirection(facing);
             StructurePlacementData data = new StructurePlacementData()
-                    .setRotation(getRotationFromDirection(facing))
-                    .setMirror(BlockMirror.NONE);
+                    .setRotation(rot)
+                    .setMirror(net.minecraft.util.BlockMirror.NONE);
 
-            // 计算居中偏移 (沿 Facing 方向)
-            int offset = (length - template.get().getSize().getZ()) / 2;
-            BlockPos centeredPos = pos.offset(facing, offset);
+            net.minecraft.util.math.Vec3i size = template.getSize();
+            int sx = size.getX();
+            int sz = size.getZ();
 
-            template.get().place(world, centeredPos, centeredPos, data, world.random, 2);
+            // 1. 模拟旋转，计算结构旋转后的四个角落 (在局部坐标系下)
+            int[][] corners = {
+                    {0, 0},
+                    {sx, 0},
+                    {0, sz},
+                    {sx, sz}
+            };
+
+            int minX = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+            int maxX = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+
+            for (int[] corner : corners) {
+                int cx = corner[0];
+                int cz = corner[1];
+                int rx = cx, rz = cz;
+                // 原版 StructureTemplate.transform 的旋转矩阵规律
+                switch(rot) {
+                    case CLOCKWISE_90:  rx = -cz; rz = cx;  break;
+                    case CLOCKWISE_180: rx = -cx; rz = -cz; break;
+                    case COUNTERCLOCKWISE_90: rx = cz; rz = -cx; break;
+                    case NONE:
+                    default: break;
+                }
+                if (rx < minX) minX = rx;
+                if (rx > maxX) maxX = rx;
+                if (rz < minZ) minZ = rz;
+                if (rz > maxZ) maxZ = rz;
+            }
+
+            // 2. 找到分配给该建筑的真实目标中心点 (World Coordinate)
+            // 修正：(W - 1) / 2.0 是准确获取分配空间正中心点的公式
+            double targetX = pos.getX() + 0.5 + right.getOffsetX() * (element.getWidth() - 1) / 2.0 + facing.getOffsetX() * (length - 1) / 2.0;
+            double targetZ = pos.getZ() + 0.5 + right.getOffsetZ() * (element.getWidth() - 1) / 2.0 + facing.getOffsetZ() * (length - 1) / 2.0;
+
+            // 3. 反推起始放置点：目标中心 减去 旋转后结构的内部中心
+            double placeX = targetX - (minX + maxX) / 2.0;
+            double placeZ = targetZ - (minZ + maxZ) / 2.0;
+
+            BlockPos placePos = BlockPos.ofFloored(placeX, pos.getY(), placeZ);
+
+            // 4. 放置结构：传入 BlockPos.ORIGIN 作为 pivot，让游戏底层乖乖绕 (0,0,0) 旋转，我们外部在坐标上完全补偿它
+            template.place(world, placePos, BlockPos.ORIGIN, data, world.random, 2);
         } else {
-            // --- 回退逻辑：生成相对坐标的火柴盒 (8x6x4) ---
+            // == 找不到模板时的回退火柴盒 ==
+            world.getPlayers().forEach(p -> p.sendMessage(net.minecraft.text.Text.literal("Template not found: " + element.presetName + ", building matchbox.").formatted(net.minecraft.util.Formatting.RED), false));
+
             int buildingWidth = 8; // 沿 right 方向
             int buildingDepth = 12; // 沿 facing 方向
             int buildingHeight = 6;
 
-            // 计算居中偏移 (沿 facing 方向)
             int depthOffset = (length - buildingDepth) / 2;
-            BlockPos centeredPos = pos.offset(facing, depthOffset);
+            int widthOffset = (element.getWidth() - buildingWidth) / 2;
 
-            for (int w = 0; w < buildingWidth; w++) { // 宽度偏移
-                for (int d = 0; d < buildingDepth; d++) { // 深度偏移
-                    for (int y = 0; y < buildingHeight; y++) { // 高度偏移
+            // 将手工生成的火柴盒也进行居中（加上了之前遗漏的 widthOffset）
+            BlockPos centeredPos = pos.offset(facing, depthOffset).offset(right, widthOffset);
 
-                        // 关键修复：使用相对偏移计算世界坐标
+            for (int w = 0; w < buildingWidth; w++) {
+                for (int d = 0; d < buildingDepth; d++) {
+                    for (int y = 0; y < buildingHeight; y++) {
                         BlockPos p = centeredPos.offset(right, w).offset(facing, d).up(y);
 
                         if (y == 0) {
@@ -131,12 +187,9 @@ public class StationGenerator {
                         } else if (y == buildingHeight - 1) {
                             world.setBlockState(p, Blocks.OAK_PLANKS.getDefaultState());
                         } else {
-                            // 墙体判定：w 是左右侧墙，d 是前后墙
                             boolean isWall = (w == 0 || w == buildingWidth - 1 || d == 0 || d == buildingDepth - 1);
                             if (isWall) {
                                 boolean isWindowPos = (d == 0 || d == buildingDepth - 1) && (w >= 2 && w <= buildingWidth - 3);
-                                // 前后墙 (d=0, d=5) 的窗户
-                                // 左右侧墙 (w=0, w=7) 的窗户
                                 if ((w == 0 || w == buildingWidth - 1) && (d >= 2 && d <= buildingDepth - 3)) isWindowPos = true;
 
                                 if (isWindowPos) {
@@ -151,8 +204,6 @@ public class StationGenerator {
                     }
                 }
             }
-
-            // 在内部放一个灯笼防止刷怪
             BlockPos lightPos = centeredPos.offset(right, buildingWidth / 2).offset(facing, buildingDepth / 2).up( buildingHeight - 2);
             world.setBlockState(lightPos, Blocks.LANTERN.getDefaultState());
         }
