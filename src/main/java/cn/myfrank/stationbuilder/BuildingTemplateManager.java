@@ -3,7 +3,6 @@ package cn.myfrank.stationbuilder;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtSizeTracker;
 import net.minecraft.registry.Registries;
 import net.minecraft.structure.StructureTemplate;
 import org.slf4j.Logger;
@@ -38,10 +37,7 @@ public class BuildingTemplateManager {
                         try {
                             String name = p.getFileName().toString().replaceFirst("\\.nbt$", "");
                             StructureTemplate template = new StructureTemplate();
-                            template.readNbt(
-                                    Registries.BLOCK.getReadOnlyWrapper(),
-                                    NbtIo.readCompressed(p, NbtSizeTracker.ofUnlimitedBytes())
-                            );
+                            template.readNbt(Registries.BLOCK.getReadOnlyWrapper(), NbtIo.readCompressed(p.toFile()));
                             TEMPLATES.put(name, template);
                             LOGGER.info("Loaded building template: {}", name);
                         } catch (IOException e) {
@@ -68,7 +64,7 @@ public class BuildingTemplateManager {
         Path file = BUILDINGS_PATH.resolve(name + ".nbt");
         try {
             NbtCompound nbt = template.writeNbt(new NbtCompound());
-            NbtIo.writeCompressed(nbt, file);
+            NbtIo.writeCompressed(nbt, file.toFile());
         } catch (IOException e) {
             LOGGER.error("Failed to save template: {}", file, e);
         }

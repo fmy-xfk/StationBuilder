@@ -66,9 +66,9 @@ public class GuiScrollablePanel extends GuiPanel {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
         if (isMouseOver(mouseX, mouseY)) {
-            scrollOffset -= (int) (verticalAmount * 15);
+            scrollOffset -= (int) (amount * 15);
             return true;
         }
         return false;

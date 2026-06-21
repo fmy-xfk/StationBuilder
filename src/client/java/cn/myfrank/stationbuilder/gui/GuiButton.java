@@ -75,11 +75,6 @@ public class GuiButton extends GuiControl {
                 textColor,
                 false
         );
-
-        // 渲染 tooltip
-        if (hovered && tooltip != null) {
-            tooltip.render(hovered, focused, getNavigationFocus());
-        }
     }
 
     @Override
