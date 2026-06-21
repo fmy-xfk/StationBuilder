@@ -1,0 +1,140 @@
+package cn.myfrank.stationbuilder.schematic4j;
+
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import cn.myfrank.stationbuilder.schematic4j.exception.ParsingException;
+import cn.myfrank.stationbuilder.schematic4j.nbt.io.NBTUtil;
+import cn.myfrank.stationbuilder.schematic4j.nbt.io.NamedTag;
+import cn.myfrank.stationbuilder.schematic4j.nbt.tag.CompoundTag;
+import cn.myfrank.stationbuilder.schematic4j.parser.Parser;
+import cn.myfrank.stationbuilder.schematic4j.schematic.Schematic;
+
+/**
+ * A collection of utility methods to load and parse schematics.
+ */
+public class SchematicLoader {
+
+	private static final Logger log = LoggerFactory.getLogger(SchematicLoader.class);
+
+	private SchematicLoader() {}
+
+	/**
+	 * Load a schematic from an input stream.
+	 *
+	 * @param is The input stream to load the schematic from.
+	 * @return The loaded and parsed schematic
+	 * @throws ParsingException in case no supported parses was found or there was a parsing error
+	 * @throws IOException in case of I/O error
+	 * @see SchematicLoader#load(Path)
+	 * @see SchematicLoader#load(File)
+	 * @see SchematicLoader#load(String)
+	 */
+	public static @NotNull Schematic load(@NotNull InputStream is) throws ParsingException, IOException {
+		final NamedTag rootTag = NBTUtil.Reader.read().from(is);
+		return parse(rootTag);
+	}
+
+	/**
+	 * Load a schematic from a file.
+	 *
+	 * @param path The file to load the schematic from.
+	 * @return The loaded and parsed schematic
+	 * @throws ParsingException in case no supported parses was found or there was a parsing error
+	 * @throws IOException in case of I/O error
+	 * @see SchematicLoader#load(InputStream)
+	 * @see SchematicLoader#load(File)
+	 * @see SchematicLoader#load(String)
+	 */
+	public static @NotNull Schematic load(@NotNull Path path) throws ParsingException, IOException {
+		try (InputStream is = new BufferedInputStream(Files.newInputStream(path))) {
+			return load(is);
+		}
+	}
+
+	/**
+	 * Load a schematic from a file.
+	 *
+	 * @param file The file to load the schematic from.
+	 * @return The loaded and parsed schematic
+	 * @throws ParsingException in case no supported parses was found or there was a parsing error
+	 * @throws IOException in case of I/O error
+	 * @see SchematicLoader#load(InputStream)
+	 * @see SchematicLoader#load(Path)
+	 * @see SchematicLoader#load(String)
+	 */
+	public static @NotNull Schematic load(@NotNull File file) throws ParsingException, IOException {
+		return load(file.toPath());
+	}
+
+	/**
+	 * Load a schematic from a file.
+	 *
+	 * @param filePath The file path to load the schematic from.
+	 * @return The loaded and parsed schematic
+	 * @throws ParsingException in case no supported parses was found or there was a parsing error
+	 * @throws IOException in case of I/O error
+	 * @see SchematicLoader#load(InputStream)
+	 * @see SchematicLoader#load(Path)
+	 * @see SchematicLoader#load(File)
+	 */
+	public static @NotNull Schematic load(@NotNull String filePath) throws ParsingException, IOException {
+		return load(Paths.get(filePath));
+	}
+
+	/**
+	 * Attempts to guess the schematic format and parse the input.
+	 * <br>
+	 * If you already know the format, consider parsing the NBT tag directly - i.e. {@code SchematicFormat.SPONGE_V2.createParser().parse(nbt)}.
+	 *
+	 * @param nbt The NBT root tag to parse.
+	 * @return The parsed schematic
+	 * @throws ParsingException in case no supported parses was found or there was a parsing error
+	 */
+	public static @NotNull Schematic parse(@Nullable CompoundTag nbt) throws ParsingException {
+		SchematicFormat format = SchematicFormat.guessFormat(nbt);
+		log.info("Found format: {}", format);
+
+		Parser parser = format.createParser();
+		log.debug("Found parser: {}", parser);
+
+		return parser.parse(nbt);
+	}
+
+	/**
+	 * Attempts to guess the schematic format and parse the input.
+	 * <br>
+	 * If you already know the format, consider parsing the NBT tag directly - i.e. {@code SchematicFormat.SPONGE_V2.createParser().parse(nbt)}.
+	 *
+	 * @param input The NBT root tag to parse.
+	 * @return The parsed schematic
+	 * @throws ParsingException in case no supported parses was found or there was a parsing error
+	 */
+	public static @NotNull Schematic parse(@Nullable NamedTag input) throws ParsingException {
+		CompoundTag nbt = input != null && input.getTag() instanceof CompoundTag ? (CompoundTag) input.getTag() : null;
+
+		// === 核心修复：解开 WorldEdit 生成的包裹层 ===
+		if (nbt != null) {
+			// 如果外层没有 Width 标签，但包含一个名为 Schematic 的子节点，说明被包裹了
+			if (!nbt.containsKey("Width") && !nbt.containsKey("Version") && nbt.containsKey("Schematic")) {
+				cn.myfrank.stationbuilder.schematic4j.nbt.tag.Tag<?> inner = nbt.get("Schematic");
+				if (inner instanceof CompoundTag) {
+					nbt = (CompoundTag) inner; // 提取出真正的数据层
+				}
+			}
+		}
+		// ===========================================
+
+		return parse(nbt);
+	}
+}

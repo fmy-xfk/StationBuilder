@@ -1,0 +1,12 @@
+/* Vendored version of Quertz NBT 6.1 - https://github.com/Querz/NBT */
+package cn.myfrank.stationbuilder.schematic4j.nbt;
+
+/**
+ * Exception indicating that the maximum (de-)serialization depth has been reached.
+ */
+public class MaxDepthReachedException extends RuntimeException {
+
+	public MaxDepthReachedException(String msg) {
+		super(msg);
+	}
+}
