@@ -111,6 +111,17 @@ public class StationBuilderClient implements ClientModInitializer {
 		} else {
 			var lastNodes = lastPair.left();
 			float lastAngle = lastPair.right();
+
+			if (lastNodes.size() != nodes.size()) {
+				// 清除本地状态（物品NBT）
+				RailBuilderState.clear(stack);
+				stack.getOrCreateNbt().remove("CustomModelData");
+				// 通知服务端清除状态
+				ClientPlayNetworking.send(StationBuilder.CLEAR_RAIL_PACKET, PacketByteBufs.create());
+				// 直接返回，不再绘制任何预览（避免越界）
+				return;
+			}
+
 			RailMath.adjustPointSequence(lastNodes, nodes);
 			float angle = player.getYaw();
 			Vec3d textPos = getPreviewCenterPos(lastNodes, targetPos);
