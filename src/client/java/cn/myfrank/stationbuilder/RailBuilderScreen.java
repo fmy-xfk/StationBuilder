@@ -17,6 +17,7 @@ public class RailBuilderScreen extends GuiScreen {
     private static final int INPUT_HEIGHT = 18;
     private boolean useCatenary = true;
 
+    private String initialRailCount;  // 新增
     private final GuiLabelTextField railCountInput = new GuiLabelTextField(getText("rail_count"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("2"));
     private final GuiLabelTextField railSpacingInput = new GuiLabelTextField(getText("rail_spacing"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("5.0"));
     private final GuiLabelSlot ballastBlockInput = new GuiLabelSlot(getText("ballast_block"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("minecraft", "andesite"), false);
@@ -140,6 +141,9 @@ public class RailBuilderScreen extends GuiScreen {
         if (nbt.contains("catenaryTunnelPillar", NbtElement.STRING_TYPE)) {
             this.catenaryTunnelPillarInput.setBlockId(new Identifier(nbt.getString("catenaryTunnelPillar")));
         }
+        this.initialRailCount = nbt.contains("railCount", NbtElement.INT_TYPE)
+                ? String.valueOf(nbt.getInt("railCount"))
+                : "2"; // 默认值应与 railCountInput 的默认文本一致
     }
 
     public NbtCompound getNbt() {
@@ -256,6 +260,11 @@ public class RailBuilderScreen extends GuiScreen {
 
     @Override
     public void close() {
+        String currentRailCount = railCountInput.getText();
+        // 如果 railCount 发生了变化，先清除状态
+        if (!currentRailCount.equals(initialRailCount)) {
+            ClientPlayNetworking.send(StationBuilder.CLEAR_RAIL_PACKET, PacketByteBufs.create());
+        }
         // 关闭时自动发送保存包
         sendSyncPacket(StationBuilder.SAVE_DATA_PACKET_RAIL);
         super.close();

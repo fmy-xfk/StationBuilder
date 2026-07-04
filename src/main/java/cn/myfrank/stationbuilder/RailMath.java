@@ -113,7 +113,9 @@ public class RailMath {
 
     public static boolean adjustPointSequence(ArrayList<BlockPos> fromNodes, ArrayList<BlockPos> toNodes) {
         int count = fromNodes.size();
-        assert count == toNodes.size();
+        if (fromNodes.size() != toNodes.size()) {
+            throw new IllegalArgumentException("Lists must have same size");
+        }
         if (count > 1) {
             if (RailMath.getSideRelation(
                     fromNodes.get(0), toNodes.get(0),
