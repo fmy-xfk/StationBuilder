@@ -28,7 +28,9 @@ public class RailBuilderConfig {
     public Identifier tunnelFloorBlock = new Identifier("minecraft", "andesite");
     public double tunnelWidth = 7.0;
 
-    public boolean useCatenary = StationBuilder.isMsdLoaded();
+    public boolean useCatenary = true;
+    public boolean isVanillaCatenary = !StationBuilder.isMsdLoaded();
+    public int catenaryModeIndex = 0;
     public int catenarySpacing = 50;
     public Identifier catenaryBlock = StationBuilder.isMsdLoaded() ?
             new Identifier("msd", "catenary_connector") :
@@ -77,6 +79,8 @@ public class RailBuilderConfig {
         nbt.putDouble("tunnelWidth", tunnelWidth);
 
         nbt.putBoolean("useCatenary", useCatenary);
+        nbt.putBoolean("isVanillaCatenary", isVanillaCatenary);
+        nbt.putInt("catenaryModeIndex", catenaryModeIndex);
         nbt.putInt("catenarySpacing", catenarySpacing);
         nbt.putString("catenaryBlock", catenaryBlock.toString());
         nbt.putString("catenaryBridgePillar", catenaryBridgePillar.toString());
@@ -137,7 +141,14 @@ public class RailBuilderConfig {
         if (nbt.contains("tunnelWidth", NbtElement.DOUBLE_TYPE))
             tunnelWidth = nbt.getDouble("tunnelWidth");
 
-        useCatenary = nbt.getBoolean("useCatenary");
+        if (nbt.contains("useCatenary"))
+            useCatenary = nbt.getBoolean("useCatenary");
+
+        if (nbt.contains("isVanillaCatenary"))
+            isVanillaCatenary = nbt.getBoolean("isVanillaCatenary");
+            
+        if (nbt.contains("catenaryModeIndex", NbtElement.INT_TYPE))
+            catenaryModeIndex = nbt.getInt("catenaryModeIndex");
 
         if (nbt.contains("catenarySpacing", NbtElement.INT_TYPE))
             catenarySpacing = nbt.getInt("catenarySpacing");

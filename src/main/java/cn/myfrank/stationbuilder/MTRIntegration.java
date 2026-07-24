@@ -340,7 +340,7 @@ public class MTRIntegration {
 
     private static BlockPos addCatenaryNode(
             ServerWorld world, Vec3d center, Vec3d tangent, boolean isLeftest, boolean isRightest,
-            @Nullable BlockPos lastCatenaryNode, Identifier block
+            @Nullable BlockPos lastCatenaryNode, Identifier block, int modeIndex
     ) {
         Direction dir = horizontalDirectionFromVec(tangent);
         int blockY = (int) Math.floor(center.getY());
@@ -355,13 +355,46 @@ public class MTRIntegration {
                 return null;
             }
             if (lastCatenaryNode != null) {
-                MSDIntegration.connectCatenary(world, lastCatenaryNode, catenaryPos, CatenaryTypeMapping.MSDCatenary);
+                CatenaryTypeMapping type = CatenaryTypeMapping.values()[modeIndex];
+                MSDIntegration.connectCatenary(world, lastCatenaryNode, catenaryPos, type);
             }
             return catenaryPos;
         }
         return null;
     }
+    private static BlockPos addVanillaCatenaryNode(
+            ServerWorld world, Vec3d center, Vec3d tangent, boolean isLeftest, boolean isRightest,
+            @Nullable BlockPos lastCatenaryNode, Identifier block, Identifier lineBlock
+    ) {
+        int blockY = (int) Math.floor(center.y);
+        var catenaryPos = new BlockPos((int) Math.floor(center.x), blockY + 5, (int) Math.floor(center.z));
+        if (isLeftest || isRightest) {
+            var state = Registries.BLOCK.get(block).getDefaultState();
+            world.setBlockState(catenaryPos, state, 3);
 
+             if (lastCatenaryNode != null) {
+                 drawLine(world, lastCatenaryNode, catenaryPos, lineBlock);
+             }
+             return catenaryPos;
+        }
+        return null;
+    }
+
+    private static void drawLine(ServerWorld world, BlockPos a, BlockPos b, Identifier lineBlock) {
+        var state = Registries.BLOCK.get(lineBlock).getDefaultState();
+        double dist = Math.sqrt(a.getSquaredDistance(b));
+        int steps = (int) Math.ceil(dist);
+        for (int i = 1; i < steps; i++) {
+            double t = (double) i / steps;
+            int x = (int) Math.round(a.getX() + t * (b.getX() - a.getX()));
+            int y = (int) Math.round(a.getY() + t * (b.getY() - a.getY()));
+            int z = (int) Math.round(a.getZ() + t * (b.getZ() - a.getZ()));
+            BlockPos pos = new BlockPos(x, y, z);
+            if (world.getBlockState(pos).isAir() || StationBuilder.isSoftTransparent(world.getBlockState(pos))) {
+                world.setBlockState(pos, state, 3);
+            }
+        }
+    }
     private static void clearHeights(Vec3d center, Vec3d normal, ServerWorld world, RailBuilderConfig config,
              boolean isLeftest, boolean isRightest, boolean clearCatenary) {
         double halfWidth = config.ballastTopWidth / 2.0 + EPS;
@@ -650,11 +683,20 @@ public class MTRIntegration {
                 var center = tuple.get(0);
                 var tangent = tuple.get(1);
                 var thisUbm = BuildingMode.Up.fromValue(ubm[j]);
-                if (isLeftest[i] || isRightest[i]) {
-                    lastCatenaryNode = addCatenaryNode(world, center, tangent, isLeftest[i], isRightest[i], lastCatenaryNode,
-                            thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar);
-                    if (lastCatenaryNode == null) {
-                        failToPlaceCatenaryNode = true;
+                if (config.useCatenary) {
+                    if (config.isVanillaCatenary) {
+                        if (isLeftest[i] || isRightest[i]) {
+                            lastCatenaryNode = addVanillaCatenaryNode(world, center, tangent, isLeftest[i], isRightest[i], lastCatenaryNode,
+                                    thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar, config.catenaryBlock);
+                        }
+                    } else {
+                        if (isLeftest[i] || isRightest[i]) {
+                            lastCatenaryNode = addCatenaryNode(world, center, tangent, isLeftest[i], isRightest[i], lastCatenaryNode,
+                                    thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar, config.catenaryModeIndex);
+                            if (lastCatenaryNode == null) {
+                                failToPlaceCatenaryNode = true;
+                            }
+                        }
                     }
                 }
             }
