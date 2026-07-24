@@ -57,16 +57,14 @@ public class RailMath {
         for (double s = 0; s <= leftWidth; s += step) {
             var xzL = new PairXZ((int)Math.floor(center.x - s * dx), (int)Math.floor(center.z - s * dz));
             int leftSize = left.size();
-            if (xzL.distTo(center) <= leftWidth &&
-                    (leftSize == 0 || !Objects.equals(left.get(leftSize - 1), xzL))) {
+            if (leftSize == 0 || !Objects.equals(left.get(leftSize - 1), xzL)) {
                 left.add(xzL);
             }
         }
         for (double s = 0; s <= rightWidth; s += step) {
             var xzR = new PairXZ((int)Math.floor(center.x + s * dx), (int)Math.floor(center.z + s * dz));
             int rightSize = right.size();
-            if (xzR.distTo(center) <= rightWidth &&
-                    (rightSize == 0 || !Objects.equals(right.get(rightSize - 1), xzR))) {
+            if (rightSize == 0 || !Objects.equals(right.get(rightSize - 1), xzR)) {
                 right.add(xzR);
             }
         }

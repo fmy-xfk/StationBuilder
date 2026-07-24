@@ -422,24 +422,21 @@ public class MTRIntegration {
         double halfBridgeWidth = config.bridgeWidth / 2.0 + EPS;
         double halfPillarWidth = 1.5;
         int blockY = (int) Math.floor(center.y);
-        var blockXZs = RailMath.getPositions(center, normal, Math.max(halfTunnelWidth, halfBridgeWidth));
         ArrayList<BlockPos> overpass_walls = new ArrayList<>();
-        int blockIndex = -1;
-        for (var block: blockXZs) {
-            blockIndex++;
-            int x = block.x(), z = block.z();
-            Vec3d p = new Vec3d(x + 0.5, blockY + 0.5, z + 0.5);
-            double dist = Math.abs((p.x - center.x) * normal.x + (p.z - center.z) * normal.z);
-            if (dbm == BuildingMode.Down.Bridge && dist <= halfBridgeWidth) {
+        if (dbm == BuildingMode.Down.Bridge) {
+            var bridgeXZs = RailMath.getPositions(center, normal, halfBridgeWidth);
+            for (int i = 0; i < bridgeXZs.size(); i++) {
+                var block = bridgeXZs.get(i);
+                int x = block.x(), z = block.z();
                 var bridgeBlockState = Registries.BLOCK.get(config.bridgeBlock).getDefaultState();
-                if ((isLeftest && blockIndex == 0) || (isRightest && blockIndex == blockXZs.size() - 1)) {
+                if ((isLeftest && i == 0) || (isRightest && i == bridgeXZs.size() - 1)) {
                     var pos = new BlockPos(x, blockY - 1, z);
                     if (!isRailNode(world, pos)) {
                         world.setBlockState(pos, bridgeBlockState, 3);
                     }
                     var posU = new BlockPos(x, blockY, z);
                     if (!isRailNode(world, posU)) {
-                        world.setBlockState(posU, Registries.BLOCK.get(config.bridgeGuardRailBlock).getDefaultState(), 0);
+                        world.setBlockState(posU, Registries.BLOCK.get(config.bridgeGuardRailBlock).getDefaultState(), 3);
                         overpass_walls.add(posU);
                     }
                 } else {
@@ -452,21 +449,31 @@ public class MTRIntegration {
                         clearBlock(world, posU, clearCatenary);
                     }
                 }
-                if (pillar && dist <= halfPillarWidth) {
-                    var pos = new BlockPos(x, blockY - 2, z);
-                    int solidCount = 0;
-                    while(solidCount < 3 && world.isInBuildLimit(pos)) {
-                        if (StationBuilder.isSoftTransparent(world.getBlockState(pos))) {
-                            world.setBlockState(pos, Registries.BLOCK.get(config.bridgePillarBlock).getDefaultState(), 3);
-                            solidCount = 0;
-                        } else {
-                            solidCount++;
+                if (pillar) {
+                    Vec3d p = new Vec3d(x + 0.5, blockY + 0.5, z + 0.5);
+                    double dist = Math.abs((p.x - center.x) * normal.x + (p.z - center.z) * normal.z);
+                    if (dist <= halfPillarWidth) {
+                        var pos = new BlockPos(x, blockY - 2, z);
+                        int solidCount = 0;
+                        while(solidCount < 3 && world.isInBuildLimit(pos)) {
+                            if (StationBuilder.isSoftTransparent(world.getBlockState(pos))) {
+                                world.setBlockState(pos, Registries.BLOCK.get(config.bridgePillarBlock).getDefaultState(), 3);
+                                solidCount = 0;
+                            } else {
+                                solidCount++;
+                            }
+                            pos = pos.offset(Direction.DOWN);
                         }
-                        pos = pos.offset(Direction.DOWN);
                     }
                 }
             }
-            if (ubm == BuildingMode.Up.Tunnel && dist <= halfTunnelWidth) {
+        }
+
+        if (ubm == BuildingMode.Up.Tunnel) {
+            var tunnelXZs = RailMath.getPositions(center, normal, halfTunnelWidth);
+            for (int i = 0; i < tunnelXZs.size(); i++) {
+                var block = tunnelXZs.get(i);
+                int x = block.x(), z = block.z();
                 var posTop = new BlockPos(x, blockY + config.tunnelHeight, z);
                 if (!isRailNode(world, posTop)) {
                     world.setBlockState(posTop, Registries.BLOCK.get(config.tunnelWallBlock).getDefaultState(), 3);
@@ -475,7 +482,7 @@ public class MTRIntegration {
                 if (!isRailNode(world, posBottom)) {
                     world.setBlockState(posBottom, Registries.BLOCK.get(config.ballastBlock).getDefaultState(), 3);
                 }
-                if ((isLeftest && blockIndex == 0) || (isRightest && blockIndex == blockXZs.size() - 1)) {
+                if ((isLeftest && i == 0) || (isRightest && i == tunnelXZs.size() - 1)) {
                     for(int y = 0; y < config.tunnelHeight; y++) {
                         world.setBlockState(new BlockPos(x, blockY + y, z),
                                 Registries.BLOCK.get(config.tunnelWallBlock).getDefaultState(), 3);
@@ -486,9 +493,13 @@ public class MTRIntegration {
                     }
                 }
             }
-            if (ubm != BuildingMode.Up.Tunnel && dbm == BuildingMode.Down.Ballast) {
+        }
+        if (ubm != BuildingMode.Up.Tunnel && dbm == BuildingMode.Down.Ballast) {
+            var ballastXZs = RailMath.getPositions(center, normal, halfBallastWidth);
+            for (var block : ballastXZs) {
+                int x = block.x(), z = block.z();
                 var pos = new BlockPos(x, blockY - 1, z);
-                if (dist <= halfBallastWidth && !isRailNode(world, pos)) {
+                if (!isRailNode(world, pos)) {
                     world.setBlockState(pos, Registries.BLOCK.get(config.ballastBlock).getDefaultState());
                 }
             }
