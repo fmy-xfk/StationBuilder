@@ -34,7 +34,7 @@ public class RailBuilderConfig {
     public int catenarySpacing = 50;
     public Identifier catenaryBlock = StationBuilder.isMsdLoaded() ?
             new Identifier("msd", "catenary_connector") :
-            new Identifier("minecraft", "iron_bars");
+            new Identifier("minecraft", "cobweb");
     public Identifier catenaryBridgePillar = StationBuilder.isMsdLoaded() ?
             new Identifier("msd", "catenary_with_long") :
             new Identifier("minecraft", "stone_brick_wall");

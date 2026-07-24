@@ -39,15 +39,15 @@ public class RailBuilderScreen extends GuiScreen {
         catenaryState = (catenaryState + 1) % (StationBuilder.isMsdLoaded() ? 3 : 2);
         syncCatenaryState();
     }, BUTTON_WIDTH, INPUT_HEIGHT);
-    private final GuiLabelSlot catenaryLineBlockInput = new GuiLabelSlot(getText("catenary_line_block"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("minecraft", "iron_bars"), false);
+    private final GuiLabelSlot catenaryLineBlockInput = new GuiLabelSlot(getText("catenary_line_block"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("minecraft", "cobweb"), false);
     private final GuiLabelTextField catenarySpacingInput = new GuiLabelTextField(getText("catenary_spacing"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("50"));
     private int catenaryModeIndex = 0;
     private final GuiButton catenaryModeButton = new GuiButton(getText("catenary"), (button) -> {
         catenaryModeIndex = (catenaryModeIndex + 1) % CatenaryTypeMapping.values().length;
         syncCatenaryMode(button);
     }, BUTTON_WIDTH, INPUT_HEIGHT);
-    private final GuiLabelSlot catenaryBridgePillarInput = new GuiLabelSlot(getText("catenary_bridge_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("msd", "catenary_with_long"), false);
-    private final GuiLabelSlot catenaryTunnelPillarInput = new GuiLabelSlot(getText("catenary_tunnel_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("msd", "catenary_with_long_top"), false);
+    private final GuiLabelSlot catenaryBridgePillarInput = new GuiLabelSlot(getText("catenary_bridge_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, StationBuilder.isMsdLoaded() ? new Identifier("msd", "catenary_with_long") : new Identifier("minecraft", "stone_brick_wall"), false);
+    private final GuiLabelSlot catenaryTunnelPillarInput = new GuiLabelSlot(getText("catenary_tunnel_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, StationBuilder.isMsdLoaded() ? new Identifier("msd", "catenary_with_long_top") : new Identifier("minecraft", "stone_brick_wall"), false);
     private final GhostInventory ghostInventory = new GhostInventory();
 
     private void syncCatenaryMode(GuiButton button) {

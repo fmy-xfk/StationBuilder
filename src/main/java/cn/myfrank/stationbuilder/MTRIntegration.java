@@ -362,39 +362,102 @@ public class MTRIntegration {
         }
         return null;
     }
-    private static BlockPos addVanillaCatenaryNode(
-            ServerWorld world, Vec3d center, Vec3d tangent, boolean isLeftest, boolean isRightest,
-            @Nullable BlockPos lastCatenaryNode, Identifier block, Identifier lineBlock
-    ) {
-        int blockY = (int) Math.floor(center.y);
-        var catenaryPos = new BlockPos((int) Math.floor(center.x), blockY + 5, (int) Math.floor(center.z));
-        if (isLeftest || isRightest) {
-            var state = Registries.BLOCK.get(block).getDefaultState();
-            world.setBlockState(catenaryPos, state, 3);
-
-             if (lastCatenaryNode != null) {
-                 drawLine(world, lastCatenaryNode, catenaryPos, lineBlock);
-             }
-             return catenaryPos;
-        }
-        return null;
-    }
 
     private static void drawLine(ServerWorld world, BlockPos a, BlockPos b, Identifier lineBlock) {
         var state = Registries.BLOCK.get(lineBlock).getDefaultState();
-        double dist = Math.sqrt(a.getSquaredDistance(b));
-        int steps = (int) Math.ceil(dist);
-        for (int i = 1; i < steps; i++) {
-            double t = (double) i / steps;
-            int x = (int) Math.round(a.getX() + t * (b.getX() - a.getX()));
-            int y = (int) Math.round(a.getY() + t * (b.getY() - a.getY()));
-            int z = (int) Math.round(a.getZ() + t * (b.getZ() - a.getZ()));
-            BlockPos pos = new BlockPos(x, y, z);
-            if (world.getBlockState(pos).isAir() || StationBuilder.isSoftTransparent(world.getBlockState(pos))) {
-                world.setBlockState(pos, state, 3);
+        int x1 = a.getX(), y1 = a.getY(), z1 = a.getZ();
+        int x2 = b.getX(), y2 = b.getY(), z2 = b.getZ();
+
+        int dx = Math.abs(x2 - x1);
+        int dy = Math.abs(y2 - y1);
+        int dz = Math.abs(z2 - z1);
+
+        int xs = x1 < x2 ? 1 : -1;
+        int ys = y1 < y2 ? 1 : -1;
+        int zs = z1 < z2 ? 1 : -1;
+
+        int x = x1;
+        int y = y1;
+        int z = z1;
+
+        setBlockIfEmpty(world, new BlockPos(x, y, z), state);
+
+        int max = Math.max(dx, Math.max(dy, dz));
+        if (max == 0) return;
+
+        for (int i = 1; i <= max; i++) {
+            int curX = x1 + Math.round((float)(i * (x2 - x1)) / max);
+            int curY = y1 + Math.round((float)(i * (y2 - y1)) / max);
+            int curZ = z1 + Math.round((float)(i * (z2 - z1)) / max);
+                        // 强制采取 6向（曼哈顿）步进移动，杜绝对角线产生不连接的孤立围栏
+            while(x != curX || y != curY || z != curZ) {
+                if (x != curX) x += xs;
+                else if (z != curZ) z += zs;
+                else if (y != curY) y += ys;
+                setBlockIfEmpty(world, new BlockPos(x, y, z), state);
             }
         }
     }
+    private static void buildPillarDown(ServerWorld world, BlockPos topPos, Identifier pillarBlock) {
+        var state = Registries.BLOCK.get(pillarBlock).getDefaultState();
+        BlockPos pos = topPos;
+        int solidCount = 0;
+        while(solidCount < 3 && world.isInBuildLimit(pos)) {
+            if (StationBuilder.isSoftTransparent(world.getBlockState(pos))) {
+                world.setBlockState(pos, state, 3);
+                solidCount = 0;
+            } else {
+                solidCount++;
+            }
+            pos = pos.offset(Direction.DOWN);
+        }
+    }
+
+    private static void setBlockIfEmpty(ServerWorld world, BlockPos pos, net.minecraft.block.BlockState state) {
+        if (world.getBlockState(pos).isAir() || StationBuilder.isSoftTransparent(world.getBlockState(pos))) {
+            world.setBlockState(pos, state, 3);
+        }
+    }
+
+    private static BlockPos addVanillaCatenaryNode(
+            ServerWorld world, Vec3d center, Vec3d tangent, int trackIndex, int trackCount, double railSpacing,
+            @Nullable BlockPos lastCatenaryNode, Identifier pillarBlock, Identifier lineBlock
+    ) {
+        int blockY = (int) Math.floor(center.y);
+        var catenaryPos = new BlockPos((int) Math.floor(center.x), blockY + 5, (int) Math.floor(center.z));
+
+        // 只在主导轨道 (trackIndex == 0) 进行完整的门架绘制
+        if (trackIndex == 0) {
+            var trussPos = catenaryPos.up();
+            Vec3d normal = new Vec3d(-tangent.z, 0, tangent.x).normalize();
+
+            if (trackCount == 1) {
+                // 单条轨道只在最右侧放置 L 型支架
+                BlockPos rightEnd = trussPos.add((int)Math.round(normal.x * 3.0), 0, (int)Math.round(normal.z * 3.0));
+                drawLine(world, trussPos, rightEnd, pillarBlock);
+                buildPillarDown(world, rightEnd, pillarBlock);
+            } else {
+                // 多条轨道时，跨越所有轨道总宽画一道拱门
+                double leftSpan = -((trackCount - 1) * railSpacing + 3.0);
+                double rightSpan = 3.0;
+
+                BlockPos rightEnd = trussPos.add((int)Math.round(normal.x * rightSpan), 0, (int)Math.round(normal.z * rightSpan));
+                BlockPos leftEnd = trussPos.add((int)Math.round(normal.x * leftSpan), 0, (int)Math.round(normal.z * leftSpan));
+
+                drawLine(world, rightEnd, leftEnd, pillarBlock);
+                buildPillarDown(world, rightEnd, pillarBlock);
+                buildPillarDown(world, leftEnd, pillarBlock);
+            }
+        }
+
+        // 每条轨道沿着轨道延伸接触线（蜘蛛网或铁栏杆）
+        if (lastCatenaryNode != null) {
+            drawLine(world, lastCatenaryNode, catenaryPos, lineBlock);
+        }
+
+        return catenaryPos;
+    }
+
     private static void clearHeights(Vec3d center, Vec3d normal, ServerWorld world, RailBuilderConfig config,
              boolean isLeftest, boolean isRightest, boolean clearCatenary) {
         double halfWidth = config.ballastTopWidth / 2.0 + EPS;
@@ -685,10 +748,10 @@ public class MTRIntegration {
                 var thisUbm = BuildingMode.Up.fromValue(ubm[j]);
                 if (config.useCatenary) {
                     if (config.isVanillaCatenary) {
-                        if (isLeftest[i] || isRightest[i]) {
-                            lastCatenaryNode = addVanillaCatenaryNode(world, center, tangent, isLeftest[i], isRightest[i], lastCatenaryNode,
-                                    thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar, config.catenaryBlock);
-                        }
+                        lastCatenaryNode = addVanillaCatenaryNode(world, center, tangent, i, count, config.railSpacing,
+                                lastCatenaryNode,
+                                thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar,
+                                config.catenaryBlock);
                     } else {
                         if (isLeftest[i] || isRightest[i]) {
                             lastCatenaryNode = addCatenaryNode(world, center, tangent, isLeftest[i], isRightest[i], lastCatenaryNode,
