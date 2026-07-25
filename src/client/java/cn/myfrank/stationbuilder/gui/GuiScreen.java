@@ -29,7 +29,7 @@ public abstract class GuiScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        this.renderBackground(context, mouseX, mouseY, delta);
+        this.renderBackground(context);
         rootPanel.render(context, mouseX, mouseY, delta);
     }
 
@@ -43,9 +43,9 @@ public abstract class GuiScreen extends Screen {
         if (rootPanel.mouseReleased(mouseX, mouseY, button)) return true;
         return super.mouseReleased(mouseX, mouseY, button);
     }
-    @Override public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (rootPanel.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) return true;
-        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+    @Override public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+        if (rootPanel.mouseScrolled(mouseX, mouseY, amount)) return true;
+        return super.mouseScrolled(mouseX, mouseY, amount);
     }
     @Override
     public boolean charTyped(char chr, int modifiers) {

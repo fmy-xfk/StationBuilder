@@ -19,11 +19,11 @@ repositories {
 	mavenCentral()
 	// MTR 所在的 Maven 仓库
 	maven { url = "https://api.modrinth.com/maven" }
-	maven { 
+	maven {
 		url "https://cursemaven.com"
-        content {
-            includeGroup "curse.maven"
-        } 
+		content {
+			includeGroup "curse.maven"
+		}
 	}
 }
 
@@ -48,8 +48,8 @@ dependencies {
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 	// MTR 本体
 	modImplementation "maven.modrinth:minecraft-transit-railway:FABRIC-${project.mtr_version}+${project.minecraft_version}"
-	// MSD FABRIC 1.4.0 for MTR 4.0.0+1.20.4
-	modImplementation "curse.maven:station-decoration-790307:6893840"
+	// MSD FABRIC 1.4.0 for MTR 4.0.0+1.20.1
+	modImplementation "curse.maven:station-decoration-790307:6893835"
 }
 
 processResources {
