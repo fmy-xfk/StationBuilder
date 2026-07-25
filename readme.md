@@ -8,12 +8,16 @@
 
 Station Builder provides 2 tools for convenient construction of continuous rails and train stations.
 
-+ Station Builder: A block to create train station with multiple platforms and tracks. Pillars, canopys, saftey lines/doors, and ballasts are created automatically in one click. **NOTE:** Saftey lines/doors needs [Minecraft Transit Railway](https://modrinth.com/mod/minecraft-transit-railway) to work.
++ Station Builder: A block to create train station with multiple platforms and tracks. Pillars, canopys, saftey lines/doors, passenger information display system (PIDS), and ballasts are created automatically in one click.
+  - Right click to open GUI and construct.
+  - Use WorldEdit to save buildings as .schem files (//schem save building_name), and load them in Station builder block's GUI.
+  - **NOTE:** Saftey lines/doors and PIDS needs Minecraft Transit Railway 4.0.0+ to work.
 
 + Rail Builder: An item for continuous parallel rails' construction. It could create tunnels, bridges, piers, catenary and ballasts for the rail automatically. 
-**NOTE:** This tool needs [Minecraft Transit Railway](https://modrinth.com/mod/minecraft-transit-railway) to work, and the catenary needs [Station Decoration (MSD)](https://modrinth.com/mod/station-decoration) to work.
+  - Right click to build continuous parallel rails. Shift + Right click to open GUI for configuration. Press V to stop continuous building.
+  - **NOTE:** This tool needs [Minecraft Transit Railway](https://modrinth.com/mod/minecraft-transit-railway) to work, and the catenary needs [Station Decoration (MSD)](https://modrinth.com/mod/station-decoration) to work.
 
-This mod is developed using Fabric, and in its very early preview. Bugs are likely to exist, and please Forge versions may be released in the future.
+This mod is developed using Fabric, and is in its very early preview (may be many bugs). Forge versions may be released in the future.
 
 ## Images
 
@@ -34,12 +38,3 @@ This mod is developed using Fabric, and in its very early preview. Bugs are like
 
 + Rail Builder GUI
 ![rail_builder_gui](imgs/rail_builder_gui.png)
-
-## Development Plan
-As most function of this mod requires Minecraft Transit Railway (MTR), the mod currently will not support higher version than MTR does. This mod currently only supports 1.20.4 and 1.20.1 for Fabric (version 1.20 may use the jar of 1.20.1, but bugs may exist), but work will be done in recent future in the following sequence:
-
-1. Allow the Rail Builder to work without MTR.
-
-2. Provide forge version for both 1.20.1 and 1.20.4.
-
-3. Propose better building elements for Station Builder.

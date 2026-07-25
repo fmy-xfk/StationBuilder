@@ -25,6 +25,7 @@ import org.mtr.core.tool.Angle;
 import org.mtr.core.tool.Vector;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.mtr.mapping.holder.Property;
+import org.mtr.mapping.mapper.BlockExtension;
 import org.mtr.mod.Init;
 import org.mtr.mod.Items;
 import org.mtr.mod.block.*;
@@ -85,7 +86,7 @@ public class MTRIntegration {
 
     public static boolean placePIDS(ServerWorld world, BlockPos pos, Direction facing, Identifier blockId) {
         var block = Registries.BLOCK.get(blockId);
-        if (block instanceof BlockPIDSHorizontalBase pids) {
+        if (block instanceof BlockExtension pids) {
             world.setBlockState(
                     pos,
                     pids.getDefaultState2().with(new Property<>(HorizontalFacingBlock.FACING), facing).data,
