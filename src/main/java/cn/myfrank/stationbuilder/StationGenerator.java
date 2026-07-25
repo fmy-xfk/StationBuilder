@@ -301,8 +301,8 @@ public class StationGenerator {
                         var pos = basePos.offset(right, 1);
                         var newFacing = facing.rotateYClockwise();
                         if (MTRIntegration.placePIDS(world, pos, newFacing, p.pidBlockId)) {
-                            addPidsPole(world, pos, newFacing, p.canopyHeight);
-                            addPidsPole(world, pos.offset(newFacing), newFacing.getOpposite(), p.canopyHeight);
+                            addPidsPole(world, pos, newFacing, p.canopyHeight, p.pidPoleId);
+                            addPidsPole(world, pos.offset(newFacing), newFacing.getOpposite(), p.canopyHeight, p.pidPoleId);
                         } else {
                             pidsFail = true;
                         }
@@ -311,8 +311,8 @@ public class StationGenerator {
                         var pos = basePos.offset(right, p.width - 2);
                         var newFacing = facing.rotateYCounterclockwise();
                         if (MTRIntegration.placePIDS(world, pos, newFacing, p.pidBlockId)) {
-                            addPidsPole(world, pos, newFacing, p.canopyHeight);
-                            addPidsPole(world, pos.offset(newFacing), newFacing.getOpposite(), p.canopyHeight);
+                            addPidsPole(world, pos, newFacing, p.canopyHeight, p.pidPoleId);
+                            addPidsPole(world, pos.offset(newFacing), newFacing.getOpposite(), p.canopyHeight, p.pidPoleId);
                         } else {
                             pidsFail = true;
                         }
@@ -328,13 +328,13 @@ public class StationGenerator {
         }
     }
 
-    private static void addPidsPole(ServerWorld world, BlockPos pos, Direction facing, int maxHeight) {
+    private static void addPidsPole(ServerWorld world, BlockPos pos, Direction facing, int maxHeight, Identifier poleId) {
         int k = 1;
         while (world.getBlockState(pos.up(k)).isAir() && k <= maxHeight) {
             k++;
         }
         for (int h = 1; h < k; h++) {
-            MTRIntegration.placePIDSPole(world, pos.up(h), facing);
+            MTRIntegration.placePIDSPole(world, pos.up(h), facing, poleId);
         }
         convertTopToDoubleSlab(world, pos.up(k));
     }

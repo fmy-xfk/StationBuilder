@@ -55,6 +55,7 @@ public class PlatformElement extends StationElement {
 
     public boolean hasPids = true;
     public Identifier pidBlockId = new Identifier("mtr", "pids_1");
+    public Identifier pidPoleId = new Identifier("mtr", "pids_pole");
 
     public PlatformElement() {
         for (int i = 0; i < MAX_BLOCK_COUNT; i++) mixSlots[i] = new MixSlot();
@@ -99,6 +100,7 @@ public class PlatformElement extends StationElement {
         nbt.putString("psdDoorId", psdDoorId.toString());
         nbt.putBoolean("hasPids", hasPids);
         nbt.putString("pidBlockId", pidBlockId.toString());
+        nbt.putString("pidPoleId", pidPoleId.toString());
         return nbt;
     }
 
@@ -130,5 +132,6 @@ public class PlatformElement extends StationElement {
         buf.writeIdentifier(psdDoorId);
         buf.writeBoolean(hasPids);
         buf.writeIdentifier(pidBlockId);
+        buf.writeIdentifier(pidPoleId);
     }
 }

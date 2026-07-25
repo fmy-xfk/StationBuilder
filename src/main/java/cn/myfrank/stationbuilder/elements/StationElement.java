@@ -51,6 +51,9 @@ public abstract class StationElement {
                 p.psdDoorId = new net.minecraft.util.Identifier(nbt.getString("psdDoorId"));
                 p.hasPids = nbt.getBoolean("hasPids");
                 p.pidBlockId = new net.minecraft.util.Identifier(nbt.getString("pidBlockId"));
+                if (nbt.contains("pidPoleId")) {
+                    p.pidPoleId = new net.minecraft.util.Identifier(nbt.getString("pidPoleId"));
+                }
                 return p;
 
             case BUILDING:
@@ -108,6 +111,7 @@ public abstract class StationElement {
                 p.psdDoorId = buf.readIdentifier();
                 p.hasPids = buf.readBoolean();
                 p.pidBlockId = buf.readIdentifier();
+                p.pidPoleId = buf.readIdentifier();
                 yield p;
             }
             case BUILDING -> new BuildingElement(buf.readString());

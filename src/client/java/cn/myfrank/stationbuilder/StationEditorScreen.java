@@ -14,7 +14,6 @@ import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtSizeTracker;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.registry.Registries;
-import net.minecraft.state.property.Properties;
 import net.minecraft.structure.StructureTemplate;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
@@ -177,6 +176,8 @@ public class StationEditorScreen extends GuiScreen {
 
     private final GuiLabelSlot pidBlockSlot = new GuiLabelSlot(getText("pids_block"), INPUT_WIDTH, INPUT_HEIGHT,
             new Identifier("mtr", "pids_1"), false);
+    private final GuiLabelSlot pidPoleSlot = new GuiLabelSlot(getText("pids_pole"), INPUT_WIDTH, INPUT_HEIGHT,
+            new Identifier("mtr", "pids_pole"), false);
 
     public int getSelectedIndex() {
         return canvas != null ? canvas.getSelectedIndex() : -1;
@@ -242,6 +243,7 @@ public class StationEditorScreen extends GuiScreen {
 
                 pidsBtn.setMessage(p.hasPids ? getText("pids_on") : getText("pids_off"));
                 pidBlockSlot.setBlockId(p.pidBlockId);
+                pidPoleSlot.setBlockId(p.pidPoleId);
             } else if(e instanceof BuildingElement b) {
                 buildingProperties.setVisible(true);
                 buildingPresetField.setText(b.presetName);
@@ -435,10 +437,18 @@ public class StationEditorScreen extends GuiScreen {
             }
         });
 
+        pidPoleSlot.slotChanged.clear();
+        pidPoleSlot.slotChanged.addHandler((sender, e) -> {
+            int index = canvas.getSelectedIndex();
+            if (index >= 0 && elements.get(index) instanceof PlatformElement pe) {
+                pe.pidPoleId = e.newId;
+            }
+        });
+
         // PIDs 开关
         p.addControl(shieldDoorBtn).addControl(doorOffsetField).addControl(doorSpacingField);
         p.addControl(psdEndSlot).addControl(psdGlassSlot).addControl(psdDoorSlot);
-        p.addControl(pidsBtn).addControl(pidBlockSlot);
+        p.addControl(pidsBtn).addControl(pidBlockSlot).addControl(pidPoleSlot);
         return p;
     }
 
@@ -718,6 +728,7 @@ public class StationEditorScreen extends GuiScreen {
         if (psdEndSlot != null && psdEndSlot.isActive()) return 201;
         if (psdGlassSlot != null && psdGlassSlot.isActive()) return 202;
         if (psdDoorSlot != null && psdDoorSlot.isActive()) return 203;
+        if (pidPoleSlot != null && pidPoleSlot.isActive()) return 204;
         for (int i = 0; i < 5; i++) {
             if (weightFields[i].isActive()) {
                 return i + 1;
@@ -742,6 +753,7 @@ public class StationEditorScreen extends GuiScreen {
             else if (slot == 201) p.psdEndId = newId;
             else if (slot == 202) p.psdGlassId = newId;
             else if (slot == 203) p.psdDoorId = newId;
+            else if (slot == 204) p.pidPoleId = newId;
             else if (slot > 0) p.mixSlots[slot - 1].blockId = newId;
         }
         refreshPropertyArea();

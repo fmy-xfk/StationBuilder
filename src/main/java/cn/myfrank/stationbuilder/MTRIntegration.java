@@ -79,9 +79,14 @@ public class MTRIntegration {
         return BlockNode.getAngle(state);
     }
 
-    public static void placePIDSPole(ServerWorld world, BlockPos pos, Direction facing) {
-        var pole = org.mtr.mod.Blocks.PIDS_POLE.get().getDefaultState();
-        world.setBlockState(pos, pole.with(new Property<>(HorizontalFacingBlock.FACING), facing).data);
+    public static void placePIDSPole(ServerWorld world, BlockPos pos, Direction facing, Identifier poleId) {
+        var state = Registries.BLOCK.get(poleId).getDefaultState();
+        if (state.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING)) {
+                state = state.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, facing);
+            } else if (state.contains(net.minecraft.state.property.Properties.FACING)) {
+                state = state.with(net.minecraft.state.property.Properties.FACING, facing);
+            }
+        world.setBlockState(pos, state, 3);
     }
 
     public static boolean placePIDS(ServerWorld world, BlockPos pos, Direction facing, Identifier blockId) {
