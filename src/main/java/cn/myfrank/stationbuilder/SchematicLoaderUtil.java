@@ -104,7 +104,7 @@ public class SchematicLoaderUtil {
         return template;
     }
 
-    private static BlockState convertBlockState(String blockString) {
+    public static BlockState convertBlockState(String blockString) {
         if (blockString == null || blockString.isEmpty()) {
             return Blocks.AIR.getDefaultState();
         }

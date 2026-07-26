@@ -1,6 +1,5 @@
 package cn.myfrank.stationbuilder.gui;
 
-import net.minecraft.SharedConstants;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;

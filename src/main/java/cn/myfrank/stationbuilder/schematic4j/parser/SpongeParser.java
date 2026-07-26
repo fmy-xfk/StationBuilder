@@ -33,7 +33,6 @@ import static cn.myfrank.stationbuilder.schematic4j.utils.TagUtils.getCompound;
 import static cn.myfrank.stationbuilder.schematic4j.utils.TagUtils.getCompoundList;
 import static cn.myfrank.stationbuilder.schematic4j.utils.TagUtils.getInt;
 import static cn.myfrank.stationbuilder.schematic4j.utils.TagUtils.getIntArray;
-import static cn.myfrank.stationbuilder.schematic4j.utils.TagUtils.getShort;
 import static cn.myfrank.stationbuilder.schematic4j.utils.TagUtils.unwrap;
 
 /**

@@ -327,25 +327,6 @@ public class MTRIntegration {
         }
     }
 
-    private static BlockPos addCatenaryNode(
-            ServerWorld world, Vec3d center, Vec3d tangent, boolean isLeftest, boolean isRightest,
-            @Nullable BlockPos lastCatenaryNode, Identifier block, int modeIndex
-    ) {
-        Direction dir = horizontalDirectionFromVec(tangent);
-        int blockY = (int) Math.floor(center.getY());
-        var catenaryPos = new BlockPos((int) Math.floor(center.x), blockY + 5, (int) Math.floor(center.z));
-        if (isLeftest || isRightest) {
-            if (isLeftest) {
-                dir = dir.rotateYClockwise();
-            } else {
-                dir = dir.rotateYCounterclockwise();
-            }
-            return null;
-             // return catenaryPos;
-        }
-        return null;
-    }
-
     private static void drawLine(ServerWorld world, BlockPos a, BlockPos b, Identifier lineBlock) {
         var state = Registries.BLOCK.get(lineBlock).getDefaultState();
         int x1 = a.getX(), y1 = a.getY(), z1 = a.getZ();
@@ -445,26 +426,43 @@ public class MTRIntegration {
              boolean isLeftest, boolean isRightest, boolean clearCatenary) {
         double halfWidth = config.ballastTopWidth / 2.0 + EPS;
         int baseY = (int) Math.floor(center.y);
-        var XZs = RailMath.getPositions(center, normal, config.tunnelHeight + 3);
-        int height = 0;
-        for(var xz: XZs) {
-            BlockPos topPos = world.getTopPosition(Heightmap.Type.MOTION_BLOCKING,
-                    new BlockPos(xz.x(), baseY, xz.z()));
-            height = Math.max(height, topPos.getY() - baseY);
-        }
-        double k = Math.max(1.0, (double) height / config.tunnelHeight);
-        height = Math.max(height, config.tunnelHeight);
-        for (int y = 0; y <= height; ++y) {
-            Vec3d layerCenter = center.add(0, y, 0);
-            double halfWidth2 = halfWidth + y / k;
-            int blockY = (int) Math.floor(layerCenter.y);
-            var blockXZs = RailMath.getPositions(center, normal,
-                    isLeftest ? halfWidth2 : halfWidth,
-                    isRightest ? halfWidth2 : halfWidth);
-            for(var block: blockXZs) {
-                var pos = new BlockPos(block.x(), blockY, block.z());
-                if (!isRailNode(world, pos)) {
-                    clearBlock(world, pos, clearCatenary);
+        if (config.clearFullHeight) {
+            var XZs = RailMath.getPositions(center, normal, config.tunnelHeight + 3);
+            int height = 0;
+            for (var xz : XZs) {
+                BlockPos topPos = world.getTopPosition(Heightmap.Type.MOTION_BLOCKING,
+                        new BlockPos(xz.x(), baseY, xz.z()));
+                height = Math.max(height, topPos.getY() - baseY);
+            }
+            double k = Math.max(1.0, (double) height / config.tunnelHeight);
+            height = Math.max(height, config.tunnelHeight);
+            for (int y = 0; y <= height; ++y) {
+                Vec3d layerCenter = center.add(0, y, 0);
+                double halfWidth2 = halfWidth + y / k;
+                int blockY = (int) Math.floor(layerCenter.y);
+                var blockXZs = RailMath.getPositions(center, normal,
+                        isLeftest ? halfWidth2 : halfWidth,
+                        isRightest ? halfWidth2 : halfWidth);
+                for (var block : blockXZs) {
+                    var pos = new BlockPos(block.x(), blockY, block.z());
+                    if (!isRailNode(world, pos)) {
+                        clearBlock(world, pos, clearCatenary);
+                    }
+                }
+            }
+        } else {
+            double clearHalfWidth = config.tunnelWidth / 2.0 + EPS;
+            for (int y = 0; y <= config.tunnelHeight; ++y) {
+                Vec3d layerCenter = center.add(0, y, 0);
+                int blockY = (int) Math.floor(layerCenter.y);
+                var blockXZs = RailMath.getPositions(center, normal,
+                        isLeftest ? clearHalfWidth : halfWidth,
+                        isRightest ? clearHalfWidth : halfWidth);
+                for(var block: blockXZs) {
+                    var pos = new BlockPos(block.x(), blockY, block.z());
+                    if (!isRailNode(world, pos)) {
+                        clearBlock(world, pos, clearCatenary);
+                    }
                 }
             }
         }
@@ -736,13 +734,7 @@ public class MTRIntegration {
                                 thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar,
                                 config.catenaryBlock);
                     } else {
-                        if (isLeftest[i] || isRightest[i]) {
-                            lastCatenaryNode = addCatenaryNode(world, center, tangent, isLeftest[i], isRightest[i], lastCatenaryNode,
-                                    thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar, config.catenaryModeIndex);
-                            if (lastCatenaryNode == null) {
-                                failToPlaceCatenaryNode = true;
-                            }
-                        }
+                        // Cannot be MSD catenary, because MSD catenary is not implemented yet
                     }
                 }
             }

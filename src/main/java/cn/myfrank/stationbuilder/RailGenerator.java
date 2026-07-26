@@ -2,7 +2,6 @@ package cn.myfrank.stationbuilder;
 
 import java.util.ArrayList;
 
-import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 import net.minecraft.entity.player.PlayerEntity;

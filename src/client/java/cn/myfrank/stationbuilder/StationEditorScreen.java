@@ -6,13 +6,11 @@ import cn.myfrank.stationbuilder.elements.StationElement;
 import cn.myfrank.stationbuilder.elements.TrackElement;
 import cn.myfrank.stationbuilder.gui.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtSizeTracker;
-import net.minecraft.network.PacketByteBuf;
 import net.minecraft.registry.Registries;
 import net.minecraft.structure.StructureTemplate;
 import net.minecraft.text.Text;
@@ -20,8 +18,6 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import org.jetbrains.annotations.NotNull;
-
-import static cn.myfrank.stationbuilder.StationBuilder.SAVE_DATA_PACKET;
 
 import java.io.File;
 import java.util.ArrayList;

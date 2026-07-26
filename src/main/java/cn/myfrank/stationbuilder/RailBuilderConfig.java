@@ -28,6 +28,7 @@ public class RailBuilderConfig {
     public Identifier tunnelCeilingBlock = Identifier.of("minecraft", "light_gray_concrete");
     public Identifier tunnelFloorBlock = Identifier.of("minecraft", "andesite");
     public double tunnelWidth = 7.0;
+    public boolean clearFullHeight = false;
 
     public boolean useCatenary = true;
     public boolean isVanillaCatenary = !StationBuilder.isMsdLoaded();
@@ -82,6 +83,7 @@ public class RailBuilderConfig {
         nbt.putString("tunnelCeilingBlock", tunnelCeilingBlock.toString());
         nbt.putString("tunnelFloorBlock", tunnelFloorBlock.toString());
         nbt.putDouble("tunnelWidth", tunnelWidth);
+        nbt.putBoolean("clearFullHeight", clearFullHeight);
 
         nbt.putBoolean("useCatenary", useCatenary);
         nbt.putBoolean("isVanillaCatenary", isVanillaCatenary);
@@ -145,6 +147,9 @@ public class RailBuilderConfig {
 
         if (nbt.contains("tunnelWidth", NbtElement.DOUBLE_TYPE))
             tunnelWidth = nbt.getDouble("tunnelWidth");
+
+        if (nbt.contains("clearFullHeight"))
+            clearFullHeight = nbt.getBoolean("clearFullHeight");
 
         if (nbt.contains("useCatenary", NbtElement.BYTE_TYPE))
             useCatenary = nbt.getBoolean("useCatenary");
