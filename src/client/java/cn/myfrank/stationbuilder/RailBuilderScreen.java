@@ -20,34 +20,34 @@ public class RailBuilderScreen extends GuiScreen {
     private String initialRailCount;  // 新增
     private final GuiLabelTextField railCountInput = new GuiLabelTextField(getText("rail_count"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("2"));
     private final GuiLabelTextField railSpacingInput = new GuiLabelTextField(getText("rail_spacing"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("5.0"));
-    private final GuiLabelSlot ballastBlockInput = new GuiLabelSlot(getText("ballast_block"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("minecraft", "andesite"), false);
-    private final GuiLabelSlot railTypeInput = new GuiLabelSlot(getText("rail_type"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("minecraft", "rail"), false);
+    private final GuiLabelSlot ballastBlockInput = new GuiLabelSlot(getText("ballast_block"), INPUT_WIDTH_S, INPUT_HEIGHT, Identifier.of("minecraft", "andesite"), false);
+    private final GuiLabelSlot railTypeInput = new GuiLabelSlot(getText("rail_type"), INPUT_WIDTH_S, INPUT_HEIGHT, Identifier.of("minecraft", "rail"), false);
     private final GuiLabelTextField ballastTopWidthInput = new GuiLabelTextField(getText("ballast_top_width"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("5.0"));
     private final GuiLabelTextField ballastBottomWidthInput = new GuiLabelTextField(getText("ballast_bottom_width"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("11.0"));
     private final GuiLabelTextField ballastMaxThicknessInput = new GuiLabelTextField(getText("ballast_max_thickness"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("4"));
     private final GuiLabelTextField bridgeClearSpanInput = new GuiLabelTextField(getText("bridge_clear_span"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("50"));
-    private final GuiLabelSlot bridgeGuardRailBlockInput = new GuiLabelSlot(getText("bridge_guardrail_block"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("minecraft", "stone_brick_wall"), false);
-    private final GuiLabelSlot bridgeBlockInput = new GuiLabelSlot(getText("bridge_block"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("minecraft", "smooth_stone"), false);
-    private final GuiLabelSlot bridgePillarBlockInput = new GuiLabelSlot(getText("bridge_pillar_block"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("minecraft", "light_gray_concrete"), false);
+    private final GuiLabelSlot bridgeGuardRailBlockInput = new GuiLabelSlot(getText("bridge_guardrail_block"), INPUT_WIDTH_S, INPUT_HEIGHT, Identifier.of("minecraft", "stone_brick_wall"), false);
+    private final GuiLabelSlot bridgeBlockInput = new GuiLabelSlot(getText("bridge_block"), INPUT_WIDTH_S, INPUT_HEIGHT, Identifier.of("minecraft", "smooth_stone"), false);
+    private final GuiLabelSlot bridgePillarBlockInput = new GuiLabelSlot(getText("bridge_pillar_block"), INPUT_WIDTH_S, INPUT_HEIGHT, Identifier.of("minecraft", "light_gray_concrete"), false);
     private final GuiLabelTextField bridgeWidthInput = new GuiLabelTextField(getText("bridge_width"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("7.0"));
     private final GuiLabelTextField tunnelHeightInput = new GuiLabelTextField(getText("tunnel_height"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("7"));
-    private final GuiLabelSlot tunnelWallBlockInput = new GuiLabelSlot(getText("tunnel_wall_block"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("minecraft", "stone"), false);
-    private final GuiLabelSlot tunnelCeilingBlockInput = new GuiLabelSlot(getText("tunnel_ceiling_block"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("minecraft", "light_gray_concrete"), false);
-    private final GuiLabelSlot tunnelFloorBlockInput = new GuiLabelSlot(getText("tunnel_floor_block"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("minecraft", "andesite"), false);
+    private final GuiLabelSlot tunnelWallBlockInput = new GuiLabelSlot(getText("tunnel_wall_block"), INPUT_WIDTH_S, INPUT_HEIGHT, Identifier.of("minecraft", "stone"), false);
+    private final GuiLabelSlot tunnelCeilingBlockInput = new GuiLabelSlot(getText("tunnel_ceiling_block"), INPUT_WIDTH_S, INPUT_HEIGHT, Identifier.of("minecraft", "light_gray_concrete"), false);
+    private final GuiLabelSlot tunnelFloorBlockInput = new GuiLabelSlot(getText("tunnel_floor_block"), INPUT_WIDTH_S, INPUT_HEIGHT, Identifier.of("minecraft", "andesite"), false);
     private final GuiLabelTextField tunnelWidthInput = new GuiLabelTextField(getText("tunnel_width"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("7.0"));
     private final GuiButton catenaryStateButton = new GuiButton(getText("catenary_vanilla"), (button) -> {
         catenaryState = (catenaryState + 1) % (StationBuilder.isMsdLoaded() ? 3 : 2);
         syncCatenaryState();
     }, BUTTON_WIDTH, INPUT_HEIGHT);
-    private final GuiLabelSlot catenaryLineBlockInput = new GuiLabelSlot(getText("catenary_line_block"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("minecraft", "cobweb"), false);
+    private final GuiLabelSlot catenaryLineBlockInput = new GuiLabelSlot(getText("catenary_line_block"), INPUT_WIDTH_S, INPUT_HEIGHT, Identifier.of("minecraft", "cobweb"), false);
     private final GuiLabelTextField catenarySpacingInput = new GuiLabelTextField(getText("catenary_spacing"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("50"));
     private int catenaryModeIndex = 0;
     private final GuiButton catenaryModeButton = new GuiButton(getText("catenary"), (button) -> {
         catenaryModeIndex = (catenaryModeIndex + 1) % CatenaryTypeMapping.values().length;
         syncCatenaryMode(button);
     }, BUTTON_WIDTH, INPUT_HEIGHT);
-    private final GuiLabelSlot catenaryBridgePillarInput = new GuiLabelSlot(getText("catenary_bridge_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, StationBuilder.isMsdLoaded() ? new Identifier("msd", "catenary_with_long") : new Identifier("minecraft", "stone_brick_wall"), false);
-    private final GuiLabelSlot catenaryTunnelPillarInput = new GuiLabelSlot(getText("catenary_tunnel_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, StationBuilder.isMsdLoaded() ? new Identifier("msd", "catenary_with_long_top") : new Identifier("minecraft", "stone_brick_wall"), false);
+    private final GuiLabelSlot catenaryBridgePillarInput = new GuiLabelSlot(getText("catenary_bridge_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, StationBuilder.isMsdLoaded() ? Identifier.of("msd", "catenary_with_long") : Identifier.of("minecraft", "stone_brick_wall"), false);
+    private final GuiLabelSlot catenaryTunnelPillarInput = new GuiLabelSlot(getText("catenary_tunnel_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, StationBuilder.isMsdLoaded() ? Identifier.of("msd", "catenary_with_long_top") : Identifier.of("minecraft", "stone_brick_wall"), false);
     private final GhostInventory ghostInventory = new GhostInventory();
 
     private void syncCatenaryMode(GuiButton button) {
@@ -93,10 +93,10 @@ public class RailBuilderScreen extends GuiScreen {
             this.railSpacingInput.setText(String.valueOf(nbt.getDouble("railSpacing")));
         }
         if (nbt.contains("ballastBlock", NbtElement.STRING_TYPE)) {
-            this.ballastBlockInput.setBlockId(new Identifier(nbt.getString("ballastBlock")));
+            this.ballastBlockInput.setBlockId(Identifier.of(nbt.getString("ballastBlock")));
         }
         if (nbt.contains("railType", NbtElement.STRING_TYPE)) {
-            this.railTypeInput.setBlockId(new Identifier(nbt.getString("railType")));
+            this.railTypeInput.setBlockId(Identifier.of(nbt.getString("railType")));
         }
         this.ballastTopWidthInput.getTextField().setNumberOnly(true);
         if (nbt.contains("ballastTopWidth", NbtElement.DOUBLE_TYPE)) {
@@ -115,13 +115,13 @@ public class RailBuilderScreen extends GuiScreen {
             this.bridgeClearSpanInput.setText(String.valueOf(nbt.getInt("bridgeClearSpan")));
         }
         if (nbt.contains("bridgeGuardRailBlock", NbtElement.STRING_TYPE)) {
-            this.bridgeGuardRailBlockInput.setBlockId(new Identifier(nbt.getString("bridgeGuardRailBlock")));
+            this.bridgeGuardRailBlockInput.setBlockId(Identifier.of(nbt.getString("bridgeGuardRailBlock")));
         }
         if (nbt.contains("bridgeBlock", NbtElement.STRING_TYPE)) {
-            this.bridgeBlockInput.setBlockId(new Identifier(nbt.getString("bridgeBlock")));
+            this.bridgeBlockInput.setBlockId(Identifier.of(nbt.getString("bridgeBlock")));
         }
         if (nbt.contains("bridgePillarBlock", NbtElement.STRING_TYPE)) {
-            this.bridgePillarBlockInput.setBlockId(new Identifier(nbt.getString("bridgePillarBlock")));
+            this.bridgePillarBlockInput.setBlockId(Identifier.of(nbt.getString("bridgePillarBlock")));
         }
         this.bridgeWidthInput.getTextField().setNumberOnly(true);
         if (nbt.contains("bridgeWidth", NbtElement.DOUBLE_TYPE)) {
@@ -132,13 +132,13 @@ public class RailBuilderScreen extends GuiScreen {
             this.tunnelHeightInput.setText(String.valueOf(nbt.getInt("tunnelHeight")));
         }
         if (nbt.contains("tunnelWallBlock", NbtElement.STRING_TYPE)) {
-            this.tunnelWallBlockInput.setBlockId(new Identifier(nbt.getString("tunnelWallBlock")));
+            this.tunnelWallBlockInput.setBlockId(Identifier.of(nbt.getString("tunnelWallBlock")));
         }
         if (nbt.contains("tunnelCeilingBlock", NbtElement.STRING_TYPE)) {
-            this.tunnelCeilingBlockInput.setBlockId(new Identifier(nbt.getString("tunnelCeilingBlock")));
+            this.tunnelCeilingBlockInput.setBlockId(Identifier.of(nbt.getString("tunnelCeilingBlock")));
         }
         if (nbt.contains("tunnelFloorBlock", NbtElement.STRING_TYPE)) {
-            this.tunnelFloorBlockInput.setBlockId(new Identifier(nbt.getString("tunnelFloorBlock")));
+            this.tunnelFloorBlockInput.setBlockId(Identifier.of(nbt.getString("tunnelFloorBlock")));
         }
         this.tunnelWidthInput.getTextField().setNumberOnly(true);
         if (nbt.contains("tunnelWidth", NbtElement.DOUBLE_TYPE)) {
@@ -155,7 +155,7 @@ public class RailBuilderScreen extends GuiScreen {
         }
         syncCatenaryState();
         if (nbt.contains("catenaryBlock", NbtElement.STRING_TYPE)) {
-            this.catenaryLineBlockInput.setBlockId(new Identifier(nbt.getString("catenaryBlock")));
+            this.catenaryLineBlockInput.setBlockId(Identifier.of(nbt.getString("catenaryBlock")));
         }
         this.catenarySpacingInput.getTextField().setNumberOnly(true);
         if (nbt.contains("catenarySpacing", NbtElement.INT_TYPE)) {
@@ -169,10 +169,10 @@ public class RailBuilderScreen extends GuiScreen {
             syncCatenaryMode(catenaryModeButton);
         }
         if (nbt.contains("catenaryBridgePillar", NbtElement.STRING_TYPE)) {
-            this.catenaryBridgePillarInput.setBlockId(new Identifier(nbt.getString("catenaryBridgePillar")));
+            this.catenaryBridgePillarInput.setBlockId(Identifier.of(nbt.getString("catenaryBridgePillar")));
         }
         if (nbt.contains("catenaryTunnelPillar", NbtElement.STRING_TYPE)) {
-            this.catenaryTunnelPillarInput.setBlockId(new Identifier(nbt.getString("catenaryTunnelPillar")));
+            this.catenaryTunnelPillarInput.setBlockId(Identifier.of(nbt.getString("catenaryTunnelPillar")));
         }
         this.initialRailCount = nbt.contains("railCount", NbtElement.INT_TYPE)
                 ? String.valueOf(nbt.getInt("railCount"))
@@ -300,18 +300,14 @@ public class RailBuilderScreen extends GuiScreen {
         String currentRailCount = railCountInput.getText();
         // 如果 railCount 发生了变化，先清除状态
         if (!currentRailCount.equals(initialRailCount)) {
-            ClientPlayNetworking.send(StationBuilder.CLEAR_RAIL_PACKET, PacketByteBufs.create());
+            ClientPlayNetworking.send(new StationBuilder.ClearRailStatePayload());
         }
         // 关闭时自动发送保存包
-        sendSyncPacket(StationBuilder.SAVE_DATA_PACKET_RAIL);
+        sendSyncPacket();
         super.close();
     }
 
-    private void sendSyncPacket(Identifier packetId) {
-        try {
-            PacketByteBuf buf = PacketByteBufs.create();
-            buf.writeNbt(getNbt());
-            ClientPlayNetworking.send(packetId, buf);
-        } catch (Exception ignored) {}
+    private void sendSyncPacket() {
+        ClientPlayNetworking.send(new StationBuilder.SaveRailPayload(getNbt()));
     }
 }

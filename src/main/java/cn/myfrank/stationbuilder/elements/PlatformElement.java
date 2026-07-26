@@ -10,14 +10,14 @@ public class PlatformElement extends StationElement {
     public static final int MAX_BLOCK_COUNT = 5;
     public int width = 9;
     public Identifier safetyBlock = StationBuilder.isMtrLoaded() ?
-            new Identifier("mtr", "platform") :
-            new Identifier("minecraft", "yellow_concrete");
+            Identifier.of("mtr", "platform") :
+            Identifier.of("minecraft", "yellow_concrete");
 
     public static class MixSlot {
         public Identifier blockId;
         public double weight;
         public MixSlot() {
-            blockId = new Identifier("minecraft", "smooth_stone");
+            blockId = Identifier.of("minecraft", "smooth_stone");
             weight = 1.0;
         }
         public MixSlot(Identifier blockId, double weight) {
@@ -31,8 +31,8 @@ public class PlatformElement extends StationElement {
     // 雨棚开关与基础属性
     public boolean hasCanopy = true;
     public int canopyHeight = 4; // 距离站台地面的高度
-    public Identifier canopySlabId = new Identifier("minecraft", "smooth_stone_slab");
-    public Identifier pillarBlockId = new Identifier("minecraft", "stone_brick_wall");
+    public Identifier canopySlabId = Identifier.of("minecraft", "smooth_stone_slab");
+    public Identifier pillarBlockId = Identifier.of("minecraft", "stone_brick_wall");
 
     public enum CanopyStyle { FLAT, INVERTED_V, V_SHAPE, SLANT_RIGHT, SLANT_LEFT, PILLAR_ONLY }
     public CanopyStyle canopyStyle = CanopyStyle.V_SHAPE;
@@ -44,24 +44,24 @@ public class PlatformElement extends StationElement {
     public int firstPillarOffset = 0; // 首个支柱偏移量
 
     public boolean hasLighting = true;
-    public Identifier lightBlockId = new Identifier("minecraft", "sea_lantern");
+    public Identifier lightBlockId = Identifier.of("minecraft", "sea_lantern");
 
     public boolean hasShieldDoors = true;
     public int doorStartOffset = 2;
     public int doorSpacing = 3;
-    public Identifier psdEndId = new Identifier("mtr", "apg_glass_end");
-    public Identifier psdGlassId = new Identifier("mtr", "apg_glass"); // 示例
-    public Identifier psdDoorId = new Identifier("mtr", "apg_door");
+    public Identifier psdEndId = Identifier.of("mtr", "apg_glass_end");
+    public Identifier psdGlassId = Identifier.of("mtr", "apg_glass"); // 示例
+    public Identifier psdDoorId = Identifier.of("mtr", "apg_door");
 
     public boolean hasPids = true;
-    public Identifier pidBlockId = new Identifier("mtr", "pids_1");
-    public Identifier pidPoleId = new Identifier("mtr", "pids_pole");
+    public Identifier pidBlockId = Identifier.of("mtr", "pids_1");
+    public Identifier pidPoleId = Identifier.of("mtr", "pids_pole");
 
     public PlatformElement() {
         for (int i = 0; i < MAX_BLOCK_COUNT; i++) mixSlots[i] = new MixSlot();
         // 默认只有第一个槽位有方块，其余设为空气或默认值
         for (int i = 1; i < MAX_BLOCK_COUNT; i++) {
-            mixSlots[i].blockId = new Identifier("minecraft", "air");
+            mixSlots[i].blockId = Identifier.of("minecraft", "air");
             mixSlots[i].weight = 0.0;
         }
     }

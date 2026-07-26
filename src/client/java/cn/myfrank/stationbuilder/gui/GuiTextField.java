@@ -8,6 +8,7 @@ import net.minecraft.client.gui.ScreenRect;
 import net.minecraft.client.gui.navigation.GuiNavigation;
 import net.minecraft.client.gui.navigation.GuiNavigationPath;
 import net.minecraft.text.Text;
+import net.minecraft.util.StringHelper;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import java.util.function.Predicate;
@@ -131,7 +132,7 @@ public class GuiTextField extends GuiControl {
         deleteSelectedText(); // 如果有选择区域，先删除
         StringBuilder builder = new StringBuilder(this.text);
         builder.insert(cursor, insertion);
-        String newText = SharedConstants.stripInvalidChars(builder.toString()); // 过滤非法字符
+        String newText = StringHelper.stripInvalidChars(builder.toString()); // 过滤非法字符
 
         if (textPredicate.test(newText) && newText.length() <= maxLength) {
             this.text = newText;
@@ -347,7 +348,7 @@ public class GuiTextField extends GuiControl {
     @Override
     public boolean charTyped(char chr, int modifiers) {
         if (!isFocused() || !editable) return false;
-        if (SharedConstants.isValidChar(chr) && (!numberOnly || Character.isDigit(chr))) {
+        if (StringHelper.isValidChar(chr) && (!numberOnly || Character.isDigit(chr))) {
             insertText(String.valueOf(chr));
             return true;
         }

@@ -3,6 +3,7 @@ package cn.myfrank.stationbuilder.elements;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.Identifier;
 
 public abstract class StationElement {
     public abstract NbtCompound toNbt();
@@ -15,7 +16,7 @@ public abstract class StationElement {
             case TRACK:
                 TrackElement track = new TrackElement();
                 if (nbt.contains("ballast")) {
-                    track.ballastBlock = new net.minecraft.util.Identifier(nbt.getString("ballast"));
+                    track.ballastBlock = Identifier.of(nbt.getString("ballast"));
                     track.isMtrTrack = nbt.getBoolean("isMtrTrack");
                 }
                 return track;
@@ -23,36 +24,36 @@ public abstract class StationElement {
             case PLATFORM:
                 PlatformElement p = new PlatformElement();
                 p.width = nbt.getInt("width");
-                p.safetyBlock = new net.minecraft.util.Identifier(nbt.getString("safety"));
+                p.safetyBlock = Identifier.of(nbt.getString("safety"));
 
                 if (nbt.contains("mix")) {
                     NbtList mixList = nbt.getList("mix", 10); // 10 是 COMPOUND 的类型 ID
                     for (int i = 0; i < Math.min(mixList.size(), 5); i++) {
                         NbtCompound slotNbt = mixList.getCompound(i);
-                        p.mixSlots[i].blockId = new net.minecraft.util.Identifier(slotNbt.getString("id"));
+                        p.mixSlots[i].blockId = Identifier.of(slotNbt.getString("id"));
                         p.mixSlots[i].weight = slotNbt.getDouble("weight");
                     }
                 }
                 p.hasCanopy = nbt.getBoolean("hasCanopy");
                 p.canopyHeight = nbt.getInt("canopyHeight");
-                p.canopySlabId = new net.minecraft.util.Identifier(nbt.getString("canopySlabId"));
-                p.pillarBlockId = new net.minecraft.util.Identifier(nbt.getString("pillarBlockId"));
+                p.canopySlabId = Identifier.of(nbt.getString("canopySlabId"));
+                p.pillarBlockId = Identifier.of(nbt.getString("pillarBlockId"));
                 p.canopyStyle = PlatformElement.CanopyStyle.valueOf(nbt.getString("canopyStyle"));
                 p.pillarStyle = PlatformElement.PillarStyle.valueOf(nbt.getString("pillarStyle"));
                 p.pillarSpacing = nbt.getInt("pillarSpacing");
                 p.firstPillarOffset = nbt.getInt("firstPillarOffset");
                 p.hasLighting = nbt.getBoolean("hasLighting");
-                p.lightBlockId = new net.minecraft.util.Identifier(nbt.getString("lightBlockId"));
+                p.lightBlockId = Identifier.of(nbt.getString("lightBlockId"));
                 p.hasShieldDoors = nbt.getBoolean("hasShieldDoors");
                 p.doorStartOffset = nbt.getInt("doorStartOffset");
                 p.doorSpacing = nbt.getInt("doorSpacing");
-                p.psdEndId = new net.minecraft.util.Identifier(nbt.getString("psdEndId"));
-                p.psdGlassId = new net.minecraft.util.Identifier(nbt.getString("psdGlassId"));
-                p.psdDoorId = new net.minecraft.util.Identifier(nbt.getString("psdDoorId"));
+                p.psdEndId = Identifier.of(nbt.getString("psdEndId"));
+                p.psdGlassId = Identifier.of(nbt.getString("psdGlassId"));
+                p.psdDoorId = Identifier.of(nbt.getString("psdDoorId"));
                 p.hasPids = nbt.getBoolean("hasPids");
-                p.pidBlockId = new net.minecraft.util.Identifier(nbt.getString("pidBlockId"));
+                p.pidBlockId = Identifier.of(nbt.getString("pidBlockId"));
                 if (nbt.contains("pidPoleId")) {
-                    p.pidPoleId = new net.minecraft.util.Identifier(nbt.getString("pidPoleId"));
+                    p.pidPoleId = Identifier.of(nbt.getString("pidPoleId"));
                 }
                 return p;
 

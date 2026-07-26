@@ -73,7 +73,7 @@ public class GhostInventory extends GuiControl {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         var stack = getSelectedItemStack();
         if (stack.isEmpty()) {
-            updateSelectedElementBlock(new Identifier("minecraft", "air"));
+            updateSelectedElementBlock(Identifier.of("minecraft", "air"));
         } else if (stack.getItem() instanceof net.minecraft.item.BlockItem bi) {
             updateSelectedElementBlock(
                 net.minecraft.registry.Registries.BLOCK.getId(bi.getBlock())

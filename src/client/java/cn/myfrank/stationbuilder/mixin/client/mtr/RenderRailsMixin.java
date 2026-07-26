@@ -2,10 +2,16 @@ package cn.myfrank.stationbuilder.mixin.client.mtr;
 
 import cn.myfrank.stationbuilder.RailBuilderItem;
 import cn.myfrank.stationbuilder.StationBuilderBlock;
-import org.mtr.mapping.holder.ClientPlayerEntity;
-import org.mtr.mapping.holder.PlayerEntity;
-import org.mtr.mapping.mapper.PlayerHelper;
-import org.mtr.mod.render.RenderRails;
+import net.minecraft.block.Block;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.item.Item;
+import org.mtr.block.BlockNode;
+import org.mtr.block.BlockSignalLightBase;
+import org.mtr.block.BlockSignalSemaphoreBase;
+import org.mtr.block.PlatformHelper;
+import org.mtr.item.ItemBrush;
+import org.mtr.item.ItemNodeModifierBase;
+import org.mtr.render.RenderRails;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -34,9 +40,9 @@ public class RenderRailsMixin {
 
     @Unique
     private static boolean isHoldingMyCustomRailThing(ClientPlayerEntity clientPlayerEntity) {
-        return PlayerHelper.isHolding(new PlayerEntity(clientPlayerEntity.data), (item) ->
-                item.data instanceof RailBuilderItem ||
-                net.minecraft.block.Block.getBlockFromItem(item.data) instanceof StationBuilderBlock
-        );
+        return clientPlayerEntity.isHolding((itemStack) -> {
+            Item item = itemStack.getItem();
+            return item instanceof ItemNodeModifierBase || item instanceof ItemBrush || Block.getBlockFromItem(item) instanceof BlockSignalLightBase || Block.getBlockFromItem(item) instanceof BlockNode || Block.getBlockFromItem(item) instanceof BlockSignalSemaphoreBase || Block.getBlockFromItem(item) instanceof PlatformHelper;
+        });
     }
 }

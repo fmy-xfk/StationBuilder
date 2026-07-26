@@ -25,9 +25,10 @@ public class GuiLabelSlot extends GuiPanel implements GhostSlotLike {
         this.ghostSlot = new GhostSlot(blockId, active);
         this.textField = new GuiTextField(textRenderer, textFieldWidth, textFieldHeight, Text.of(blockId.toString())); // 确保初始化文本是 blockId 的字符串形式
         this.textField.textChanged.addHandler((sender, e) -> {
-            if (Identifier.isValid(e.newText)) {
-                this.ghostSlot.setBlockId(new Identifier(e.newText), false);
-                this.slotChanged.invoke(this, new SlotChangedEventArgs(new Identifier(e.newText)));
+            var id = Identifier.tryParse(e.newText);
+            if (id != null) {
+                this.ghostSlot.setBlockId(id, false);
+                this.slotChanged.invoke(this, new SlotChangedEventArgs(Identifier.of(e.newText)));
             }
         });
         this.addControl(this.label).addControl(this.ghostSlot).addControl(this.textField);

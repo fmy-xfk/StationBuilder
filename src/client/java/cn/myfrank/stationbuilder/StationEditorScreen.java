@@ -57,7 +57,7 @@ public class StationEditorScreen extends GuiScreen {
             INPUT_HEIGHT, Text.empty());
     private final GuiLabelSlot trackBallastField = new GuiLabelSlot(
             getText("ballast"), INPUT_WIDTH, INPUT_HEIGHT,
-            new Identifier("minecraft", "andesite"), false
+            Identifier.of("minecraft", "andesite"), false
     );
     private final GuiLabel autoRotate = new GuiLabel(getText("auto_rotate"));
     private final GuiButton useMtrTrackButton = new GuiButton(getText("mtr_on"), b -> {
@@ -75,7 +75,7 @@ public class StationEditorScreen extends GuiScreen {
             INPUT_HEIGHT, Text.literal("9"));
     private final GuiLabelSlot platformSafetyField = new GuiLabelSlot(
             getText("safety_line"), INPUT_WIDTH_S, INPUT_HEIGHT,
-            new Identifier("minecraft", "yellow_concrete"), false
+            Identifier.of("minecraft", "yellow_concrete"), false
     );
     private final GuiLabelSlotInput[] weightFields = new GuiLabelSlotInput[5];
     private final GuiLabelTextField buildingPresetField = new GuiLabelTextField(getText("preset"), INPUT_WIDTH_L,
@@ -115,7 +115,7 @@ public class StationEditorScreen extends GuiScreen {
     private final GuiLabelTextField canopyHeightField = new GuiLabelTextField(getText("canopy_height"),
             INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("4"));
     private final GuiLabelSlot canopySlabSlot = new GuiLabelSlot(getText("canopy_slab"), INPUT_WIDTH, INPUT_HEIGHT,
-            new Identifier("minecraft", "stone_slab"), false);
+            Identifier.of("minecraft", "stone_slab"), false);
     private final GuiLabelButton canopyStyleBtn = new GuiLabelButton(Text.empty(), b -> {
         int index = canvas.getSelectedIndex();
         if (index >= 0 && elements.get(index) instanceof PlatformElement pe) {
@@ -134,7 +134,7 @@ public class StationEditorScreen extends GuiScreen {
         }
     }, BTN_WIDTH_XL, BTN_HEIGHT, getText("pillar_style"));
     private final GuiLabelSlot pillarBlockSlot = new GuiLabelSlot(getText("pillar_block"), INPUT_WIDTH,
-            INPUT_HEIGHT, new Identifier("minecraft", "stone_brick_wall"), false);
+            INPUT_HEIGHT, Identifier.of("minecraft", "stone_brick_wall"), false);
     private final GuiLabelTextField pillarSpacingField = new GuiLabelTextField(getText("pillar_spacing"),
             INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("6"));
     private final GuiLabelTextField pillarOffsetField = new GuiLabelTextField(getText("pillar_offset"),
@@ -147,7 +147,7 @@ public class StationEditorScreen extends GuiScreen {
         }
     }, BTN_WIDTH_XL, BTN_HEIGHT);
     private final GuiLabelSlot lightBlockSlot = new GuiLabelSlot(getText("lighting_block"), INPUT_WIDTH,
-            INPUT_HEIGHT, new Identifier("minecraft", "sea_lantern"), false);
+            INPUT_HEIGHT, Identifier.of("minecraft", "sea_lantern"), false);
     private final GuiLabelButton shieldDoorBtn = new GuiLabelButton(Text.empty(), b -> {
         int index = canvas.getSelectedIndex();
         if (index >= 0 && elements.get(index) instanceof PlatformElement pe) {
@@ -160,11 +160,11 @@ public class StationEditorScreen extends GuiScreen {
     private final GuiLabelTextField doorSpacingField = new GuiLabelTextField(getText("door_spacing"),
             INPUT_WIDTH, INPUT_HEIGHT, Text.literal("3"));;
     private final GuiLabelSlot psdEndSlot = new GuiLabelSlot(getText("psd_end"), INPUT_WIDTH, INPUT_HEIGHT,
-            new Identifier("mtr", "apg_glass_end"), false);
+            Identifier.of("mtr", "apg_glass_end"), false);
     private final GuiLabelSlot psdGlassSlot = new GuiLabelSlot(getText("psd_glass"), INPUT_WIDTH, INPUT_HEIGHT,
-            new Identifier("mtr", "apg_glass"), false);
+            Identifier.of("mtr", "apg_glass"), false);
     private final GuiLabelSlot psdDoorSlot = new GuiLabelSlot(getText("psd_door"), INPUT_WIDTH, INPUT_HEIGHT,
-            new Identifier("mtr", "apg_door"), false);
+            Identifier.of("mtr", "apg_door"), false);
     private final GuiLabelButton pidsBtn = new GuiLabelButton(Text.empty(), b -> {
         int index = canvas.getSelectedIndex();
         if (index >= 0 && elements.get(index) instanceof PlatformElement pe) {
@@ -174,9 +174,9 @@ public class StationEditorScreen extends GuiScreen {
     }, BTN_WIDTH_XL, BTN_HEIGHT, getText("pids"));
 
     private final GuiLabelSlot pidBlockSlot = new GuiLabelSlot(getText("pids_block"), INPUT_WIDTH, INPUT_HEIGHT,
-            new Identifier("mtr", "pids_1"), false);
+            Identifier.of("mtr", "pids_1"), false);
     private final GuiLabelSlot pidPoleSlot = new GuiLabelSlot(getText("pids_pole"), INPUT_WIDTH, INPUT_HEIGHT,
-            new Identifier("mtr", "pids_pole"), false);
+            Identifier.of("mtr", "pids_pole"), false);
 
     public int getSelectedIndex() {
         return canvas != null ? canvas.getSelectedIndex() : -1;
@@ -337,7 +337,7 @@ public class StationEditorScreen extends GuiScreen {
             MinecraftClient.getInstance().setScreen(new PresetSaveScreen(this));
         }, BTN_WIDTH_L, BTN_HEIGHT))
         .addControl(new GuiButton(getText("construct"), b -> {
-            sendBuildPacket(StationBuilder.BUILD_PACKET_ID); this.close();
+            sendBuildPacket(); this.close();
         }, BTN_WIDTH_L, BTN_HEIGHT));
 
         bottomPanel.setMajorAlign(GuiPanel.MajorAlignMode.END);
@@ -480,7 +480,7 @@ public class StationEditorScreen extends GuiScreen {
             final int fieldIndex = i;
             weightFields[i] = new GuiLabelSlotInput(
                     net.minecraft.text.Text.translatable("gui.stationbuilder.platform_blocks", i + 1),
-                    INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("minecraft", "stone"),
+                    INPUT_WIDTH_S, INPUT_HEIGHT, Identifier.of("minecraft", "stone"),
                     false, net.minecraft.text.Text.empty()
             );
             weightFields[i].getTextField().textChanged.addHandler((sender, e) -> {
@@ -663,7 +663,7 @@ public class StationEditorScreen extends GuiScreen {
             if (name.endsWith(".nbt")) {
                 NbtCompound nbt = NbtIo.readCompressed(file.toPath(), NbtSizeTracker.ofUnlimitedBytes());
                 StructureTemplate template = new StructureTemplate();
-                template.readNbt(Registries.BLOCK.getReadOnlyWrapper(), nbt);
+                template.readNbt(Registries.BLOCK, nbt);
                 return template;
             } else if (name.endsWith(".schem") || name.endsWith(".schematic")) {
                 return SchematicLoaderUtil.loadSchematic(file.toPath());
@@ -764,7 +764,7 @@ public class StationEditorScreen extends GuiScreen {
         if(ghostInventory.isMouseOver(mouseX, mouseY)) {
             var stack = ghostInventory.getSelectedItemStack();
             if (stack.isEmpty()) {
-                updateSelectedElementBlock(new Identifier("minecraft", "air"));
+                updateSelectedElementBlock(Identifier.of("minecraft", "air"));
             }
             else if (stack.getItem() instanceof net.minecraft.item.BlockItem bi) {
                 updateSelectedElementBlock(
@@ -788,24 +788,38 @@ public class StationEditorScreen extends GuiScreen {
     @Override
     public void close() {
         // 关闭时自动发送保存包
-        sendSyncPacket(SAVE_DATA_PACKET);
+        sendSyncPacket();
         super.close();
     }
 
-    private void sendSyncPacket(Identifier packetId) {
+    private void sendSyncPacket() {
         try {
-            PacketByteBuf buf = PacketByteBufs.create();
-            buf.writeBlockPos(pos);
-            buf.writeInt(facing.getHorizontal());
-            buf.writeInt(Integer.parseInt(lengthField.getText()));
-            buf.writeInt(elements.size());
-            for (StationElement e : elements) e.write(buf);
-            ClientPlayNetworking.send(packetId, buf);
-        } catch (Exception ignored) {}
+            int length = Integer.parseInt(lengthField.getText());
+            ClientPlayNetworking.send(
+                    new StationBuilder.SaveStationPayload(
+                            pos,
+                            facing.getHorizontalQuarterTurns(),
+                            length,
+                            new ArrayList<>(elements)
+                    )
+            );
+        } catch (Exception ignored) {
+        }
     }
 
-    private void sendBuildPacket(Identifier packetId) {
-        sendSyncPacket(packetId);
+    private void sendBuildPacket() {
+        try {
+            int length = Integer.parseInt(lengthField.getText());
+            ClientPlayNetworking.send(
+                    new StationBuilder.BuildStationPayload(
+                            pos,
+                            facing.getHorizontalQuarterTurns(),
+                            length,
+                            new ArrayList<>(elements)
+                    )
+            );
+        } catch (Exception ignored) {
+        }
     }
 
     public int getStationLength() {

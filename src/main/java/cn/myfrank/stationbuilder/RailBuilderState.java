@@ -1,14 +1,15 @@
 package cn.myfrank.stationbuilder;
 
-import java.util.ArrayList;
-
 import it.unimi.dsi.fastutil.Pair;
+import net.minecraft.component.type.NbtComponent;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
 
 public class RailBuilderState {
 
@@ -20,14 +21,16 @@ public class RailBuilderState {
         return getLastNodesAndAngle(stack) != null;
     }
 
+    @Nullable
     public static Pair<ArrayList<BlockPos>, Float> getLastNodesAndAngle(ItemStack stack) {
-        if (!stack.hasNbt()) return null;
+        NbtComponent component = stack.get(ModComponents.RAIL_BUILDER_DATA);
+        if (component == null) return null;
 
-        NbtCompound nbt = stack.getNbt();
-        if (nbt == null || !nbt.contains(KEY)) return null;
+        NbtCompound root = component.copyNbt();
+        if (!root.contains(KEY, NbtElement.COMPOUND_TYPE)) return null;
 
-        NbtCompound state = nbt.getCompound(KEY);
-        if (!state.contains(LAST_NODES)) return null;
+        NbtCompound state = root.getCompound(KEY);
+        if (!state.contains(LAST_NODES, NbtElement.LIST_TYPE)) return null;
 
         NbtList list = state.getList(LAST_NODES, NbtElement.COMPOUND_TYPE);
         if (list.isEmpty()) return null;
@@ -41,17 +44,23 @@ public class RailBuilderState {
                     pos.getInt("z")
             ));
         }
-        var angle = state.getFloat(LAST_NODES_ANGLE);
+
+        float angle = state.getFloat(LAST_NODES_ANGLE);
         return Pair.of(result, angle);
     }
 
+    public static void setLastNodesAndAngle(ItemStack stack,
+                                            @Nullable ArrayList<BlockPos> nodes,
+                                            float angle) {
+        NbtComponent component = stack.get(ModComponents.RAIL_BUILDER_DATA);
+        NbtCompound root = component == null ? new NbtCompound() : component.copyNbt();
 
-    public static void setLastNodesAndAngle(ItemStack stack, @Nullable ArrayList<BlockPos> nodes, float angle) {
-        NbtCompound nbt = stack.getOrCreateNbt();
-        NbtCompound state = nbt.getCompound(KEY);
+        if (nodes == null || nodes.isEmpty()) {
+            root.remove(KEY);
+        } else {
+            NbtCompound state = new NbtCompound();
 
-        NbtList list = new NbtList();
-        if (nodes != null) {
+            NbtList list = new NbtList();
             for (BlockPos p : nodes) {
                 NbtCompound pos = new NbtCompound();
                 pos.putInt("x", p.getX());
@@ -59,19 +68,30 @@ public class RailBuilderState {
                 pos.putInt("z", p.getZ());
                 list.add(pos);
             }
+
+            state.put(LAST_NODES, list);
+            state.putFloat(LAST_NODES_ANGLE, angle);
+            root.put(KEY, state);
         }
 
-        state.put(LAST_NODES, list);
-        state.putFloat(LAST_NODES_ANGLE, angle);
-        nbt.put(KEY, state);
+        if (root.isEmpty()) {
+            stack.remove(ModComponents.RAIL_BUILDER_DATA);
+        } else {
+            stack.set(ModComponents.RAIL_BUILDER_DATA, NbtComponent.of(root));
+        }
     }
 
     public static void clear(ItemStack stack) {
-        if (!stack.hasNbt()) return;
+        NbtComponent component = stack.get(ModComponents.RAIL_BUILDER_DATA);
+        if (component == null) return;
 
-        NbtCompound nbt = stack.getNbt();
-        if (nbt != null && nbt.contains(KEY)) {
-            nbt.remove(KEY);
+        NbtCompound root = component.copyNbt();
+        root.remove(KEY);
+
+        if (root.isEmpty()) {
+            stack.remove(ModComponents.RAIL_BUILDER_DATA);
+        } else {
+            stack.set(ModComponents.RAIL_BUILDER_DATA, NbtComponent.of(root));
         }
     }
 }

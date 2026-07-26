@@ -1,36 +1,52 @@
 package cn.myfrank.stationbuilder;
 
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.client.item.TooltipContext;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.CustomModelDataComponent;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemUsageContext;
-import net.minecraft.network.PacketByteBuf;
+import net.minecraft.item.tooltip.TooltipType;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.*;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import static cn.myfrank.stationbuilder.StationBuilder.SYNC_AND_OPEN_PACKET_RAIL;
-import static cn.myfrank.stationbuilder.StationBuilder.isMtrLoaded;
 
 import java.util.List;
+
+import static cn.myfrank.stationbuilder.StationBuilder.isMtrLoaded;
 
 public class RailBuilderItem extends Item {
     public RailBuilderItem(Settings settings) {
         super(settings);
     }
 
+    private static void updateCustomModelData(ItemStack stack) {
+        if (RailBuilderState.isBuilding(stack)) {
+            stack.set(
+                    DataComponentTypes.CUSTOM_MODEL_DATA,
+                    new CustomModelDataComponent(
+                            List.of(1.0f),
+                            List.of(),
+                            List.of(),
+                            List.of()
+                    )
+            );
+        } else {
+            stack.remove(DataComponentTypes.CUSTOM_MODEL_DATA);
+        }
+    }
+
     private void openGui(ServerPlayerEntity player, ItemStack stack) {
         RailBuilderConfig cfg = RailBuilderConfig.fromItem(stack);
         cfg.saveToItem(stack);
 
-        PacketByteBuf buf = PacketByteBufs.create();
-        buf.writeNbt(cfg.toNbt());
-
-        ServerPlayNetworking.send(player, SYNC_AND_OPEN_PACKET_RAIL, buf);
+        ServerPlayNetworking.send(
+                player,
+                new StationBuilder.SyncOpenRailPayload(cfg.toNbt())
+        );
     }
 
     @Override
@@ -40,7 +56,7 @@ public class RailBuilderItem extends Item {
         if (player == null) return ActionResult.PASS;
 
         if (!isMtrLoaded()) {
-            if(world.isClient) {
+            if (world.isClient) {
                 player.sendMessage(Text.translatable("message.stationbuilder.rail_builder.no_mtr"), true);
             }
             return ActionResult.FAIL;
@@ -59,6 +75,7 @@ public class RailBuilderItem extends Item {
         if (!world.isClient) {
             BlockPos pos = context.getBlockPos();
             var serverWorld = ((ServerPlayerEntity) player).getServerWorld();
+
             if (!MTRIntegration.isRailNode(serverWorld, pos) && !world.getBlockState(pos).isReplaceable()) {
                 pos = pos.offset(context.getSide());
             }
@@ -68,44 +85,39 @@ public class RailBuilderItem extends Item {
             if (last == null) {
                 var nodes = RailGenerator.placeFirstRailNodes(serverWorld, pos, player, cfg);
                 RailBuilderState.setLastNodesAndAngle(stack, nodes, player.getYaw());
-                stack.getOrCreateNbt().putInt("CustomModelData", 1);
             } else {
                 var nodes = RailGenerator.buildRails(serverWorld, last.left(), pos, cfg, player);
                 RailBuilderState.setLastNodesAndAngle(stack, nodes, player.getYaw());
-                stack.getOrCreateNbt().putInt("CustomModelData", 1);
             }
+
+            updateCustomModelData(stack);
         }
 
         return ActionResult.SUCCESS;
     }
 
     @Override
-    public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
+    public ActionResult use(World world, PlayerEntity user, Hand hand) {
         ItemStack stack = user.getStackInHand(hand);
-        if (user.isSneaking()) { // Shift
+        if (user.isSneaking()) {
             if (!world.isClient) {
                 openGui((ServerPlayerEntity) user, stack);
             }
-            return TypedActionResult.success(stack);
+            return ActionResult.SUCCESS;
         }
 
-        return TypedActionResult.pass(stack);
+        return ActionResult.PASS;
     }
 
     @Override
-    public void appendTooltip(
-            ItemStack stack,
-            World world,
-            List<Text> tooltip,
-            TooltipContext context
-    ) {
+    public void appendTooltip(ItemStack stack, TooltipContext context, List<Text> tooltip, TooltipType type) {
         tooltip.add(Text.translatable("tooltip.stationbuilder.rail_builder.line1"));
         tooltip.add(Text.translatable("tooltip.stationbuilder.rail_builder.line2"));
         tooltip.add(Text.translatable("tooltip.stationbuilder.rail_builder.line3"));
         var lastPair = RailBuilderState.getLastNodesAndAngle(stack);
         if (lastPair == null) return;
         var lastNodes = lastPair.left();
-        if (lastNodes == null) return;
+        if (lastNodes == null || lastNodes.isEmpty()) return;
         BlockPos last = lastNodes.get(0);
         tooltip.add(
             Text.translatable(

@@ -5,6 +5,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.util.math.BlockPos;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,17 +19,17 @@ public class StationBuilderBlockEntity extends BlockEntity {
     }
 
     @Override
-    public void writeNbt(NbtCompound nbt) {
+    public void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         nbt.putInt("length", length);
         NbtList list = new NbtList();
         for (StationElement e : elements) list.add(e.toNbt());
         nbt.put("elements", list);
-        super.writeNbt(nbt);
+        super.writeNbt(nbt, registries);
     }
 
     @Override
-    public void readNbt(NbtCompound nbt) {
-        super.readNbt(nbt);
+    public void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
+        super.readNbt(nbt, registries);
         this.length = nbt.getInt("length");
         this.elements.clear();
         NbtList list = nbt.getList("elements", 10);

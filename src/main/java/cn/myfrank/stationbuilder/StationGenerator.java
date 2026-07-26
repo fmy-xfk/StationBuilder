@@ -102,9 +102,9 @@ public class StationGenerator {
             StructureTemplateManager manager = world.getStructureTemplateManager();
             Identifier templateId;
             if (element.presetName.contains(":")) {
-                templateId = new Identifier(element.presetName);
+                templateId = Identifier.of(element.presetName);
             } else {
-                templateId = new Identifier("stationbuilder", element.presetName);
+                templateId = Identifier.of("stationbuilder", element.presetName);
             }
             template = manager.getTemplate(templateId).orElse(null);
         }

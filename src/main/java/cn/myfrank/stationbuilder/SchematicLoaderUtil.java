@@ -99,7 +99,7 @@ public class SchematicLoaderUtil {
         nbt.put("entities", new NbtList());
 
         StructureTemplate template = new StructureTemplate();
-        template.readNbt(Registries.BLOCK.getReadOnlyWrapper(), nbt);
+        template.readNbt(Registries.BLOCK, nbt);
 
         return template;
     }

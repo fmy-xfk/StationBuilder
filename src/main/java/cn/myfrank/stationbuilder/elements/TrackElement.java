@@ -9,7 +9,7 @@ import net.minecraft.util.Identifier;
 // --- TrackElement 类内部 ---
 public class TrackElement extends StationElement {
     public boolean isMtrTrack = StationBuilder.isMtrLoaded();
-    public Identifier ballastBlock = new Identifier("minecraft", "andesite"); // 默认路基为砾石
+    public Identifier ballastBlock = Identifier.of("minecraft", "andesite"); // 默认路基为砾石
 
     @Override public Type getType() { return Type.TRACK; }
     @Override public int getWidth() { return 3; }

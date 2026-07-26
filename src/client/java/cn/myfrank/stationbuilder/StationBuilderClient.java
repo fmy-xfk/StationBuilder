@@ -9,17 +9,13 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.item.ModelPredicateProviderRegistry;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
 import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.*;
@@ -27,49 +23,34 @@ import org.joml.Matrix4f;
 
 public class StationBuilderClient implements ClientModInitializer {
 	private static final RailPreviewCache previewCache = new RailPreviewCache();
+
 	@Override
 	public void onInitializeClient() {
 		StationBuilderKeyBindings.register();
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (StationBuilderKeyBindings.CLEAR_RAIL_STATE.wasPressed() && client.player != null && client.player.getMainHandStack().getItem() instanceof RailBuilderItem) {
-                ClientPlayNetworking.send(StationBuilder.CLEAR_RAIL_PACKET, PacketByteBufs.empty());
-            }
-        });
+			if (StationBuilderKeyBindings.CLEAR_RAIL_STATE.wasPressed()
+					&& client.player != null
+					&& client.player.getMainHandStack().getItem() instanceof RailBuilderItem) {
+				ClientPlayNetworking.send(new StationBuilder.ClearRailStatePayload());
+			}
+		});
 
-		ClientPlayNetworking.registerGlobalReceiver(StationBuilder.SYNC_AND_OPEN_PACKET, (client, handler, buf, responseSender) -> {
-			BlockPos pos = buf.readBlockPos();
-			int facingIdx = buf.readInt();
-			NbtCompound nbt = buf.readNbt();
-			client.execute(() -> {
-				client.setScreen(new StationEditorScreen(pos, Direction.fromHorizontal(facingIdx), nbt));
+		ClientPlayNetworking.registerGlobalReceiver(StationBuilder.SyncOpenStationPayload.ID, (payload, context) -> {
+			context.client().execute(() -> {
+				context.client().setScreen(
+						new StationEditorScreen(
+								payload.pos,
+								Direction.fromHorizontalQuarterTurns(payload.facing),
+								payload.nbt
+						)
+				);
 			});
 		});
 
-		ClientPlayNetworking.registerGlobalReceiver(StationBuilder.SYNC_AND_OPEN_PACKET_RAIL, (client, handler, buf, responseSender) -> {
-			NbtCompound nbt = buf.readNbt();
-			client.execute(() -> {
-				client.setScreen(new RailBuilderScreen(nbt));
-			});
+		ClientPlayNetworking.registerGlobalReceiver(StationBuilder.SyncOpenRailPayload.ID, (payload, context) -> {
+			context.client().execute(() -> context.client().setScreen(new RailBuilderScreen(payload.nbt)));
 		});
-
-		ModelPredicateProviderRegistry.register(
-            ModItems.RAIL_BUILDER_ITEM,
-            new Identifier("building"),
-            (stack, world, entity, seed) -> {
-                // 必须有 world（GUI / 手持时一定有）
-                if (world == null) return 0;
-
-                // 是否有 lastPos（建造中）
-                if (!RailBuilderState.isBuilding(stack)) {
-                    return 0;
-                }
-
-                // 用世界时间做闪烁（每 10 tick 切一次）
-                long t = world.getTime();
-                return (t / 10 % 2 == 0) ? 1 : 0;
-            }
-        );
 
 		WorldRenderEvents.AFTER_ENTITIES.register(context -> {
 			MinecraftClient client = MinecraftClient.getInstance();
@@ -96,7 +77,7 @@ public class StationBuilderClient implements ClientModInitializer {
 			ItemStack stack
 	) {
 		ArrayList<BlockPos> nodes = RailGenerator.calcRailNodes(
-			targetPos, player.getYaw(), RailBuilderConfig.fromItem(stack)
+				targetPos, player.getYaw(), RailBuilderConfig.fromItem(stack)
 		);
 		if (nodes == null) return;
 		VertexConsumer consumer = context.consumers().getBuffer(RenderLayer.getLines());
@@ -106,19 +87,16 @@ public class StationBuilderClient implements ClientModInitializer {
 		var lastPair = RailBuilderState.getLastNodesAndAngle(stack);
 		if (lastPair == null || lastPair.left() == null) {
 			for (BlockPos node : nodes) {
-				drawBox(matrices, consumer, node, cam, 0f, 1f, 1f, 0.6f); // 青色半透明
+				drawBox(matrices, consumer, node, cam, 0f, 1f, 1f, 0.6f);
 			}
 		} else {
 			var lastNodes = lastPair.left();
 			float lastAngle = lastPair.right();
 
 			if (lastNodes.size() != nodes.size()) {
-				// 清除本地状态（物品NBT）
 				RailBuilderState.clear(stack);
-				stack.getOrCreateNbt().remove("CustomModelData");
-				// 通知服务端清除状态
-				ClientPlayNetworking.send(StationBuilder.CLEAR_RAIL_PACKET, PacketByteBufs.create());
-				// 直接返回，不再绘制任何预览（避免越界）
+				stack.remove(net.minecraft.component.DataComponentTypes.CUSTOM_MODEL_DATA);
+				ClientPlayNetworking.send(new StationBuilder.ClearRailStatePayload());
 				return;
 			}
 
@@ -132,12 +110,12 @@ public class StationBuilderClient implements ClientModInitializer {
 			for (int i = 0; i < lastNodes.size(); ++i) {
 				var node = nodes.get(i);
 				var lastNode = lastNodes.get(i);
-				drawBox(matrices, consumer, lastNode, cam, 0f, 1f, 1f, 0.6f); // 青色半透明
-				drawBox(matrices, consumer, node, cam, 0f, 1f, 1f, 0.6f); // 青色半透明
+				drawBox(matrices, consumer, lastNode, cam, 0f, 1f, 1f, 0.6f);
+				drawBox(matrices, consumer, node, cam, 0f, 1f, 1f, 0.6f);
 				if (StationBuilder.isMtrLoaded()) {
 					var preview = previewCache.get(lastNode, MTRIntegration.parseAngle(lastAngle),
 							node, MTRIntegration.parseAngle(angle));
-					if(preview == null) {
+					if (preview == null) {
 						preview = MTRIntegration.testConnectRailNodes(lastAngle, angle, lastNode, node);
 						previewCache.put(lastNode, MTRIntegration.parseAngle(lastAngle),
 								node, MTRIntegration.parseAngle(angle), preview);
@@ -163,7 +141,11 @@ public class StationBuilderClient implements ClientModInitializer {
 			}
 			if (successCount > 0) {
 				if (minRadius < 1e9) {
-					extras += Text.translatable("message.stationbuilder.rail_builder.min_radius", String.format("%.2f", minRadius), String.format("%.2f", minLength)).getString();
+					extras += Text.translatable(
+							"message.stationbuilder.rail_builder.min_radius",
+							String.format("%.2f", minRadius),
+							String.format("%.2f", minLength)
+					).getString();
 				} else {
 					extras += Text.translatable("message.stationbuilder.rail_builder.straight_line").getString();
 				}
@@ -181,27 +163,23 @@ public class StationBuilderClient implements ClientModInitializer {
 		if (points.size() < 2) return;
 
 		Vec3d camPos = camera.getPos();
-
 		VertexConsumer vc = consumers.getBuffer(RenderLayer.LINES);
 
 		matrices.push();
 		matrices.translate(-camPos.x, -camPos.y, -camPos.z);
-
 		Matrix4f mat = matrices.peek().getPositionMatrix();
 
 		for (int i = 0; i < points.size() - 1; i++) {
 			Vec3d p0 = points.get(i);
 			Vec3d p1 = points.get(i + 1);
 
-			vc.vertex(mat, (float)p0.x, (float)p0.y, (float)p0.z)
+			vc.vertex(mat, (float) p0.x, (float) p0.y, (float) p0.z)
 					.color(255, 0, 0, 255)
-					.normal(1, 0, 0)
-					.next();
+					.normal(1, 0, 0);
 
-			vc.vertex(mat, (float)p1.x, (float)p1.y, (float)p1.z)
+			vc.vertex(mat, (float) p1.x, (float) p1.y, (float) p1.z)
 					.color(255, 0, 0, 255)
-					.normal(1, 0, 0)
-					.next();
+					.normal(1, 0, 0);
 		}
 
 		matrices.pop();
@@ -215,7 +193,7 @@ public class StationBuilderClient implements ClientModInitializer {
 			float r, float g, float b, float a
 	) {
 		Box box = new Box(pos).offset(-cam.x, -cam.y, -cam.z);
-		WorldRenderer.drawBox(matrices, consumer, box, r, g, b, a);
+		VertexRendering.drawBox(matrices, consumer, box, r, g, b, a);
 	}
 
 	private static Vec3d getPreviewCenterPos(
@@ -229,8 +207,7 @@ public class StationBuilderClient implements ClientModInitializer {
 		lastCenter = lastCenter.multiply(1.0 / lastNodes.size());
 
 		Vec3d delta = anchor.toCenterPos().subtract(lastCenter);
-
-		return lastCenter.add(delta).add(0, 0.5, 0); // 文本抬高一点
+		return lastCenter.add(delta).add(0, 0.5, 0);
 	}
 
 	private static Vec3i getDelta(List<BlockPos> lastNodes, BlockPos anchor) {
@@ -243,7 +220,7 @@ public class StationBuilderClient implements ClientModInitializer {
 		int lastX = (int) Math.round(sumX / lastNodes.size());
 		int lastY = (int) Math.round(sumY / lastNodes.size());
 		int lastZ = (int) Math.round(sumZ / lastNodes.size());
-		return new Vec3i(anchor.getX() - lastX,anchor.getY() - lastY, anchor.getZ() - lastZ);
+		return new Vec3i(anchor.getX() - lastX, anchor.getY() - lastY, anchor.getZ() - lastZ);
 	}
 
 	private static void renderDeltaText3D(
@@ -256,7 +233,6 @@ public class StationBuilderClient implements ClientModInitializer {
 		MinecraftClient client = MinecraftClient.getInstance();
 		Camera camera = context.camera();
 		MatrixStack matrices = context.matrixStack();
-
 		TextRenderer textRenderer = client.textRenderer;
 
 		String text;
@@ -274,58 +250,35 @@ public class StationBuilderClient implements ClientModInitializer {
 		}
 
 		matrices.push();
-
-		// 世界坐标 → 相机坐标
 		Vec3d camPos = camera.getPos();
-		matrices.translate(
-				worldPos.x - camPos.x,
-				worldPos.y - camPos.y,
-				worldPos.z - camPos.z
-		);
-
-		// billboard：始终面向玩家
+		matrices.translate(worldPos.x - camPos.x, worldPos.y - camPos.y, worldPos.z - camPos.z);
 		matrices.multiply(camera.getRotation());
-
-		// 缩放（非常关键）
 		float scale = 0.025F;
 		matrices.scale(-scale, -scale, scale);
 
-		// 文字居中
 		float x = -textRenderer.getWidth(text) / 2f;
 		float y = 0;
 
 		RenderSystem.disableDepthTest();
 
 		textRenderer.draw(
-				text,
-				x,
-				y,
-				color,
-				false,
+				text, x, y, color, false,
 				matrices.peek().getPositionMatrix(),
 				context.consumers(),
 				TextRenderer.TextLayerType.NORMAL,
-				0,
-				0xF000F0
+				0, 0xF000F0
 		);
 
 		float x2 = -textRenderer.getWidth(extras) / 2f;
 		textRenderer.draw(
-				extras,
-				x2,
-				y + textRenderer.getWrappedLinesHeight(text, 100) + 3,
-				extra_color,
-				false,
+				extras, x2, y + textRenderer.getWrappedLinesHeight(text, 100) + 3, extra_color, false,
 				matrices.peek().getPositionMatrix(),
 				context.consumers(),
 				TextRenderer.TextLayerType.NORMAL,
-				0,
-				0xF000F0
+				0, 0xF000F0
 		);
 
 		RenderSystem.enableDepthTest();
-
 		matrices.pop();
 	}
-
 }

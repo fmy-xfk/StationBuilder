@@ -39,7 +39,7 @@ public class BuildingTemplateManager {
                             String name = p.getFileName().toString().replaceFirst("\\.nbt$", "");
                             StructureTemplate template = new StructureTemplate();
                             template.readNbt(
-                                    Registries.BLOCK.getReadOnlyWrapper(),
+                                    Registries.BLOCK,
                                     NbtIo.readCompressed(p, NbtSizeTracker.ofUnlimitedBytes())
                             );
                             TEMPLATES.put(name, template);

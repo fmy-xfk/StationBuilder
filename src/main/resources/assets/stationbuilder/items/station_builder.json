@@ -1,0 +1,6 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "stationbuilder:block/station_builder"
+  }
+}

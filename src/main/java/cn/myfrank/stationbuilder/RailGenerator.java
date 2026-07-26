@@ -2,6 +2,7 @@ package cn.myfrank.stationbuilder;
 
 import java.util.ArrayList;
 
+import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 import net.minecraft.entity.player.PlayerEntity;
@@ -81,7 +82,7 @@ public class RailGenerator {
             // 清除该玩家的轨道建造状态（服务端清除）
             ItemStack stack = player.getMainHandStack();
             RailBuilderState.clear(stack);
-            stack.getOrCreateNbt().remove("CustomData"); // 若有其他标记
+            // stack.remove(DataComponentTypes.CUSTOM_MODEL_DATA);
             return null;
         }
 

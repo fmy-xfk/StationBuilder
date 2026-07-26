@@ -1,5 +1,6 @@
 {
   "block.stationbuilder.station_builder": "Station builder",
+  "item.stationbuilder.station_builder": "Station Builder",
   "item.stationbuilder.rail_builder": "Rail Builder",
   "itemGroup.stationbuilder.group": "Auto Station Builder",
   "category.stationbuilder": "Station and Rail Building",

@@ -1,5 +1,6 @@
 package cn.myfrank.stationbuilder;
 
+import net.minecraft.component.type.NbtComponent;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
@@ -11,21 +12,21 @@ public class RailBuilderConfig {
     public double ballastTopWidth = 5.0;
     public double ballastBottomWidth = 11.0;
     public int ballastMaxThickness = 4;
-    public Identifier ballastBlock = new Identifier("minecraft", "andesite");
+    public Identifier ballastBlock = Identifier.of("minecraft", "andesite");
     public Identifier railType = StationBuilder.isMtrLoaded() ?
-            new Identifier("mtr", "rail_connector_160") :
-            new Identifier("minecraft", "rail");
+            Identifier.of("mtr", "rail_connector_160") :
+            Identifier.of("minecraft", "rail");
 
     public int bridgeClearSpan = 50;
-    public Identifier bridgeGuardRailBlock = new Identifier("minecraft", "stone_brick_wall");
-    public Identifier bridgeBlock = new Identifier("minecraft", "smooth_stone");
-    public Identifier bridgePillarBlock = new Identifier("minecraft", "light_gray_concrete");
+    public Identifier bridgeGuardRailBlock = Identifier.of("minecraft", "stone_brick_wall");
+    public Identifier bridgeBlock = Identifier.of("minecraft", "smooth_stone");
+    public Identifier bridgePillarBlock = Identifier.of("minecraft", "light_gray_concrete");
     public double bridgeWidth = 7.0;
 
     public int tunnelHeight = 7;
-    public Identifier tunnelWallBlock = new Identifier("minecraft", "stone");
-    public Identifier tunnelCeilingBlock = new Identifier("minecraft", "light_gray_concrete");
-    public Identifier tunnelFloorBlock = new Identifier("minecraft", "andesite");
+    public Identifier tunnelWallBlock = Identifier.of("minecraft", "stone");
+    public Identifier tunnelCeilingBlock = Identifier.of("minecraft", "light_gray_concrete");
+    public Identifier tunnelFloorBlock = Identifier.of("minecraft", "andesite");
     public double tunnelWidth = 7.0;
 
     public boolean useCatenary = true;
@@ -33,26 +34,30 @@ public class RailBuilderConfig {
     public int catenaryModeIndex = 0;
     public int catenarySpacing = 50;
     public Identifier catenaryBlock = StationBuilder.isMsdLoaded() ?
-            new Identifier("msd", "catenary_connector") :
-            new Identifier("minecraft", "cobweb");
+            Identifier.of("msd", "catenary_connector") :
+            Identifier.of("minecraft", "cobweb");
     public Identifier catenaryBridgePillar = StationBuilder.isMsdLoaded() ?
-            new Identifier("msd", "catenary_with_long") :
-            new Identifier("minecraft", "stone_brick_wall");
+            Identifier.of("msd", "catenary_with_long") :
+            Identifier.of("minecraft", "stone_brick_wall");
     public Identifier catenaryTunnelPillar = StationBuilder.isMsdLoaded() ?
-            new Identifier("msd", "catenary_with_long_top") :
-            new Identifier("minecraft", "stone_brick_wall");
+            Identifier.of("msd", "catenary_with_long_top") :
+            Identifier.of("minecraft", "stone_brick_wall");
 
-    // ===== NBT =====
     public static RailBuilderConfig fromItem(ItemStack stack) {
         RailBuilderConfig cfg = new RailBuilderConfig();
-        if (stack.hasNbt() && stack.getNbt().contains("railBuilderConfig")) {
-            cfg.fromNbt(stack.getNbt().getCompound("railBuilderConfig"));
+
+        NbtCompound root = stack.getOrDefault(ModComponents.RAIL_BUILDER_DATA, NbtComponent.DEFAULT).copyNbt();
+        if (root.contains("railBuilderConfig", NbtElement.COMPOUND_TYPE)) {
+            cfg.fromNbt(root.getCompound("railBuilderConfig"));
         }
+
         return cfg;
     }
 
     public void saveToItem(ItemStack stack) {
-        stack.getOrCreateNbt().put("railBuilderConfig", toNbt());
+        NbtCompound root = stack.getOrDefault(ModComponents.RAIL_BUILDER_DATA, NbtComponent.DEFAULT).copyNbt();
+        root.put("railBuilderConfig", toNbt());
+        stack.set(ModComponents.RAIL_BUILDER_DATA, NbtComponent.of(root));
     }
 
     public NbtCompound toNbt() {
@@ -97,7 +102,7 @@ public class RailBuilderConfig {
             railSpacing = nbt.getDouble("railSpacing");
 
         if (nbt.contains("railType", NbtElement.STRING_TYPE))
-            railType = new Identifier(nbt.getString("railType"));
+            railType = Identifier.of(nbt.getString("railType"));
 
         if (nbt.contains("ballastTopWidth", NbtElement.DOUBLE_TYPE))
             ballastTopWidth = nbt.getDouble("ballastTopWidth");
@@ -109,19 +114,19 @@ public class RailBuilderConfig {
             ballastMaxThickness = nbt.getInt("ballastMaxThickness");
 
         if (nbt.contains("ballastBlock", NbtElement.STRING_TYPE))
-            ballastBlock = new Identifier(nbt.getString("ballastBlock"));
+            ballastBlock = Identifier.of(nbt.getString("ballastBlock"));
 
         if (nbt.contains("bridgeClearSpan", NbtElement.INT_TYPE))
             bridgeClearSpan = nbt.getInt("bridgeClearSpan");
 
         if (nbt.contains("bridgeGuardRailBlock", NbtElement.STRING_TYPE))
-            bridgeGuardRailBlock = new Identifier(nbt.getString("bridgeGuardRailBlock"));
+            bridgeGuardRailBlock = Identifier.of(nbt.getString("bridgeGuardRailBlock"));
 
         if (nbt.contains("bridgeBlock", NbtElement.STRING_TYPE))
-            bridgeBlock = new Identifier(nbt.getString("bridgeBlock"));
+            bridgeBlock = Identifier.of(nbt.getString("bridgeBlock"));
 
         if (nbt.contains("bridgePillarBlock", NbtElement.STRING_TYPE))
-            bridgePillarBlock = new Identifier(nbt.getString("bridgePillarBlock"));
+            bridgePillarBlock = Identifier.of(nbt.getString("bridgePillarBlock"));
 
         if (nbt.contains("bridgeWidth", NbtElement.DOUBLE_TYPE))
             bridgeWidth = nbt.getDouble("bridgeWidth");
@@ -130,23 +135,23 @@ public class RailBuilderConfig {
             tunnelHeight = nbt.getInt("tunnelHeight");
 
         if (nbt.contains("tunnelWallBlock", NbtElement.STRING_TYPE))
-            tunnelWallBlock = new Identifier(nbt.getString("tunnelWallBlock"));
+            tunnelWallBlock = Identifier.of(nbt.getString("tunnelWallBlock"));
 
         if (nbt.contains("tunnelCeilingBlock", NbtElement.STRING_TYPE))
-            tunnelCeilingBlock = new Identifier(nbt.getString("tunnelCeilingBlock"));
+            tunnelCeilingBlock = Identifier.of(nbt.getString("tunnelCeilingBlock"));
 
         if (nbt.contains("tunnelFloorBlock", NbtElement.STRING_TYPE))
-            tunnelFloorBlock = new Identifier(nbt.getString("tunnelFloorBlock"));
-        
+            tunnelFloorBlock = Identifier.of(nbt.getString("tunnelFloorBlock"));
+
         if (nbt.contains("tunnelWidth", NbtElement.DOUBLE_TYPE))
             tunnelWidth = nbt.getDouble("tunnelWidth");
 
-        if (nbt.contains("useCatenary"))
+        if (nbt.contains("useCatenary", NbtElement.BYTE_TYPE))
             useCatenary = nbt.getBoolean("useCatenary");
 
-        if (nbt.contains("isVanillaCatenary"))
+        if (nbt.contains("isVanillaCatenary", NbtElement.BYTE_TYPE))
             isVanillaCatenary = nbt.getBoolean("isVanillaCatenary");
-            
+
         if (nbt.contains("catenaryModeIndex", NbtElement.INT_TYPE))
             catenaryModeIndex = nbt.getInt("catenaryModeIndex");
 
@@ -154,12 +159,12 @@ public class RailBuilderConfig {
             catenarySpacing = nbt.getInt("catenarySpacing");
 
         if (nbt.contains("catenaryBlock", NbtElement.STRING_TYPE))
-            catenaryBlock = new Identifier(nbt.getString("catenaryBlock"));
+            catenaryBlock = Identifier.of(nbt.getString("catenaryBlock"));
 
         if (nbt.contains("catenaryBridgePillar", NbtElement.STRING_TYPE))
-            catenaryBridgePillar = new Identifier(nbt.getString("catenaryBridgePillar"));
+            catenaryBridgePillar = Identifier.of(nbt.getString("catenaryBridgePillar"));
 
         if (nbt.contains("catenaryTunnelPillar", NbtElement.STRING_TYPE))
-            catenaryTunnelPillar = new Identifier(nbt.getString("catenaryTunnelPillar"));
+            catenaryTunnelPillar = Identifier.of(nbt.getString("catenaryTunnelPillar"));
     }
 }
