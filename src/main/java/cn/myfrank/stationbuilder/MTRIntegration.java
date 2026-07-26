@@ -9,6 +9,7 @@ import net.minecraft.block.HorizontalFacingBlock;
 import net.minecraft.block.WallBlock;
 import net.minecraft.block.enums.WallShape;
 import net.minecraft.registry.Registries;
+import net.minecraft.state.property.Properties;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.BlockPos;
@@ -125,7 +126,7 @@ public class MTRIntegration {
                 for (int y = 0; y < 2; ++y) {
                     // 获取基础 State 并手动设置属性
                     var state = accessor.getBlockStateFromItem_()
-                            .with(net.minecraft.state.property.Properties.FACING, facing)
+                            .with(Properties.HORIZONTAL_FACING, facing)
                             .with(HALF, y == 1 ? IBlock.DoubleBlockHalf.UPPER : IBlock.DoubleBlockHalf.LOWER);
 
                     if (thisItem.isDoor()) {

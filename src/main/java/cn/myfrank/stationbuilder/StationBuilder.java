@@ -219,7 +219,10 @@ public class StationBuilder implements ModInitializer {
 		public static final CustomPayload.Id<ClearRailStatePayload> ID =
 				new CustomPayload.Id<>(Identifier.of(MOD_ID, "clear_rail_state"));
 		public static final PacketCodec<RegistryByteBuf, ClearRailStatePayload> CODEC =
-				PacketCodec.unit(new ClearRailStatePayload());
+				PacketCodec.ofStatic(
+						(buf, payload) -> { /* 空数据包，不需要写入任何东西 */ },
+						buf -> new ClearRailStatePayload()
+				);
 
 		@Override
 		public CustomPayload.Id<? extends CustomPayload> getId() {
