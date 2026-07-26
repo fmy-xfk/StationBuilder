@@ -17,7 +17,7 @@ public class RailBuilderScreen extends GuiScreen {
     private static final int INPUT_HEIGHT = 18;
     private int catenaryState = 1; // 0=Disabled, 1=Vanilla, 2=MSD
 
-    private String initialRailCount;  // 新增
+    private String initialRailCount;
     private final GuiLabelTextField railCountInput = new GuiLabelTextField(getText("rail_count"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("2"));
     private final GuiLabelTextField railSpacingInput = new GuiLabelTextField(getText("rail_spacing"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("5.0"));
     private final GuiLabelSlot ballastBlockInput = new GuiLabelSlot(getText("ballast_block"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("minecraft", "andesite"), false);
@@ -35,6 +35,12 @@ public class RailBuilderScreen extends GuiScreen {
     private final GuiLabelSlot tunnelCeilingBlockInput = new GuiLabelSlot(getText("tunnel_ceiling_block"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("minecraft", "light_gray_concrete"), false);
     private final GuiLabelSlot tunnelFloorBlockInput = new GuiLabelSlot(getText("tunnel_floor_block"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("minecraft", "andesite"), false);
     private final GuiLabelTextField tunnelWidthInput = new GuiLabelTextField(getText("tunnel_width"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("7.0"));
+    private boolean clearFullHeight = false;
+    private final GuiLabelButton clearModeButton = new GuiLabelButton(getText("clear_mode_v"), (button) -> {
+        clearFullHeight = !clearFullHeight;
+        syncClearMode();
+    }, BUTTON_WIDTH, INPUT_HEIGHT, getText("clear_mode"));
+
     private final GuiButton catenaryStateButton = new GuiButton(getText("catenary_vanilla"), (button) -> {
         catenaryState = (catenaryState + 1) % (StationBuilder.isMsdLoaded() ? 3 : 2);
         syncCatenaryState();
@@ -54,7 +60,9 @@ public class RailBuilderScreen extends GuiScreen {
         var type = CatenaryTypeMapping.values()[catenaryModeIndex];
         button.setMessage(Text.translatable("gui.stationbuilder." + type.getName()));
     }
-
+    private void syncClearMode() {
+        clearModeButton.setMessage(getText(clearFullHeight ? "clear_mode_v" : "clear_mode_tunnel"));
+    }
     private void syncCatenaryState() {
         if (catenaryState == 0) {
             catenaryStateButton.setMessage(getText("catenary_disabled"));
@@ -144,6 +152,13 @@ public class RailBuilderScreen extends GuiScreen {
         if (nbt.contains("tunnelWidth", NbtElement.DOUBLE_TYPE)) {
             this.tunnelWidthInput.setText(String.valueOf(nbt.getDouble("tunnelWidth")));
         }
+        if (nbt.contains("clearFullHeight")) {
+            this.clearFullHeight = nbt.getBoolean("clearFullHeight");
+        } else {
+            this.clearFullHeight = true;
+        }
+        syncClearMode();
+
         boolean useCat = !nbt.contains("useCatenary") || nbt.getBoolean("useCatenary");
         boolean isVan = nbt.contains("isVanillaCatenary") ? nbt.getBoolean("isVanillaCatenary") : !StationBuilder.isMsdLoaded();
         if (!useCat) {
@@ -198,6 +213,7 @@ public class RailBuilderScreen extends GuiScreen {
         nbt.putString("tunnelCeilingBlock", tunnelCeilingBlockInput.getBlockId().toString());
         nbt.putString("tunnelFloorBlock", tunnelFloorBlockInput.getBlockId().toString());
         nbt.putDouble("tunnelWidth", Double.parseDouble(tunnelWidthInput.getText()));
+        nbt.putBoolean("clearFullHeight", clearFullHeight);
         nbt.putBoolean("useCatenary", catenaryState != 0);
         nbt.putBoolean("isVanillaCatenary", catenaryState == 1);
         nbt.putString("catenaryBlock", catenaryLineBlockInput.getBlockId().toString());
@@ -225,6 +241,7 @@ public class RailBuilderScreen extends GuiScreen {
                 .addControl(railCountInput)
                 .addControl(railSpacingInput)
                 .addControl(railTypeInput)
+                .addControl(clearModeButton)
                 .setDirection(PanelDirection.VERTICAL);
         railPanel.setCrossAlign(CrossAlignMode.START);
         railPanel.setGap(2);
