@@ -53,16 +53,18 @@ public class RailMath {
 
     public static ArrayList<PairXZ> getPositions(Vec3d center, Vec3d normal, double leftWidth, double rightWidth) {
         ArrayList<PairXZ> left = new ArrayList<>(), right = new ArrayList<>();
-        double step = 0.5, dx = normal.x, dz = normal.z;
+        double EPS = 1e-4, step = 0.5, dx = normal.x, dz = normal.z;
         for (double s = 0; s <= leftWidth; s += step) {
-            var xzL = new PairXZ((int)Math.floor(center.x - s * dx), (int)Math.floor(center.z - s * dz));
+            double actualS = Math.min(s, Math.max(0, leftWidth - EPS));
+            var xzL = new PairXZ((int)Math.floor(center.x - actualS * dx), (int)Math.floor(center.z - actualS * dz));
             int leftSize = left.size();
             if (leftSize == 0 || !Objects.equals(left.get(leftSize - 1), xzL)) {
                 left.add(xzL);
             }
         }
         for (double s = 0; s <= rightWidth; s += step) {
-            var xzR = new PairXZ((int)Math.floor(center.x + s * dx), (int)Math.floor(center.z + s * dz));
+            double actualS = Math.min(s, Math.max(0, rightWidth - EPS));
+            var xzR = new PairXZ((int)Math.floor(center.x + actualS * dx), (int)Math.floor(center.z + actualS * dz));
             int rightSize = right.size();
             if (rightSize == 0 || !Objects.equals(right.get(rightSize - 1), xzR)) {
                 right.add(xzR);
