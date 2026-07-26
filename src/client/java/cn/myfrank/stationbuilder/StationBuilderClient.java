@@ -3,7 +3,6 @@ package cn.myfrank.stationbuilder;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -66,11 +65,28 @@ public class StationBuilderClient implements ClientModInitializer {
 			var pos = bhr.getBlockPos();
 			if (!StationBuilder.isSoftTransparent(state)) pos = pos.offset(bhr.getSide());
 
-			renderRailPreview(context, client.player, pos, stack);
+			renderRailPreviewGeometry(context, client.player, pos, stack);
+		});
+
+		WorldRenderEvents.AFTER_TRANSLUCENT.register(context -> {
+			MinecraftClient client = MinecraftClient.getInstance();
+			if (client.player == null || client.world == null) return;
+
+			ItemStack stack = client.player.getMainHandStack();
+			if (!(stack.getItem() instanceof RailBuilderItem)) return;
+
+			HitResult hit = client.crosshairTarget;
+			if (!(hit instanceof BlockHitResult bhr)) return;
+
+			var state = client.world.getBlockState(bhr.getBlockPos());
+			var pos = bhr.getBlockPos();
+			if (!StationBuilder.isSoftTransparent(state)) pos = pos.offset(bhr.getSide());
+
+			renderRailPreviewText(context, client.player, pos, stack);
 		});
 	}
 
-	private static void renderRailPreview(
+	private static void renderRailPreviewGeometry(
 			WorldRenderContext context,
 			PlayerEntity player,
 			BlockPos targetPos,
@@ -80,6 +96,7 @@ public class StationBuilderClient implements ClientModInitializer {
 				targetPos, player.getYaw(), RailBuilderConfig.fromItem(stack)
 		);
 		if (nodes == null) return;
+
 		VertexConsumer consumer = context.consumers().getBuffer(RenderLayer.getLines());
 		MatrixStack matrices = context.matrixStack();
 		Vec3d cam = context.camera().getPos();
@@ -89,69 +106,126 @@ public class StationBuilderClient implements ClientModInitializer {
 			for (BlockPos node : nodes) {
 				drawBox(matrices, consumer, node, cam, 0f, 1f, 1f, 0.6f);
 			}
-		} else {
-			var lastNodes = lastPair.left();
-			float lastAngle = lastPair.right();
-
-			if (lastNodes.size() != nodes.size()) {
-				RailBuilderState.clear(stack);
-				stack.remove(net.minecraft.component.DataComponentTypes.CUSTOM_MODEL_DATA);
-				ClientPlayNetworking.send(new StationBuilder.ClearRailStatePayload());
-				return;
-			}
-
-			RailMath.adjustPointSequence(lastNodes, nodes);
-			float angle = player.getYaw();
-			Vec3d textPos = getPreviewCenterPos(lastNodes, targetPos);
-			var d = getDelta(lastNodes, targetPos);
-			double minRadius = 1e9, minLength = 1e9;
-			int successCount = 0;
-
-			for (int i = 0; i < lastNodes.size(); ++i) {
-				var node = nodes.get(i);
-				var lastNode = lastNodes.get(i);
-				drawBox(matrices, consumer, lastNode, cam, 0f, 1f, 1f, 0.6f);
-				drawBox(matrices, consumer, node, cam, 0f, 1f, 1f, 0.6f);
-				if (StationBuilder.isMtrLoaded()) {
-					var preview = previewCache.get(lastNode, MTRIntegration.parseAngle(lastAngle),
-							node, MTRIntegration.parseAngle(angle));
-					if (preview == null) {
-						preview = MTRIntegration.testConnectRailNodes(lastAngle, angle, lastNode, node);
-						previewCache.put(lastNode, MTRIntegration.parseAngle(lastAngle),
-								node, MTRIntegration.parseAngle(angle), preview);
-					}
-					if (preview.success()) {
-						successCount += 1;
-						renderCurve(matrices, context.consumers(), context.camera(), preview.positions());
-						if (preview.radius() > 0) {
-							minRadius = Math.min(minRadius, preview.radius());
-							minLength = Math.min(minLength, preview.length());
-						}
-					}
-				}
-			}
-			String extras = "";
-			int extra_color = 0xAAAAAA;
-			if (successCount < lastNodes.size()) {
-				extras = Text.translatable("message.stationbuilder.rail_builder.fail", lastNodes.size() - successCount).getString();
-				if (successCount > 0) {
-					extras += ", ";
-				}
-				extra_color = 0xFF5555;
-			}
-			if (successCount > 0) {
-				if (minRadius < 1e9) {
-					extras += Text.translatable(
-							"message.stationbuilder.rail_builder.min_radius",
-							String.format("%.2f", minRadius),
-							String.format("%.2f", minLength)
-					).getString();
-				} else {
-					extras += Text.translatable("message.stationbuilder.rail_builder.straight_line").getString();
-				}
-			}
-			renderDeltaText3D(context, textPos, d, extras, extra_color);
+			return;
 		}
+
+		var lastNodes = lastPair.left();
+		float lastAngle = lastPair.right();
+
+		if (lastNodes.size() != nodes.size()) {
+			return;
+		}
+
+		RailMath.adjustPointSequence(lastNodes, nodes);
+		float angle = player.getYaw();
+
+		for (int i = 0; i < lastNodes.size(); ++i) {
+			var node = nodes.get(i);
+			var lastNode = lastNodes.get(i);
+
+			drawBox(matrices, consumer, lastNode, cam, 0f, 1f, 1f, 0.6f);
+			drawBox(matrices, consumer, node, cam, 0f, 1f, 1f, 0.6f);
+
+			if (StationBuilder.isMtrLoaded()) {
+				var preview = previewCache.get(
+						lastNode, MTRIntegration.parseAngle(lastAngle),
+						node, MTRIntegration.parseAngle(angle)
+				);
+				if (preview == null) {
+					preview = MTRIntegration.testConnectRailNodes(lastAngle, angle, lastNode, node);
+					previewCache.put(
+							lastNode, MTRIntegration.parseAngle(lastAngle),
+							node, MTRIntegration.parseAngle(angle),
+							preview
+					);
+				}
+				if (preview != null && preview.success()) {
+					renderCurve(matrices, context.consumers(), context.camera(), preview.positions());
+				}
+			}
+		}
+	}
+
+	private static void renderRailPreviewText(
+			WorldRenderContext context,
+			PlayerEntity player,
+			BlockPos targetPos,
+			ItemStack stack
+	) {
+		ArrayList<BlockPos> nodes = RailGenerator.calcRailNodes(
+				targetPos, player.getYaw(), RailBuilderConfig.fromItem(stack)
+		);
+		if (nodes == null) return;
+
+		var lastPair = RailBuilderState.getLastNodesAndAngle(stack);
+		if (lastPair == null || lastPair.left() == null) return;
+
+		var lastNodes = lastPair.left();
+		float lastAngle = lastPair.right();
+
+		if (lastNodes.size() != nodes.size()) {
+			return;
+		}
+
+		RailMath.adjustPointSequence(lastNodes, nodes);
+		float angle = player.getYaw();
+
+		Vec3d textPos = getPreviewCenterPos(lastNodes, targetPos);
+		Vec3i d = getDelta(lastNodes, targetPos);
+
+		double minRadius = 1e9, minLength = 1e9;
+		int successCount = 0;
+
+		for (int i = 0; i < lastNodes.size(); ++i) {
+			var lastNode = lastNodes.get(i);
+			var node = nodes.get(i);
+
+			if (!StationBuilder.isMtrLoaded()) continue;
+
+			var preview = previewCache.get(
+					lastNode, MTRIntegration.parseAngle(lastAngle),
+					node, MTRIntegration.parseAngle(angle)
+			);
+			if (preview == null) {
+				preview = MTRIntegration.testConnectRailNodes(lastAngle, angle, lastNode, node);
+				previewCache.put(
+						lastNode, MTRIntegration.parseAngle(lastAngle),
+						node, MTRIntegration.parseAngle(angle),
+						preview
+				);
+			}
+
+			if (preview != null && preview.success()) {
+				successCount += 1;
+				if (preview.radius() > 0) {
+					minRadius = Math.min(minRadius, preview.radius());
+					minLength = Math.min(minLength, preview.length());
+				}
+			}
+		}
+
+		String extras = "";
+		int extraColor = 0xAAAAAA;
+
+		if (successCount < lastNodes.size()) {
+			extras = Text.translatable("message.stationbuilder.rail_builder.fail", lastNodes.size() - successCount).getString();
+			if (successCount > 0) extras += ", ";
+			extraColor = 0xFF5555;
+		}
+
+		if (successCount > 0) {
+			if (minRadius < 1e9) {
+				extras += Text.translatable(
+						"message.stationbuilder.rail_builder.min_radius",
+						String.format("%.2f", minRadius),
+						String.format("%.2f", minLength)
+				).getString();
+			} else {
+				extras += Text.translatable("message.stationbuilder.rail_builder.straight_line").getString();
+			}
+		}
+
+		renderDeltaText3D(context, textPos, d, extras, extraColor);
 	}
 
 	private static void renderCurve(
@@ -228,7 +302,7 @@ public class StationBuilderClient implements ClientModInitializer {
 			Vec3d worldPos,
 			Vec3i d,
 			String extras,
-			int extra_color
+			int extraColor
 	) {
 		MinecraftClient client = MinecraftClient.getInstance();
 		Camera camera = context.camera();
@@ -254,31 +328,31 @@ public class StationBuilderClient implements ClientModInitializer {
 		matrices.translate(worldPos.x - camPos.x, worldPos.y - camPos.y, worldPos.z - camPos.z);
 		matrices.multiply(camera.getRotation());
 		float scale = 0.025F;
-		matrices.scale(-scale, -scale, scale);
+		matrices.scale(scale, -scale, scale);
 
 		float x = -textRenderer.getWidth(text) / 2f;
 		float y = 0;
-
-		RenderSystem.disableDepthTest();
 
 		textRenderer.draw(
 				text, x, y, color, false,
 				matrices.peek().getPositionMatrix(),
 				context.consumers(),
-				TextRenderer.TextLayerType.NORMAL,
+				TextRenderer.TextLayerType.SEE_THROUGH,
 				0, 0xF000F0
 		);
 
-		float x2 = -textRenderer.getWidth(extras) / 2f;
-		textRenderer.draw(
-				extras, x2, y + textRenderer.getWrappedLinesHeight(text, 100) + 3, extra_color, false,
-				matrices.peek().getPositionMatrix(),
-				context.consumers(),
-				TextRenderer.TextLayerType.NORMAL,
-				0, 0xF000F0
-		);
+		if (extras != null && !extras.isEmpty()) {
+			float x2 = -textRenderer.getWidth(extras) / 2f;
+			float y2 = y + textRenderer.fontHeight + 3; // 或者按换行后的实际高度算
+			textRenderer.draw(
+					extras, x2, y2, extraColor, false,
+					matrices.peek().getPositionMatrix(),
+					context.consumers(),
+					TextRenderer.TextLayerType.SEE_THROUGH,
+					0, 0xF000F0
+			);
+		}
 
-		RenderSystem.enableDepthTest();
 		matrices.pop();
 	}
 }
