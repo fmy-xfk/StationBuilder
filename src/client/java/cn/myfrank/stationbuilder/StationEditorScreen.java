@@ -11,7 +11,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtList;
-import net.minecraft.nbt.NbtSizeTracker;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.registry.Registries;
 import net.minecraft.structure.StructureTemplate;
@@ -661,7 +660,7 @@ public class StationEditorScreen extends GuiScreen {
         String name = file.getName().toLowerCase();
         try {
             if (name.endsWith(".nbt")) {
-                NbtCompound nbt = NbtIo.readCompressed(file.toPath(), NbtSizeTracker.ofUnlimitedBytes());
+                NbtCompound nbt = NbtIo.readCompressed(file);
                 StructureTemplate template = new StructureTemplate();
                 template.readNbt(Registries.BLOCK.getReadOnlyWrapper(), nbt);
                 return template;

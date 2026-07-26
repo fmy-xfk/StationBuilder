@@ -58,7 +58,7 @@ public class BuildingSelectionScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        this.renderBackground(context, mouseX, mouseY, delta);
+        this.renderBackground(context);
         context.drawCenteredTextWithShadow(textRenderer, getTitle(), width / 2, 15, 0xFFFFFF);
         super.render(context, mouseX, mouseY, delta);
     }

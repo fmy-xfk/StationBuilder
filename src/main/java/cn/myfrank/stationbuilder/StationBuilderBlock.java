@@ -1,6 +1,5 @@
 package cn.myfrank.stationbuilder;
 
-import com.mojang.serialization.MapCodec;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.block.Block;
@@ -35,11 +34,6 @@ public class StationBuilderBlock extends HorizontalFacingBlock implements BlockE
     public StationBuilderBlock(Settings settings) {
         super(settings);
         setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH));
-    }
-
-    @Override
-    protected MapCodec<? extends HorizontalFacingBlock> getCodec() {
-        return null;
     }
 
     @Override
@@ -119,7 +113,7 @@ public class StationBuilderBlock extends HorizontalFacingBlock implements BlockE
     }
 
     @Override
-    public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
+    public void onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
         // 如果是创造模式，手动触发一次掉落逻辑
         if (!world.isClient && player.isCreative()) {
             BlockEntity be = world.getBlockEntity(pos);
@@ -137,6 +131,5 @@ public class StationBuilderBlock extends HorizontalFacingBlock implements BlockE
                 world.spawnEntity(itemEntity);
             }
         }
-        return super.onBreak(world, pos, state, player);
     }
 }
