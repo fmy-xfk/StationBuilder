@@ -407,14 +407,8 @@ public class MTRIntegration {
     private static void buildPillarDown(ServerWorld world, BlockPos topPos, Identifier pillarBlock) {
         var state = Registries.BLOCK.get(pillarBlock).getDefaultState();
         BlockPos pos = topPos;
-        int solidCount = 0;
-        while(solidCount < 3 && world.isInBuildLimit(pos)) {
-            if (StationBuilder.isSoftTransparent(world.getBlockState(pos))) {
-                world.setBlockState(pos, state, 3);
-                solidCount = 0;
-            } else {
-                solidCount++;
-            }
+        while(world.isInBuildLimit(pos) && StationBuilder.isSoftTransparent(world.getBlockState(pos))) {
+            world.setBlockState(pos, state, 3);
             pos = pos.offset(Direction.DOWN);
         }
     }
@@ -426,33 +420,44 @@ public class MTRIntegration {
     }
 
     private static BlockPos addVanillaCatenaryNode(
-            ServerWorld world, Vec3d center, Vec3d tangent, int trackIndex, int trackCount, double railSpacing,
+            ServerWorld world, Vec3d center, Vec3d tangent, boolean isRightest, int trackCount, double railSpacing,
             @Nullable BlockPos lastCatenaryNode, Identifier pillarBlock, Identifier lineBlock
     ) {
         int blockY = (int) Math.floor(center.y);
         var catenaryPos = new BlockPos((int) Math.floor(center.x), blockY + 5, (int) Math.floor(center.z));
 
-        // 只在主导轨道 (trackIndex == 0) 进行完整的门架绘制
-        if (trackIndex == 0) {
+        if (isRightest) {
             var trussPos = catenaryPos.up();
             Vec3d normal = new Vec3d(-tangent.z, 0, tangent.x).normalize();
 
             if (trackCount == 1) {
                 // 单条轨道只在最右侧放置 L 型支架
-                BlockPos rightEnd = trussPos.add((int)Math.round(normal.x * 3.0), 0, (int)Math.round(normal.z * 3.0));
+                BlockPos rightEnd = new BlockPos(
+                        (int) Math.floor(center.x + normal.x * 3.0),
+                        trussPos.getY(),
+                        (int) Math.floor(center.z + normal.z * 3.0)
+                );
                 drawLine(world, trussPos, rightEnd, pillarBlock);
-                buildPillarDown(world, rightEnd, pillarBlock);
+                buildPillarDown(world, rightEnd.down(), pillarBlock);
             } else {
                 // 多条轨道时，跨越所有轨道总宽画一道拱门
-                double leftSpan = -((trackCount - 1) * railSpacing + 3.0);
-                double rightSpan = 3.0;
+                double leftSpan = -((trackCount - 1) * railSpacing + 3.0) + EPS;
+                double rightSpan = 3.0 - EPS;
 
-                BlockPos rightEnd = trussPos.add((int)Math.round(normal.x * rightSpan), 0, (int)Math.round(normal.z * rightSpan));
-                BlockPos leftEnd = trussPos.add((int)Math.round(normal.x * leftSpan), 0, (int)Math.round(normal.z * leftSpan));
+                BlockPos rightEnd = new BlockPos(
+                        (int) Math.floor(center.x + normal.x * rightSpan),
+                        trussPos.getY(),
+                        (int) Math.floor(center.z + normal.z * rightSpan)
+                );
+                BlockPos leftEnd = new BlockPos(
+                        (int) Math.floor(center.x + normal.x * leftSpan),
+                        trussPos.getY(),
+                        (int) Math.floor(center.z + normal.z * leftSpan)
+                );
 
                 drawLine(world, rightEnd, leftEnd, pillarBlock);
-                buildPillarDown(world, rightEnd, pillarBlock);
-                buildPillarDown(world, leftEnd, pillarBlock);
+                buildPillarDown(world, rightEnd.down(), pillarBlock);
+                buildPillarDown(world, leftEnd.down(), pillarBlock);
             }
         }
 
@@ -735,11 +740,25 @@ public class MTRIntegration {
             }
         }
 
-        // Build according to building modes
+        // First pass: Clear heights according to building modes
         for (int j = 0; j <= segments; j++) {
             for(int i = 0; i < count; i++) {
                 if (rails[i] == null) continue;
-                var tuple = pps[i].get();
+                var tuple = pps[i].get(j);
+                var thisUbm = BuildingMode.Up.fromValue(ubm[j]);
+                var center = tuple.get(0);
+                var normal = tuple.get(2);
+                if (thisUbm == BuildingMode.Up.Clear) {
+                    clearHeights(center, normal, world, config, isLeftest[i], isRightest[i], j > 1);
+                }
+            }
+        }
+
+        // Second pass: Build structures
+        for (int j = 0; j <= segments; j++) {
+            for(int i = 0; i < count; i++) {
+                if (rails[i] == null) continue;
+                var tuple = pps[i].get(j);
                 var thisUbm = BuildingMode.Up.fromValue(ubm[j]);
                 var thisDbm = BuildingMode.Down.fromValue(dbm[j]);
                 var center = tuple.get(0);
@@ -749,10 +768,6 @@ public class MTRIntegration {
                 if (thisDbm == BuildingMode.Down.ThickBallast) {
                     buildThickerBallast(center, normal, world, config, isLeftest[i], isRightest[i]);
                 }
-                if (thisUbm == BuildingMode.Up.Clear) {
-                    clearHeights(center, normal, world, config, isLeftest[i], isRightest[i], j > 1);
-                }
-                pps[i].next();
             }
         }
 
@@ -771,7 +786,7 @@ public class MTRIntegration {
                 var thisUbm = BuildingMode.Up.fromValue(ubm[j]);
                 if (config.useCatenary) {
                     if (config.isVanillaCatenary) {
-                        lastCatenaryNode = addVanillaCatenaryNode(world, center, tangent, i, count, config.railSpacing,
+                        lastCatenaryNode = addVanillaCatenaryNode(world, center, tangent, isRightest[i], count, config.railSpacing,
                                 lastCatenaryNode,
                                 thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar,
                                 config.catenaryBlock);
