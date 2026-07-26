@@ -1,6 +1,5 @@
 package cn.myfrank.stationbuilder;
 
-import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntityType;
@@ -52,7 +51,7 @@ public class ModBlocks {
         STATION_BUILDER_ENTITY = Registry.register(
                 Registries.BLOCK_ENTITY_TYPE,
                 Identifier.of("stationbuilder", "station_builder_be"),
-                FabricBlockEntityTypeBuilder.create(StationBuilderBlockEntity::new, STATION_BUILDER).build()
+                BlockEntityType.Builder.create(StationBuilderBlockEntity::new, STATION_BUILDER).build()
         );
     }
 }
