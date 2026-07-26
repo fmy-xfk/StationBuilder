@@ -57,7 +57,7 @@ public class StationBuilderBlock extends HorizontalFacingBlock implements BlockE
                         (ServerPlayerEntity) player,
                         new StationBuilder.SyncOpenStationPayload(
                                 pos,
-                                state.get(FACING).getHorizontal(),
+                                state.get(FACING).getHorizontalQuarterTurns(),
                                 nbt
                         )
                 );

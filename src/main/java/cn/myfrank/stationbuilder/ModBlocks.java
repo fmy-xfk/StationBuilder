@@ -1,5 +1,6 @@
 package cn.myfrank.stationbuilder;
 
+import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntityType;
@@ -26,6 +27,7 @@ public class ModBlocks {
 
     public static final StationBuilderBlock STATION_BUILDER = new StationBuilderBlock(
             AbstractBlock.Settings.copy(Blocks.IRON_BLOCK)
+                    .registryKey(STATION_BUILDER_KEY)
                     .requiresTool()
                     .strength(3.0f, 6.0f)
     );
@@ -33,6 +35,7 @@ public class ModBlocks {
     public static final BlockItem STATION_BUILDER_ITEM = new BlockItem(
             STATION_BUILDER,
             new Item.Settings()
+                    .registryKey(STATION_BUILDER_ITEM_KEY)
     ) {
         @Override
         public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type) {
@@ -51,7 +54,7 @@ public class ModBlocks {
         STATION_BUILDER_ENTITY = Registry.register(
                 Registries.BLOCK_ENTITY_TYPE,
                 Identifier.of("stationbuilder", "station_builder_be"),
-                BlockEntityType.Builder.create(StationBuilderBlockEntity::new, STATION_BUILDER).build()
+                FabricBlockEntityTypeBuilder.create(StationBuilderBlockEntity::new, STATION_BUILDER).build()
         );
     }
 }

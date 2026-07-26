@@ -40,7 +40,7 @@ public class StationBuilderClient implements ClientModInitializer {
 				context.client().setScreen(
 						new StationEditorScreen(
 								payload.pos,
-								Direction.fromHorizontal(payload.facing),
+								Direction.fromHorizontalQuarterTurns(payload.facing),
 								payload.nbt
 						)
 				);
@@ -267,7 +267,7 @@ public class StationBuilderClient implements ClientModInitializer {
 			float r, float g, float b, float a
 	) {
 		Box box = new Box(pos).offset(-cam.x, -cam.y, -cam.z);
-		WorldRenderer.drawBox(matrices, consumer, box, r, g, b, a);
+		VertexRendering.drawBox(matrices, consumer, box, r, g, b, a);
 	}
 
 	private static Vec3d getPreviewCenterPos(

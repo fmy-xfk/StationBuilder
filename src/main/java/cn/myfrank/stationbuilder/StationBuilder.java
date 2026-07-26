@@ -279,7 +279,7 @@ public class StationBuilder implements ModInitializer {
 						context.player(),
 						context.player().getServerWorld(),
 						payload.pos,
-						Direction.fromHorizontal(payload.facing),
+						Direction.fromHorizontalQuarterTurns(payload.facing),
 						payload.length,
 						new ArrayList<>(payload.elements)
 				);

@@ -13,7 +13,9 @@ public class ModItems {
             RegistryKey.of(RegistryKeys.ITEM, RAIL_BUILDER_ID);
 
     public static final Item RAIL_BUILDER_ITEM = new RailBuilderItem(
-            new Item.Settings().maxCount(1)
+            new Item.Settings()
+                    .registryKey(RAIL_BUILDER_ITEM_KEY)
+                    .maxCount(1)
     );
 
     public static void register() {

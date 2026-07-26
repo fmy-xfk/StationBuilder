@@ -27,7 +27,7 @@ public class RailBuilderItem extends Item {
         if (RailBuilderState.isBuilding(stack)) {
             stack.set(
                     DataComponentTypes.CUSTOM_MODEL_DATA,
-                    new CustomModelDataComponent(1)
+                    new CustomModelDataComponent(List.of(1.0f), List.of(), List.of(), List.of())
             );
         } else {
             stack.remove(DataComponentTypes.CUSTOM_MODEL_DATA);
@@ -92,16 +92,16 @@ public class RailBuilderItem extends Item {
     }
 
     @Override
-    public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
+    public ActionResult use(World world, PlayerEntity user, Hand hand) {
         ItemStack stack = user.getStackInHand(hand);
         if (user.isSneaking()) { // Shift
             if (!world.isClient) {
                 openGui((ServerPlayerEntity) user, stack);
             }
-            return TypedActionResult.success(stack);
+            return ActionResult.SUCCESS;
         }
 
-        return TypedActionResult.pass(stack);
+        return ActionResult.PASS;
     }
 
     @Override
