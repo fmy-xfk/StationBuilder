@@ -27,7 +27,7 @@ public enum CatenaryTypeMapping {
    }
    public String getName() {
       return switch(this) {
-         case Auto -> "Auto";
+         case Auto -> "auto";
          case MSDCatenary -> "msd_catenary";
          case MSDElectric -> "msd_electric";
          case MSDRigidCatenary -> "msd_rigid_catenary";

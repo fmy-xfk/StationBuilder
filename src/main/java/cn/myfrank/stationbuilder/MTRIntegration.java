@@ -428,10 +428,10 @@ public class MTRIntegration {
 
     private static BlockPos addVanillaCatenaryNode(
             ServerWorld world, Vec3d center, Vec3d tangent, boolean isRightest, int trackCount, double railSpacing,
-            @Nullable BlockPos lastCatenaryNode, Identifier pillarBlock, Identifier lineBlock
+            @Nullable BlockPos lastCatenaryNode, int height, Identifier pillarBlock, Identifier lineBlock
     ) {
         int blockY = (int) Math.floor(center.y);
-        var catenaryPos = new BlockPos((int) Math.floor(center.x), blockY + 5, (int) Math.floor(center.z));
+        var catenaryPos = new BlockPos((int) Math.floor(center.x), blockY + height, (int) Math.floor(center.z));
 
         if (isRightest) {
             var trussPos = catenaryPos.up();
@@ -795,7 +795,7 @@ public class MTRIntegration {
                 if (config.useCatenary) {
                     if (config.isVanillaCatenary) {
                         lastCatenaryNode = addVanillaCatenaryNode(world, center, tangent, isRightest[i], count, config.railSpacing,
-                                lastCatenaryNode,
+                                lastCatenaryNode, config.tunnelHeight - 1,
                                 thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar,
                                 config.catenaryBlock);
                     } else {
