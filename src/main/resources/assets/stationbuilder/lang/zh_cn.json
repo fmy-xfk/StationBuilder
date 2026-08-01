@@ -103,6 +103,7 @@
   "gui.stationbuilder.catenary_bridge_pillar": "桥梁支柱",
   "gui.stationbuilder.catenary_tunnel_pillar": "隧道支柱",
   "gui.stationbuilder.minecraft_block": "原版方块",
+  "gui.stationbuilder.auto": "自动",
   "gui.stationbuilder.msd_catenary": "柔性接触网",
   "gui.stationbuilder.msd_electric": "电线",
   "gui.stationbuilder.msd_rigid_catenary": "刚性接触网",

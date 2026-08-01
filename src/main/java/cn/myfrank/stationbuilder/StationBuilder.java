@@ -32,10 +32,6 @@ public class StationBuilder implements ModInitializer {
 	public static final int DEFAULT_STATION_LENGTH = 51;
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-	public static final Identifier SYNC_AND_OPEN_PACKET = Identifier.of(MOD_ID, "sync_open");
-	public static final Identifier SAVE_DATA_PACKET = Identifier.of(MOD_ID, "save_data");
-	public static final Identifier SYNC_AND_OPEN_PACKET_RAIL = Identifier.of(MOD_ID, "sync_open_rail");
-
 	public static final ItemGroup STATION_GROUP = Registry.register(
 			Registries.ITEM_GROUP,
 			Identifier.of(MOD_ID, "station_group"),
@@ -240,6 +236,11 @@ public class StationBuilder implements ModInitializer {
 				|| !state.getFluidState().isEmpty()
 				|| state.isIn(BlockTags.LOGS)
 				|| state.isIn(BlockTags.LEAVES);
+	}
+
+	public static boolean isNotLiquidTransparent(BlockState state) {
+		return state.isAir() || state.isReplaceable() ||
+				state.isIn(BlockTags.LOGS) || state.isIn(BlockTags.LEAVES);
 	}
 
 	@Override
