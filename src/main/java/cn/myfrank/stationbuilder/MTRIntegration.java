@@ -81,6 +81,13 @@ public class MTRIntegration {
         return BlockNode.getAngle(state);
     }
 
+    public static double getAngleFromVec3d(Vec3d v) {
+        if (Math.abs(v.x) < 1e-8 && Math.abs(v.z) < 1e-8) {
+            return 0.0; // 无水平方向，返回默认值
+        }
+        return Math.toDegrees(Math.atan2(-v.x, v.z));
+    }
+
     public static void placePIDSPole(ServerWorld world, BlockPos pos, Direction facing, Identifier poleId) {
         var state = Registries.BLOCK.get(poleId).getDefaultState();
         if (state.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING)) {
@@ -380,10 +387,10 @@ public class MTRIntegration {
 
     private static BlockPos addVanillaCatenaryNode(
             ServerWorld world, Vec3d center, Vec3d tangent, boolean isRightest, int trackCount, double railSpacing,
-            @Nullable BlockPos lastCatenaryNode, Identifier pillarBlock, Identifier lineBlock
+            @Nullable BlockPos lastCatenaryNode, int height, Identifier pillarBlock, Identifier lineBlock
     ) {
         int blockY = (int) Math.floor(center.y);
-        var catenaryPos = new BlockPos((int) Math.floor(center.x), blockY + 5, (int) Math.floor(center.z));
+        var catenaryPos = new BlockPos((int) Math.floor(center.x), blockY + height, (int) Math.floor(center.z));
 
         if (isRightest) {
             var trussPos = catenaryPos.up();
@@ -746,7 +753,7 @@ public class MTRIntegration {
                 if (config.useCatenary) {
                     if (config.isVanillaCatenary) {
                         lastCatenaryNode = addVanillaCatenaryNode(world, center, tangent, isRightest[i], count, config.railSpacing,
-                                lastCatenaryNode,
+                                lastCatenaryNode, config.tunnelHeight - 1,
                                 thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar,
                                 config.catenaryBlock);
                     } else {
@@ -804,7 +811,7 @@ public class MTRIntegration {
                         }
                     } else if (y >= config.tunnelHeight) {
                         roofBlocks++;
-                        if (!state.isAir() && !isRailNode && !isSoftTransparent) {
+                        if (!state.isAir() && !isRailNode && !StationBuilder.isNotLiquidTransparent(state)) {
                             roofSolidBlocks++;
                         }
                     }
