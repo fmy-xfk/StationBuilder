@@ -51,6 +51,7 @@ public class RailBuilderScreen extends GuiScreen {
     private final GuiButton catenaryModeButton = new GuiButton(getText("catenary"), (button) -> {
         catenaryModeIndex = (catenaryModeIndex + 1) % CatenaryTypeMapping.values().length;
         syncCatenaryMode(button);
+        syncCatenaryState();
     }, BUTTON_WIDTH, INPUT_HEIGHT);
     private final GuiLabelSlot catenaryBridgePillarInput = new GuiLabelSlot(getText("catenary_bridge_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, StationBuilder.isMsdLoaded() ? new Identifier("msd", "catenary_with_long") : new Identifier("minecraft", "stone_brick_wall"), false);
     private final GuiLabelSlot catenaryTunnelPillarInput = new GuiLabelSlot(getText("catenary_tunnel_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, StationBuilder.isMsdLoaded() ? new Identifier("msd", "catenary_with_long_top") : new Identifier("minecraft", "stone_brick_wall"), false);
@@ -85,6 +86,9 @@ public class RailBuilderScreen extends GuiScreen {
             catenaryLineBlockInput.setVisible(false);
             catenaryBridgePillarInput.setVisible(true);
             catenaryTunnelPillarInput.setVisible(true);
+            boolean isAuto = catenaryModeIndex == 0;
+            catenaryBridgePillarInput.setVisible(!isAuto);
+            catenaryTunnelPillarInput.setVisible(!isAuto);
         }
     }
     private static Text getText(String key) {
@@ -168,20 +172,21 @@ public class RailBuilderScreen extends GuiScreen {
         } else {
             this.catenaryState = StationBuilder.isMsdLoaded() ? 2 : 1;
         }
+
+        if (nbt.contains("catenaryModeIndex", NbtElement.INT_TYPE)) {
+            this.catenaryModeIndex = nbt.getInt("catenaryModeIndex");
+        } else {
+            this.catenaryModeIndex = 0;
+        }
+        syncCatenaryMode(catenaryModeButton);
         syncCatenaryState();
+
         if (nbt.contains("catenaryBlock", NbtElement.STRING_TYPE)) {
             this.catenaryLineBlockInput.setBlockId(new Identifier(nbt.getString("catenaryBlock")));
         }
         this.catenarySpacingInput.getTextField().setNumberOnly(true);
         if (nbt.contains("catenarySpacing", NbtElement.INT_TYPE)) {
             this.catenarySpacingInput.setText(String.valueOf(nbt.getInt("catenarySpacing")));
-        }
-        if (nbt.contains("catenaryModeIndex", NbtElement.INT_TYPE)) {
-            this.catenaryModeIndex = nbt.getInt("catenaryModeIndex");
-            syncCatenaryMode(catenaryModeButton);
-        } else {
-            this.catenaryModeIndex = 1;
-            syncCatenaryMode(catenaryModeButton);
         }
         if (nbt.contains("catenaryBridgePillar", NbtElement.STRING_TYPE)) {
             this.catenaryBridgePillarInput.setBlockId(new Identifier(nbt.getString("catenaryBridgePillar")));

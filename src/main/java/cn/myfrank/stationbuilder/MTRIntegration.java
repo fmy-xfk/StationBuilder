@@ -79,6 +79,13 @@ public class MTRIntegration {
         return BlockNode.getAngle(state);
     }
 
+    public static double getAngleFromVec3d(Vec3d v) {
+        if (Math.abs(v.x) < 1e-8 && Math.abs(v.z) < 1e-8) {
+            return 0.0; // 无水平方向，返回默认值
+        }
+        return Math.toDegrees(Math.atan2(-v.x, v.z));
+    }
+
     public static void placePIDSPole(ServerWorld world, BlockPos pos, Direction facing, Identifier poleId) {
         var state = Registries.BLOCK.get(poleId).getDefaultState();
         if (state.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING)) {
@@ -346,22 +353,22 @@ public class MTRIntegration {
 
     private static BlockPos addCatenaryNode(
             ServerWorld world, Vec3d center, Vec3d tangent, boolean isLeftest, boolean isRightest,
-            @Nullable BlockPos lastCatenaryNode, Identifier block, int modeIndex
+            @Nullable BlockPos lastCatenaryNode, Identifier block, CatenaryTypeMapping type, int height
     ) {
         Direction dir = horizontalDirectionFromVec(tangent);
+        double dirAngle = getAngleFromVec3d(tangent);
         int blockY = (int) Math.floor(center.getY());
-        var catenaryPos = new BlockPos((int) Math.floor(center.x), blockY + 5, (int) Math.floor(center.z));
+        var catenaryPos = new BlockPos((int) Math.floor(center.x), blockY + height, (int) Math.floor(center.z));
         if (isLeftest || isRightest) {
             if (isLeftest) {
                 dir = dir.rotateYClockwise();
             } else {
                 dir = dir.rotateYCounterclockwise();
             }
-            if (!MSDIntegration.placeCatenaryNode(world, catenaryPos, dir, block)){
+            if (!MSDIntegration.placeCatenaryNode(world, catenaryPos, dir, dirAngle, block)){
                 return null;
             }
             if (lastCatenaryNode != null) {
-                CatenaryTypeMapping type = CatenaryTypeMapping.values()[modeIndex];
                 MSDIntegration.connectCatenary(world, lastCatenaryNode, catenaryPos, type);
             }
             return catenaryPos;
@@ -421,10 +428,10 @@ public class MTRIntegration {
 
     private static BlockPos addVanillaCatenaryNode(
             ServerWorld world, Vec3d center, Vec3d tangent, boolean isRightest, int trackCount, double railSpacing,
-            @Nullable BlockPos lastCatenaryNode, Identifier pillarBlock, Identifier lineBlock
+            @Nullable BlockPos lastCatenaryNode, int height, Identifier pillarBlock, Identifier lineBlock
     ) {
         int blockY = (int) Math.floor(center.y);
-        var catenaryPos = new BlockPos((int) Math.floor(center.x), blockY + 5, (int) Math.floor(center.z));
+        var catenaryPos = new BlockPos((int) Math.floor(center.x), blockY + height, (int) Math.floor(center.z));
 
         if (isRightest) {
             var trussPos = catenaryPos.up();
@@ -775,6 +782,7 @@ public class MTRIntegration {
         boolean failToPlaceCatenaryNode = false;
         for(int i = 0; i < count; i++) {
             BlockPos lastCatenaryNode = null;
+            BuildingMode.Up lastUbm = null;
             var rail = rails[i];
             if (rail == null) continue;
             MTRPointProvider pp = new MTRPointProvider(rail.railMath, segments, reverse[i]);
@@ -787,16 +795,38 @@ public class MTRIntegration {
                 if (config.useCatenary) {
                     if (config.isVanillaCatenary) {
                         lastCatenaryNode = addVanillaCatenaryNode(world, center, tangent, isRightest[i], count, config.railSpacing,
-                                lastCatenaryNode,
+                                lastCatenaryNode, config.tunnelHeight - 1,
                                 thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar,
                                 config.catenaryBlock);
                     } else {
                         if (isLeftest[i] || isRightest[i]) {
-                            lastCatenaryNode = addCatenaryNode(world, center, tangent, isLeftest[i], isRightest[i], lastCatenaryNode,
-                                    thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar, config.catenaryModeIndex);
+                            CatenaryTypeMapping type = CatenaryTypeMapping.values()[config.catenaryModeIndex];
+                            Identifier pillarBlock = thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar;
+
+                            if (type == CatenaryTypeMapping.Auto) {
+                                if (thisUbm == BuildingMode.Up.Tunnel) {
+                                    pillarBlock = new Identifier("msd", "rigid_catenary_node");
+                                } else {
+                                    pillarBlock = new Identifier("msd", "catenary_with_long");
+                                }
+
+                                if (lastUbm != null) {
+                                    if (lastUbm == BuildingMode.Up.Tunnel && thisUbm == BuildingMode.Up.Tunnel) {
+                                        type = CatenaryTypeMapping.MSDRigidCatenary;
+                                    } else if (lastUbm == BuildingMode.Up.Clear && thisUbm == BuildingMode.Up.Clear) {
+                                        type = CatenaryTypeMapping.MSDCatenary;
+                                    } else {
+                                        type = CatenaryTypeMapping.MSDRigidSoftCatenary;
+                                    }
+                                }
+                            }
+
+                            lastCatenaryNode = addCatenaryNode(world, center, tangent, isLeftest[i], isRightest[i],
+                                    lastCatenaryNode, pillarBlock, type, config.tunnelHeight - 1);
                             if (lastCatenaryNode == null) {
                                 failToPlaceCatenaryNode = true;
                             }
+                            lastUbm = thisUbm;
                         }
                     }
                 }
@@ -851,7 +881,7 @@ public class MTRIntegration {
                         }
                     } else if (y >= config.tunnelHeight) {
                         roofBlocks++;
-                        if (!state.isAir() && !isRailNode && !isSoftTransparent) {
+                        if (!state.isAir() && !isRailNode && !StationBuilder.isNotLiquidTransparent(state)) {
                             roofSolidBlocks++;
                         }
                     }

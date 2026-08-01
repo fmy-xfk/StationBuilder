@@ -102,6 +102,7 @@
   "gui.stationbuilder.catenary_bridge_pillar": "On-bridge pillar",
   "gui.stationbuilder.catenary_tunnel_pillar": "In-tunnel pillar",
   "gui.stationbuilder.minecraft_block": "Block",
+  "gui.stationbuilder.auto": "Auto",
   "gui.stationbuilder.msd_catenary": "Soft",
   "gui.stationbuilder.msd_electric": "Wire",
   "gui.stationbuilder.msd_rigid_catenary": "Rigid",
