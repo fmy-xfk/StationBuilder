@@ -295,7 +295,7 @@ public class StationGenerator {
                     }
                 }
                 //放置PIDS
-                if (l > 0 && l < length - 1 && pillarHere && StationBuilder.isMtrLoaded()) {
+                if (p.hasPids && l > 0 && l < length - 1 && pillarHere && StationBuilder.isMtrLoaded()) {
                     var basePos = start.offset(facing, l).offset(Direction.UP, 4);
                     if (leftN instanceof TrackElement) {
                         var pos = basePos.offset(right, 1);

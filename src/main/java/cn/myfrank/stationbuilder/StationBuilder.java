@@ -5,6 +5,7 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.block.BlockState;
 import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
@@ -49,9 +50,14 @@ public class StationBuilder implements ModInitializer {
 	private static final boolean hasMSD = FabricLoader.getInstance().isModLoaded("msd");
 	public static boolean isMsdLoaded() { return hasMSD; }
 
-	public static boolean isSoftTransparent(net.minecraft.block.BlockState state) {
+	public static boolean isSoftTransparent(BlockState state) {
 		return state.isAir() || state.isReplaceable() ||
 				!state.getFluidState().isEmpty() || state.isIn(BlockTags.LOGS) || state.isIn(BlockTags.LEAVES);
+	}
+
+	public static boolean isNotLiquidTransparent(BlockState state) {
+		return state.isAir() || state.isReplaceable() ||
+				state.isIn(BlockTags.LOGS) || state.isIn(BlockTags.LEAVES);
 	}
 
 	@Override

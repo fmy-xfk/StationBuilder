@@ -99,3 +99,11 @@ publishing {
 		// retrieving dependencies.
 	}
 }
+
+remapJar {
+	archiveFileName = "${project.archives_base_name}-FABRIC-${project.mod_version}+${project.minecraft_version}.jar"
+}
+
+remapSourcesJar {
+	archiveFileName = "${project.archives_base_name}-FABRIC-${project.mod_version}-sources+${project.minecraft_version}.jar"
+}
