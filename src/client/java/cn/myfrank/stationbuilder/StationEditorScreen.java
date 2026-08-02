@@ -493,6 +493,15 @@ public class StationEditorScreen extends GuiScreen {
                     } catch (Exception ignored) {}
                 }
             });
+            // 处理从指针放进去的新方块同步
+            weightFields[i].slotChanged.addHandler((sender, e) -> {
+                int selectedCanvasIndex = canvas.getSelectedIndex();
+                if (selectedCanvasIndex >= 0 && elements.get(selectedCanvasIndex) instanceof PlatformElement p) {
+                    if (fieldIndex < p.mixSlots.length) {
+                        p.mixSlots[fieldIndex].blockId = e.newId;
+                    }
+                }
+            });
             base.addControl(weightFields[i]);
         }
         return base;
@@ -716,70 +725,13 @@ public class StationEditorScreen extends GuiScreen {
         refreshPropertyArea();
     }
 
-    public int getActiveSlotIndex() {
-        if (platformSafetyField.isActive() || trackBallastField.isActive()) {
-            return 0;
-        }
-        if (canopySlabSlot != null && canopySlabSlot.isActive()) return 100;
-        if (pillarBlockSlot != null && pillarBlockSlot.isActive()) return 101;
-        if (lightBlockSlot != null && lightBlockSlot.isActive()) return 102;
-        if (pidBlockSlot != null && pidBlockSlot.isActive()) return 200;
-        if (psdEndSlot != null && psdEndSlot.isActive()) return 201;
-        if (psdGlassSlot != null && psdGlassSlot.isActive()) return 202;
-        if (psdDoorSlot != null && psdDoorSlot.isActive()) return 203;
-        if (pidPoleSlot != null && pidPoleSlot.isActive()) return 204;
-        for (int i = 0; i < 5; i++) {
-            if (weightFields[i].isActive()) {
-                return i + 1;
-            }
-        }
-        return -1;
-    }
-
-    private void updateSelectedElementBlock(Identifier newId) {
-        final int index = canvas.getSelectedIndex();
-        if (index < 0) return;
-        StationElement e = elements.get(index);
-        final int slot = getActiveSlotIndex();
-        if (e instanceof TrackElement t) {
-            if (slot == 0) t.ballastBlock = newId;
-        }else if (e instanceof PlatformElement p) {
-            if (slot == 0) p.safetyBlock = newId;
-            else if (slot == 100) p.canopySlabId = newId;
-            else if (slot == 101) p.pillarBlockId = newId;
-            else if (slot == 102) p.lightBlockId = newId;
-            else if (slot == 200) p.pidBlockId = newId;
-            else if (slot == 201) p.psdEndId = newId;
-            else if (slot == 202) p.psdGlassId = newId;
-            else if (slot == 203) p.psdDoorId = newId;
-            else if (slot == 204) p.pidPoleId = newId;
-            else if (slot > 0) p.mixSlots[slot - 1].blockId = newId;
-        }
-        refreshPropertyArea();
-    }
-
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        boolean ret = false;
-        if(ghostInventory.isMouseOver(mouseX, mouseY)) {
-            var stack = ghostInventory.getSelectedItemStack();
-            if (stack.isEmpty()) {
-                updateSelectedElementBlock(new Identifier("minecraft", "air"));
-            }
-            else if (stack.getItem() instanceof net.minecraft.item.BlockItem bi) {
-                updateSelectedElementBlock(
-                        net.minecraft.registry.Registries.BLOCK.getId(bi.getBlock())
-                );
-            } else if (getActiveSlotIndex() >= 200){
-                updateSelectedElementBlock(
-                        net.minecraft.registry.Registries.ITEM.getId(stack.getItem())
-                );
-            }
-            ret = true;
-        }
-        ret = ret || super.mouseClicked(mouseX, mouseY, button);
-        if (canvas.isMouseOver(mouseX, mouseY)) {
-            ret = true;
+        int oldIndex = canvas.getSelectedIndex();
+        boolean ret = super.mouseClicked(mouseX, mouseY, button);
+
+        // 当发生点击并在 Canvas 内选中新块或空白时，更新右侧的属性区域即可
+        if (oldIndex != canvas.getSelectedIndex()) {
             refreshPropertyArea();
         }
         return ret;
