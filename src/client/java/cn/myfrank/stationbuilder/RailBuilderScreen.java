@@ -13,6 +13,7 @@ import net.minecraft.util.Identifier;
 
 public class RailBuilderScreen extends GuiScreen {
     private static final int BUTTON_WIDTH = 70;
+    private static final int BUTTON_WIDTH_S = 60;
     private static final int INPUT_WIDTH_S = 30;
     private static final int INPUT_HEIGHT = 18;
     private int catenaryState = 1; // 0=Disabled, 1=Vanilla, 2=MSD
@@ -39,7 +40,7 @@ public class RailBuilderScreen extends GuiScreen {
     private final GuiLabelButton clearModeButton = new GuiLabelButton(getText("clear_mode_v"), (button) -> {
         clearFullHeight = !clearFullHeight;
         syncClearMode();
-    }, BUTTON_WIDTH, INPUT_HEIGHT, getText("clear_mode"));
+    }, BUTTON_WIDTH_S, INPUT_HEIGHT, getText("clear_mode"));
 
     private final GuiButton catenaryStateButton = new GuiButton(getText("catenary_vanilla"), (button) -> {
         catenaryState = (catenaryState + 1) % (StationBuilder.isMsdLoaded() ? 3 : 2);
@@ -297,18 +298,6 @@ public class RailBuilderScreen extends GuiScreen {
                 .setDirection(PanelDirection.VERTICAL);
         catenaryPanel.setCrossAlign(CrossAlignMode.START);
         catenaryPanel.setGap(2);
-
-        ghostInventory.addSlot(ballastBlockInput)
-            .addSlot(railTypeInput)
-            .addSlot(bridgeGuardRailBlockInput)
-            .addSlot(bridgeBlockInput)
-            .addSlot(bridgePillarBlockInput)
-            .addSlot(tunnelWallBlockInput)
-            .addSlot(tunnelCeilingBlockInput)
-            .addSlot(tunnelFloorBlockInput)
-            .addSlot(catenaryLineBlockInput)
-            .addSlot(catenaryBridgePillarInput)
-            .addSlot(catenaryTunnelPillarInput);
 
         topPanel.addControl(railPanel).addControl(ballastPanel).addControl(catenaryPanel);
         addControl(topPanel);
