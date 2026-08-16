@@ -191,6 +191,8 @@ tasks.named('processResources', ProcessResources).configure {
 
 // Example for how to get properties into the manifest for reading at runtime.
 tasks.named('jar', Jar).configure {
+    archiveFileName = "${mod_id}-FORGE-${mod_version}+${minecraft_version}.jar"
+    
     manifest {
         attributes([
             'Specification-Title'     : mod_id,
