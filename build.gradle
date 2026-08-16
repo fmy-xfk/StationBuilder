@@ -150,9 +150,9 @@ dependencies {
     // MTR
     implementation fg.deobf("maven.modrinth:minecraft-transit-railway:FORGE-${project.mtr_version}+${project.minecraft_version}")
     // MSD 1.4.0 for MTR 4.0.0+1.20.4
-    implementation fg.deobf("curse.maven:station-decoration-790307:6893848")
+    // implementation fg.deobf("curse.maven:station-decoration-790307:6893848")
     // MSD 1.4.0 for MTR 4.0.0+1.20.1
-    // implementation fg.deobf("curse.maven:station-decoration-790307:6893847")
+    implementation fg.deobf("curse.maven:station-decoration-790307:6893847")
 
     // Example mod dependency with JEI - using fg.deobf() ensures the dependency is remapped to your development mappings
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
