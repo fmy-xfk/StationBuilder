@@ -4,14 +4,14 @@ import cn.myfrank.stationbuilder.schematic4j.SchematicLoader;
 import cn.myfrank.stationbuilder.schematic4j.exception.ParsingException;
 import cn.myfrank.stationbuilder.schematic4j.schematic.Schematic;
 import net.minecraft.SharedConstants;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtInt;
-import net.minecraft.nbt.NbtList;
-import net.minecraft.structure.StructureTemplate;
-import net.minecraft.util.Identifier;
-import net.minecraft.registry.Registries;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.IntTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -27,22 +27,22 @@ public class SchematicLoaderUtil {
         int height = schematic.height();
         int length = schematic.length();
 
-        NbtCompound nbt = new NbtCompound();
+        CompoundTag nbt = new CompoundTag();
         // 关键修复：加入 DataVersion，1.20 游戏需要这个版本号以确保正确的结构升级转换
-        nbt.putInt("DataVersion", SharedConstants.getGameVersion().getSaveVersion().getId());
+        nbt.putInt("DataVersion", SharedConstants.getCurrentVersion().getDataVersion().getVersion());
 
-        NbtList sizeList = new NbtList();
-        sizeList.add(NbtInt.of(width));
-        sizeList.add(NbtInt.of(height));
-        sizeList.add(NbtInt.of(length));
+        ListTag sizeList = new ListTag();
+        sizeList.add(IntTag.valueOf(width));
+        sizeList.add(IntTag.valueOf(height));
+        sizeList.add(IntTag.valueOf(length));
         nbt.put("size", sizeList);
 
-        NbtList blocksList = new NbtList();
-        NbtList paletteList = new NbtList();
+        ListTag blocksList = new ListTag();
+        ListTag paletteList = new ListTag();
         Map<String, Integer> paletteMap = new HashMap<>();
 
         // 保留空气作为0索引是个好习惯
-        NbtCompound airEntry = new NbtCompound();
+        CompoundTag airEntry = new CompoundTag();
         airEntry.putString("Name", "minecraft:air");
         paletteMap.put("minecraft:air{}", 0);
         paletteList.add(airEntry);
@@ -65,27 +65,27 @@ public class SchematicLoaderUtil {
 
                     int stateId = paletteMap.computeIfAbsent(blockKey, k -> {
                         int id = paletteList.size();
-                        NbtCompound paletteEntry = new NbtCompound();
+                        CompoundTag paletteEntry = new CompoundTag();
                         paletteEntry.putString("Name", blockId);
 
                         // 关键修复：无损保留所有方块属性（如楼梯的 facing, half 等）
                         if (!sBlock.states.isEmpty()) {
-                            NbtCompound propertiesNbt = new NbtCompound();
+                            CompoundTag propertiesNbt = new CompoundTag();
                             for (Map.Entry<String, String> entry : sBlock.states.entrySet()) {
                                 propertiesNbt.putString(entry.getKey(), entry.getValue());
                             }
-                            paletteEntry.put("Properties", propertiesNbt);
+                            paletteEntry.put("BlockStateProperties", propertiesNbt);
                         }
 
                         paletteList.add(paletteEntry);
                         return id;
                     });
 
-                    NbtCompound blockNbt = new NbtCompound();
-                    NbtList posList = new NbtList();
-                    posList.add(NbtInt.of(x));
-                    posList.add(NbtInt.of(y));
-                    posList.add(NbtInt.of(z));
+                    CompoundTag blockNbt = new CompoundTag();
+                    ListTag posList = new ListTag();
+                    posList.add(IntTag.valueOf(x));
+                    posList.add(IntTag.valueOf(y));
+                    posList.add(IntTag.valueOf(z));
                     blockNbt.put("pos", posList);
                     blockNbt.putInt("state", stateId);
 
@@ -96,33 +96,33 @@ public class SchematicLoaderUtil {
 
         nbt.put("palette", paletteList);
         nbt.put("blocks", blocksList);
-        nbt.put("entities", new NbtList());
+        nbt.put("entities", new ListTag());
 
         StructureTemplate template = new StructureTemplate();
-        template.readNbt(Registries.BLOCK.getReadOnlyWrapper(), nbt);
+        template.load(BuiltInRegistries.BLOCK.asLookup(), nbt);
 
         return template;
     }
 
-    private static BlockState convertBlockState(String blockString) {
+    public static BlockState convertBlockState(String blockString) {
         if (blockString == null || blockString.isEmpty()) {
-            return Blocks.AIR.getDefaultState();
+            return Blocks.AIR.defaultBlockState();
         }
 
         // schematic4j 的 name 包含附带的方块状态（如楼梯的朝向），我们用 "[" 截断只取其 ID 进行最基础的映射
         String blockId = blockString.split("\\[")[0];
 
-        Identifier id = Identifier.tryParse(blockId);
-        if (id == null) return Blocks.AIR.getDefaultState();
+        ResourceLocation id = ResourceLocation.tryParse(blockId);
+        if (id == null) return Blocks.AIR.defaultBlockState();
 
-        var block = Registries.BLOCK.get(id);
+        var block = BuiltInRegistries.BLOCK.get(id);
 
         // 如果注册表中找不到这个方块 (比如旧版模组的方块)，则用空气替代
         if (block == null || (block == Blocks.AIR && !blockId.equals("minecraft:air"))) {
-            return Blocks.AIR.getDefaultState();
+            return Blocks.AIR.defaultBlockState();
         }
 
         // 简单返回默认状态 (如果希望支持精确朝向，需要编写额外的字符串解析逻辑)
-        return block.getDefaultState();
+        return block.defaultBlockState();
     }
 }

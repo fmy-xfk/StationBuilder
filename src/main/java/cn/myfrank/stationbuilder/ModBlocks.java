@@ -1,46 +1,60 @@
 package cn.myfrank.stationbuilder;
 
-import net.minecraft.block.AbstractBlock;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.entity.BlockEntityType;
-import net.minecraft.client.item.TooltipContext;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
-import net.minecraft.world.World;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
 public class ModBlocks {
-    public static final StationBuilderBlock STATION_BUILDER = new StationBuilderBlock(
-            AbstractBlock.Settings.copy(Blocks.IRON_BLOCK) // 拷贝铁块的基础属性
-                    .requiresTool() // 必须使用对应等级的工具挖掘才会掉落
-                    .strength(3.0f, 6.0f) // 设置硬度和爆炸抗性
-    );
-    public static final BlockItem STATION_BUILDER_ITEM = new BlockItem(STATION_BUILDER, new Item.Settings()){
-        @Override
-        public void appendTooltip(ItemStack stack, World world, List<Text> tooltip, TooltipContext context) {
-            tooltip.add(Text.translatable("tooltip.stationbuilder.station_builder"));
-            if (stack.hasNbt() && stack.getNbt().contains("BlockEntityTag")) {
-                tooltip.add(Text.translatable("gui.stationbuilder.include_config").formatted(Formatting.GOLD));
-            }
-        }
-    };
-    public static BlockEntityType<StationBuilderBlockEntity> STATION_BUILDER_ENTITY;
+    public static final ResourceLocation STATION_BUILDER_ID = ResourceLocation.fromNamespaceAndPath(StationBuilder.MOD_ID, "station_builder");
 
-    public static void register() {
-        Identifier id = new Identifier("stationbuilder", "station_builder");
-        Registry.register(Registries.BLOCK, id, STATION_BUILDER);
-        Registry.register(Registries.ITEM, id, STATION_BUILDER_ITEM);
-        STATION_BUILDER_ENTITY = Registry.register(
-                Registries.BLOCK_ENTITY_TYPE,
-                new Identifier("stationbuilder", "station_builder_be"),
-                BlockEntityType.Builder.create(StationBuilderBlockEntity::new, STATION_BUILDER).build(null)
-        );
+    // 1. 创建方块、物品、以及方块实体的延迟注册器
+    public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, StationBuilder.MOD_ID);
+    public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, StationBuilder.MOD_ID);
+    public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES = DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, StationBuilder.MOD_ID);
+
+    // 2. 延迟注册方块
+    public static final RegistryObject<StationBuilderBlock> STATION_BUILDER = BLOCKS.register("station_builder", () ->
+            new StationBuilderBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK).requiresCorrectToolForDrops().strength(3.0f, 6.0f))
+    );
+
+    // 3. 延迟注册对应的 BlockItem (注意：通过 STATION_BUILDER.get() 来安全提取方块实例)
+    public static final RegistryObject<Item> STATION_BUILDER_ITEM = ITEMS.register("station_builder", () ->
+            new BlockItem(STATION_BUILDER.get(), new Item.Properties()) {
+                @Override
+                public void appendHoverText(ItemStack stack, @Nullable Level world, List<Component> tooltip, TooltipFlag context) {
+                    tooltip.add(Component.translatable("tooltip.stationbuilder.station_builder"));
+                    if (StationBuilderState.hasData(stack)) {
+                        tooltip.add(Component.translatable("gui.stationbuilder.include_config").withStyle(ChatFormatting.GOLD));
+                    }
+                }
+            }
+    );
+
+    // 4. 延迟注册方块实体类型
+    public static final RegistryObject<BlockEntityType<StationBuilderBlockEntity>> STATION_BUILDER_ENTITY = BLOCK_ENTITIES.register("station_builder_be", () ->
+            BlockEntityType.Builder.of(StationBuilderBlockEntity::new, STATION_BUILDER.get()).build(null)
+    );
+
+    // 5. 事件总线绑定方法，注册所有的延迟注册器
+    public static void register(IEventBus bus) {
+        BLOCKS.register(bus);
+        ITEMS.register(bus);
+        BLOCK_ENTITIES.register(bus);
     }
 }

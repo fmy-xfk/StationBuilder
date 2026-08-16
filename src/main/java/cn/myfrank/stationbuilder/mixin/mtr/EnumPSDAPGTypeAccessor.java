@@ -6,12 +6,12 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Mixin(ItemPSDAPGBase.EnumPSDAPGType.class)
 public interface EnumPSDAPGTypeAccessor {
-    @Accessor("isPSD")
+    @Accessor(value = "isPSD", remap = false)
     boolean isPSD();
 
-    @Accessor("isOdd")
+    @Accessor(value = "isOdd", remap = false)
     boolean isOdd();
 
-    @Accessor("isLift")
+    @Accessor(value = "isLift", remap = false)
     boolean isLift();
 }

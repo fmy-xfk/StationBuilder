@@ -1,11 +1,10 @@
 package cn.myfrank.stationbuilder;
 
-import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtSizeTracker;
-import net.minecraft.registry.Registries;
-import net.minecraft.structure.StructureTemplate;
+import net.minecraft.nbt.NbtAccounter;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class BuildingTemplateManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(BuildingTemplateManager.class);
-    private static final Path BUILDINGS_PATH = FabricLoader.getInstance().getConfigDir()
+    private static final Path BUILDINGS_PATH = PlatformServices.configDir()
             .resolve("stationbuilder/buildings");
     private static final Map<String, StructureTemplate> TEMPLATES = new ConcurrentHashMap<>();
 
@@ -38,9 +37,9 @@ public class BuildingTemplateManager {
                         try {
                             String name = p.getFileName().toString().replaceFirst("\\.nbt$", "");
                             StructureTemplate template = new StructureTemplate();
-                            template.readNbt(
-                                    Registries.BLOCK.getReadOnlyWrapper(),
-                                    NbtIo.readCompressed(p, NbtSizeTracker.ofUnlimitedBytes())
+                            template.load(
+                                    BuiltInRegistries.BLOCK.asLookup(),
+                                    NbtIo.readCompressed(p, NbtAccounter.unlimitedHeap())
                             );
                             TEMPLATES.put(name, template);
                             LOGGER.info("Loaded building template: {}", name);
@@ -67,7 +66,7 @@ public class BuildingTemplateManager {
         // 可选：同时保存到磁盘以便下次启动使用
         Path file = BUILDINGS_PATH.resolve(name + ".nbt");
         try {
-            NbtCompound nbt = template.writeNbt(new NbtCompound());
+            CompoundTag nbt = template.save(new CompoundTag());
             NbtIo.writeCompressed(nbt, file);
         } catch (IOException e) {
             LOGGER.error("Failed to save template: {}", file, e);

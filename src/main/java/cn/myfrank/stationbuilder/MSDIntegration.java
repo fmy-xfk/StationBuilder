@@ -1,11 +1,10 @@
 package cn.myfrank.stationbuilder;
 
-import net.minecraft.registry.Registries;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import org.mtr.core.data.Position;
 import org.mtr.core.tool.Angle;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
@@ -25,12 +24,12 @@ import top.mcmtr.mod.packet.MSDPacketUpdateData;
 import static top.mcmtr.mod.items.ItemRigidCatenaryConnector.getAngles;
 
 public class MSDIntegration {
-    public static boolean isCatenaryNode(ServerWorld world, BlockPos pos) {
+    public static boolean isCatenaryNode(ServerLevel world, BlockPos pos) {
         return world.getBlockState(pos).getBlock() instanceof BlockNodeBase;
     }
 
-    public static void clearCatenary(ServerWorld world, BlockPos pos) {
-        if(MSDIntegration.isCatenaryNode(world, pos)) {
+    public static void clearCatenary(ServerLevel world, BlockPos pos) {
+        if (MSDIntegration.isCatenaryNode(world, pos)) {
             MSDPacketDeleteData.sendDirectlyToServerCatenaryNodePosition(
                     new org.mtr.mapping.holder.ServerWorld(world),
                     Init.blockPosToPosition(new org.mtr.mapping.holder.BlockPos(pos))
@@ -38,27 +37,28 @@ public class MSDIntegration {
         }
     }
 
-    public static boolean placeCatenaryNode(ServerWorld world, BlockPos pos, Direction direction, double dirAngle, Identifier block) {
-        var b = Registries.BLOCK.get(block);
-        var state = new org.mtr.mapping.holder.BlockState(b.getDefaultState()).data;
+    public static boolean placeCatenaryNode(ServerLevel world, BlockPos pos, Direction direction, double dirAngle, ResourceLocation blockId) {
+        var b = BuiltInRegistries.BLOCK.get(blockId);
+        var state = new org.mtr.mapping.holder.BlockState(b.defaultBlockState()).data;
         if (b instanceof BlockRigidCatenaryNode) {
-            var quadrant = Angle.getQuadrant((float)dirAngle, true);
-            state = state.with(BlockRigidCatenaryNode.FACING.data, quadrant % 8 >= 4)
-                    .with(BlockRigidCatenaryNode.IS_45.data, quadrant % 4 >= 2)
-                    .with(BlockRigidCatenaryNode.IS_22_5.data, quadrant % 2 == 1);
+            var quadrant = Angle.getQuadrant((float) dirAngle, true);
+            state = state.setValue(BlockRigidCatenaryNode.FACING.data, quadrant % 8 >= 4)
+                    .setValue(BlockRigidCatenaryNode.IS_45.data, quadrant % 4 >= 2)
+                    .setValue(BlockRigidCatenaryNode.IS_22_5.data, quadrant % 2 == 1);
         } else if (b instanceof BlockCatenaryWithModel) {
-            state = state.with(DirectionHelper.FACING.data, direction);
+            state = state.setValue(DirectionHelper.FACING.data, direction);
         } else {
             return false;
         }
-        world.setBlockState(pos, state, 3);
+        world.setBlock(pos, state, 3);
         return true;
     }
 
-    private static boolean connectCatenary(ServerWorld world, BlockPos a, BlockPos b, CatenaryType c) {
-        BlockNodeBase.BlockNodeBaseEntity startBlockEntity = (BlockNodeBase.BlockNodeBaseEntity)world.getBlockEntity(a);
-        BlockNodeBase.BlockNodeBaseEntity endBlockEntity = (BlockNodeBase.BlockNodeBaseEntity)world.getBlockEntity(b);
+    private static boolean connectCatenary(ServerLevel world, BlockPos a, BlockPos b, CatenaryType c) {
+        BlockNodeBase.BlockNodeBaseEntity startBlockEntity = (BlockNodeBase.BlockNodeBaseEntity) world.getBlockEntity(a);
+        BlockNodeBase.BlockNodeBaseEntity endBlockEntity = (BlockNodeBase.BlockNodeBaseEntity) world.getBlockEntity(b);
         if (startBlockEntity == null || endBlockEntity == null) return false;
+
         var a2 = new org.mtr.mapping.holder.BlockPos(a);
         var b2 = new org.mtr.mapping.holder.BlockPos(b);
         OffsetPosition offsetPositionStart = startBlockEntity.getOffsetPosition();
@@ -67,6 +67,7 @@ public class MSDIntegration {
         Position positionEnd = Init.blockPosToPosition(b2);
         var stateStart = world.getBlockState(a);
         var stateEnd = world.getBlockState(b);
+
         if (c == CatenaryType.RIGID_CATENARY) {
             if (RigidCatenary.verifyPosition(positionStart, positionEnd)) {
                 ObjectObjectImmutablePair<Angle, Angle> angles = getAngles(
@@ -76,16 +77,16 @@ public class MSDIntegration {
                 RigidCatenary rigidCatenary = new RigidCatenary(
                         positionStart, angles.left(), positionEnd, angles.right(), RigidCatenary.Shape.QUADRATIC, 0.0F
                 );
-                world.setBlockState(a, stateStart.with(BlockNodeBase.IS_CONNECTED.data, true));
-                world.setBlockState(b, stateEnd.with(BlockNodeBase.IS_CONNECTED.data, true));
+                world.setBlock(a, stateStart.setValue(BlockNodeBase.IS_CONNECTED.data, true), 3);
+                world.setBlock(b, stateEnd.setValue(BlockNodeBase.IS_CONNECTED.data, true), 3);
                 MSDPacketUpdateData.sendDirectlyToServerRigidCatenary(new org.mtr.mapping.holder.ServerWorld(world), rigidCatenary);
             }
         } else {
             if (Catenary.verifyPosition(positionStart, positionEnd, offsetPositionStart, offsetPositionEnd)) {
                 System.out.println(c);
                 Catenary catenary = new Catenary(positionStart, positionEnd, offsetPositionStart, offsetPositionEnd, c);
-                world.setBlockState(a, stateStart.with(BlockNodeBase.IS_CONNECTED.data, true));
-                world.setBlockState(b, stateEnd.with(BlockNodeBase.IS_CONNECTED.data, true));
+                world.setBlock(a, stateStart.setValue(BlockNodeBase.IS_CONNECTED.data, true), 3);
+                world.setBlock(b, stateEnd.setValue(BlockNodeBase.IS_CONNECTED.data, true), 3);
                 MSDPacketUpdateData.sendDirectlyToServerCatenary(new org.mtr.mapping.holder.ServerWorld(world), catenary);
             } else {
                 return false;
@@ -94,7 +95,7 @@ public class MSDIntegration {
         return true;
     }
 
-    public static boolean connectCatenary(ServerWorld world, BlockPos a, BlockPos b, int cType) {
+    public static boolean connectCatenary(ServerLevel world, BlockPos a, BlockPos b, int cType) {
         var catenaryType = switch (cType) {
             case 1 -> CatenaryType.CATENARY;
             case 2 -> CatenaryType.ELECTRIC;
@@ -105,8 +106,7 @@ public class MSDIntegration {
         return connectCatenary(world, a, b, catenaryType);
     }
 
-    public static boolean connectCatenary(ServerWorld world, BlockPos a, BlockPos b, CatenaryTypeMapping type) {
-        // if (type == CatenaryTypeMapping.MinecraftBlock) return false;
+    public static boolean connectCatenary(ServerLevel world, BlockPos a, BlockPos b, CatenaryTypeMapping type) {
         var catenaryType = switch (type) {
             case MSDCatenary -> CatenaryType.CATENARY;
             case MSDElectric -> CatenaryType.ELECTRIC;

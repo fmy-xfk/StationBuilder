@@ -27,11 +27,11 @@ public enum CatenaryTypeMapping {
    }
    public String getName() {
       return switch(this) {
-         case Auto -> "auto";
-         case MSDCatenary -> "msd_catenary";
-         case MSDElectric -> "msd_electric";
-         case MSDRigidCatenary -> "msd_rigid_catenary";
-         case MSDRigidSoftCatenary -> "msd_rigid_soft_catenary";
+          case Auto -> "auto";
+          case MSDCatenary -> "msd_catenary";
+          case MSDElectric -> "msd_electric";
+          case MSDRigidCatenary -> "msd_rigid_catenary";
+          case MSDRigidSoftCatenary -> "msd_rigid_soft_catenary";
       };
    }
 }

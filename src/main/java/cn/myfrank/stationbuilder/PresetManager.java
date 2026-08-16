@@ -5,9 +5,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.StringNbtReader;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.TagParser;
 
 import java.io.File;
 import java.io.FileReader;
@@ -18,7 +17,7 @@ import java.util.List;
 
 public class PresetManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Path PRESET_PATH = FabricLoader.getInstance().getConfigDir().resolve("stationbuilder/presets");
+    private static final Path PRESET_PATH = PlatformServices.configDir().resolve("stationbuilder/presets");
 
     public static void savePreset(String name, int length, List<StationElement> elements) {
         try {
@@ -61,7 +60,7 @@ public class PresetManager {
                 List<StationElement> elements = new ArrayList<>();
                 JsonArray elementArray = json.getAsJsonArray("elements");
                 for (int i = 0; i < elementArray.size(); i++) {
-                    NbtCompound nbt = StringNbtReader.parse(elementArray.get(i).getAsString());
+                    CompoundTag nbt = TagParser.parseTag(elementArray.get(i).getAsString());
                     elements.add(StationElement.fromNbt(nbt));
                 }
                 return new PresetData(length, elements);
@@ -72,6 +71,6 @@ public class PresetManager {
     public record PresetData(int length, List<StationElement> elements) {}
 
     public static Path getPresetPath() {
-        return FabricLoader.getInstance().getConfigDir().resolve("stationbuilder/presets");
+        return PlatformServices.configDir().resolve("stationbuilder/presets");
     }
 }

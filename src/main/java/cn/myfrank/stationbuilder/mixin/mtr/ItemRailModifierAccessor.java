@@ -7,6 +7,6 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Mixin(ItemRailModifier.class)
 public interface ItemRailModifierAccessor {
-    @Accessor("railType")
+    @Accessor(value = "railType", remap = false)
     RailType railType_();
 }

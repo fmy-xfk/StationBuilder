@@ -311,7 +311,7 @@ public class LitematicaParser implements Parser {
 		final String name = nbt.getString("Name");
 		final Map<String, String> states = new TreeMap<>();
 
-		final CompoundTag propertiesTag = nbt.getCompoundTag("Properties");
+		final CompoundTag propertiesTag = nbt.getCompoundTag("BlockStateProperties");
 		if (propertiesTag != null) {
 			for (final Map.Entry<String, Tag<?>> entry : propertiesTag) {
 				states.put(entry.getKey(), unwrap(entry.getValue()).toString());

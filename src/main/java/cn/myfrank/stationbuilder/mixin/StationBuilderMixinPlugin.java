@@ -1,6 +1,5 @@
 package cn.myfrank.stationbuilder.mixin;
 
-import net.fabricmc.loader.api.FabricLoader;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
@@ -8,33 +7,30 @@ import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 import java.util.List;
 import java.util.Set;
 
-public class StationBuilderMixinPlugin implements IMixinConfigPlugin {
+public final class StationBuilderMixinPlugin implements IMixinConfigPlugin {
+    @Override public void onLoad(String mixinPackage) { }
+    @Override public String getRefMapperConfig() { return null; }
 
-    @Override
-    public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        // 如果 Mixin 类名包含 ".mtr."，则检查 mtr 是否加载
+    @Override public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         if (mixinClassName.contains(".mtr.")) {
-            return FabricLoader.getInstance().isModLoaded("mtr");
+            try {
+                // 1. 尝试使用 LoadingModList 检测。它在 FML 加载的最早期对 MixinConfigPlugin 是可用的
+                return net.minecraftforge.fml.loading.LoadingModList.get().getModFileById("mtr") != null;
+            } catch (Throwable e) {
+                try {
+                    // 2. 备用安全方案：直接检测 MTR 相关的关键类是否在当前 classpath 下
+                    Class.forName("org.mtr.mod.item.ItemRailModifier", false, this.getClass().getClassLoader());
+                    return true;
+                } catch (ClassNotFoundException ex) {
+                    return false;
+                }
+            }
         }
         return true;
     }
 
-    // 以下方法保持默认即可
-    @Override
-    public void onLoad(String mixinPackage) {}
-
-    @Override
-    public String getRefMapperConfig() { return null; }
-
-    @Override
-    public void acceptTargets(Set<String> myTargets, Set<String> otherTargets) {}
-
-    @Override
-    public List<String> getMixins() { return null; }
-
-    @Override
-    public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {}
-
-    @Override
-    public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {}
+    @Override public void acceptTargets(Set<String> myTargets, Set<String> otherTargets) { }
+    @Override public List<String> getMixins() { return null; }
+    @Override public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) { }
+    @Override public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) { }
 }

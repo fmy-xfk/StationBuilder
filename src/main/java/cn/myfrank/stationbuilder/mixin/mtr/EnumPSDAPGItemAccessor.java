@@ -6,6 +6,6 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Mixin(ItemPSDAPGBase.EnumPSDAPGItem.class)
 public interface EnumPSDAPGItemAccessor {
-    @Accessor("isDoor")
+    @Accessor(value = "isDoor", remap = false) // 忽略重映射
     boolean isDoor();
 }

@@ -2,19 +2,19 @@ package cn.myfrank.stationbuilder;
 
 import java.util.ArrayList;
 
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
 
 public class RailGenerator {
-    public static void placeFirstRailNode(ServerWorld world, BlockPos pos, PlayerEntity player) {
+    public static void placeFirstRailNode(ServerLevel world, BlockPos pos, Player player) {
         if (StationBuilder.isMtrLoaded()){
             if (!MTRIntegration.isRailNode(world, pos)) {
-                MTRIntegration.placeRailNode(world, pos, player.getYaw());
+                MTRIntegration.placeRailNode(world, pos, player.getYRot());
             } else {
                 System.out.println("Position is already a rail node: " + pos);
             }
@@ -24,14 +24,15 @@ public class RailGenerator {
     public static ArrayList<BlockPos> calcRailNodes(BlockPos pos, float yaw, RailBuilderConfig config) {
         final ArrayList<BlockPos> placedPositions = new ArrayList<>();
         if (StationBuilder.isMtrLoaded()){
-            Vec3d normal = RailMath.normalFromYaw(yaw);
+            Vec3 normal = RailMath.normalFromYaw(yaw);
 
             int count = config.railCount;
             double spacing = config.railSpacing;
 
             for (int i = 0; i < count; i++) {
                 double offsetIndex = i - (count - 1) / 2.0;
-                Vec3d offset = normal.multiply(offsetIndex * spacing);
+                double t = offsetIndex * spacing;
+                Vec3 offset = normal.multiply(t, t, t);
                 BlockPos s = RailMath.offsetPos(pos, offset);
                 placedPositions.add(s);
             }
@@ -40,8 +41,8 @@ public class RailGenerator {
         return null;
     }
 
-    public static ArrayList<BlockPos> placeFirstRailNodes(ServerWorld world, BlockPos pos, PlayerEntity player, RailBuilderConfig config) {
-        ArrayList<BlockPos> nodes = calcRailNodes(pos, player.getYaw(), config);
+    public static ArrayList<BlockPos> placeFirstRailNodes(ServerLevel world, BlockPos pos, Player player, RailBuilderConfig config) {
+        ArrayList<BlockPos> nodes = calcRailNodes(pos, player.getYRot(), config);
         if (nodes != null) {
             for (BlockPos p : nodes) {
                 placeFirstRailNode(world, p, player);
@@ -52,16 +53,16 @@ public class RailGenerator {
 
     @Nullable
     public static ArrayList<BlockPos> buildRails(
-            ServerWorld world,
+            ServerLevel world,
             ArrayList<BlockPos> startPositions,
             BlockPos endPos,
             RailBuilderConfig config,
-            PlayerEntity player
+            Player player
     ) {
         if (!StationBuilder.isMtrLoaded()) return null;
 
-        float yaw = player.getYaw();
-        Vec3d normal = RailMath.normalFromYaw(yaw); // 右侧法向量
+        float yaw = player.getYRot();
+        Vec3 normal = RailMath.normalFromYaw(yaw); // 右侧法向量
         int count = config.railCount;
         double spacing = config.railSpacing;
 
@@ -69,7 +70,8 @@ public class RailGenerator {
         ArrayList<BlockPos> endPositions = new ArrayList<>();
         for (int i = 0; i < count; i++) {
             double offsetIndex = i - (count - 1) / 2.0;
-            Vec3d offset = normal.multiply(offsetIndex * spacing);
+            double t = offsetIndex * spacing;
+            Vec3 offset = normal.multiply(t, t, t);
             BlockPos e = RailMath.offsetPos(endPos, offset);
             endPositions.add(e);
         }
@@ -79,9 +81,9 @@ public class RailGenerator {
 
         if (startPositions.size() != endPositions.size()) {
             // 清除该玩家的轨道建造状态（服务端清除）
-            ItemStack stack = player.getMainHandStack();
+            ItemStack stack = player.getMainHandItem();
             RailBuilderState.clear(stack);
-            stack.getOrCreateNbt().remove("CustomData"); // 若有其他标记
+            // stack.remove(DataComponentTypes.CUSTOM_MODEL_DATA);
             return null;
         }
 
@@ -94,7 +96,7 @@ public class RailGenerator {
                 boolean success = true;
                 if (s.equals(e)) continue;
                 if (!MTRIntegration.isRailNode(world, e)) {
-                    MTRIntegration.placeRailNode(world, e, player.getYaw());
+                    MTRIntegration.placeRailNode(world, e, player.getYRot());
                 }
                 anySuccess |= success;
             } else {
@@ -104,16 +106,16 @@ public class RailGenerator {
 
         // Validate rail type
         if (!MTRIntegration.isValidRailType(config.railType)) {
-            player.sendMessage(Text.translatable("message.stationbuilder.rail_builder.invalid_rail",
+            player.displayClientMessage(Component.translatable("message.stationbuilder.rail_builder.invalid_rail",
                     config.railType.toString()), true);
             config.railType = MTRIntegration.getDefaultRailType();
         }
 
         // Build rails
         TickScheduler.schedule(1, () -> {
-            var failToPlaceCatenaryNode = MTRIntegration.buildRails(startPositions, endPositions, player.getUuid(), world, config);
+            var failToPlaceCatenaryNode = MTRIntegration.buildRails(startPositions, endPositions, player.getUUID(), world, config);
             if (failToPlaceCatenaryNode) {
-                player.sendMessage(Text.translatable("message.stationbuilder.rail_builder.catenary_node_failed"), true);
+                player.displayClientMessage(Component.translatable("message.stationbuilder.rail_builder.catenary_node_failed"), true);
             }
         });
 

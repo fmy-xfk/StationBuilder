@@ -1,55 +1,55 @@
 package cn.myfrank.stationbuilder;
 
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtList;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 
-public record TestConnectResult(boolean success, double radius, double length, ArrayList<Vec3d> positions) {
-    public NbtCompound toNbt() {
-        NbtCompound nbt = new NbtCompound();
+public record TestConnectResult(boolean success, double radius, double length, ArrayList<Vec3> positions) {
+    public CompoundTag toNbt() {
+        CompoundTag nbt = new CompoundTag();
         nbt.putBoolean("success", success);
         nbt.putDouble("radius", radius);
         nbt.putDouble("length", length);
 
         if (positions != null) {
-            NbtList positionsList = new NbtList();
-            for (Vec3d pos : positions) {
+            ListTag positionsList = new ListTag();
+            for (Vec3 pos : positions) {
                 if (pos != null) {
-                    NbtCompound posNbt = new NbtCompound();
-                    posNbt.putDouble("x", pos.getX());
-                    posNbt.putDouble("y", pos.getY());
-                    posNbt.putDouble("z", pos.getZ());
+                    CompoundTag posNbt = new CompoundTag();
+                    posNbt.putDouble("x", pos.x);
+                    posNbt.putDouble("y", pos.y);
+                    posNbt.putDouble("z", pos.z);
                     positionsList.add(posNbt);
                 }
             }
             nbt.put("positions", positionsList);
         } else {
-            nbt.put("positions", new NbtList());
+            nbt.put("positions", new ListTag());
         }
 
         return nbt;
     }
 
-    public static TestConnectResult fromNbt(@NotNull NbtCompound nbt) {
+    public static TestConnectResult fromNbt(@NotNull CompoundTag nbt) {
         boolean success = nbt.getBoolean("success");
         double radius = nbt.getDouble("radius");
         double length = nbt.getDouble("length");
-        ArrayList<Vec3d> positions = new ArrayList<>();
+        ArrayList<Vec3> positions = new ArrayList<>();
 
-        if (nbt.contains("positions", NbtElement.LIST_TYPE)) {
-            NbtList positionsList = nbt.getList("positions", NbtElement.COMPOUND_TYPE);
+        if (nbt.contains("positions", Tag.TAG_LIST)) {
+            ListTag positionsList = nbt.getList("positions", Tag.TAG_COMPOUND);
 
             for (int i = 0; i < positionsList.size(); i++) {
-                NbtCompound posNbt = positionsList.getCompound(i);
+                CompoundTag posNbt = positionsList.getCompound(i);
                 if (posNbt.contains("x") && posNbt.contains("y") && posNbt.contains("z")) {
                     double x = posNbt.getDouble("x");
                     double y = posNbt.getDouble("y");
                     double z = posNbt.getDouble("z");
-                    positions.add(new Vec3d(x, y, z));
+                    positions.add(new Vec3(x, y, z));
                 }
             }
         }

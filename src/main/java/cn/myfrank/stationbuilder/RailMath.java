@@ -4,34 +4,34 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Objects;
 
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
 
 public class RailMath {
 
     /**
      * 轨道前进方向（备用，后面做自动 yaw 会用到）
      */
-    public static Vec3d directionFromYaw(float yaw) {
+    public static Vec3 directionFromYaw(float yaw) {
         // Minecraft yaw: 0 = south, 正方向是顺时针
         double rad = Math.toRadians(-yaw);
-        return new Vec3d(Math.sin(rad), 0, Math.cos(rad));
+        return new Vec3(Math.sin(rad), 0, Math.cos(rad));
     }
 
     /**
      * 轨道法向量（左-右方向，用于平行轨道）
      */
-    public static Vec3d normalFromYaw(float yaw) {
+    public static Vec3 normalFromYaw(float yaw) {
         double rad = Math.toRadians(-yaw);
         // direction = ( sin, 0, cos )
         // normal    = ( cos, 0, -sin )
-        return new Vec3d(Math.cos(rad), 0, -Math.sin(rad));
+        return new Vec3(Math.cos(rad), 0, -Math.sin(rad));
     }
 
     /**
      * 向量偏移并对齐到 BlockPos（对称 & 稳定）
      */
-    public static BlockPos offsetPos(BlockPos origin, Vec3d offset) {
+    public static BlockPos offsetPos(BlockPos origin, Vec3 offset) {
         return new BlockPos(
                 (int)Math.round(origin.getX() + offset.x),
                 origin.getY(),
@@ -41,17 +41,17 @@ public class RailMath {
 
     
     public record PairXZ(int x, int z) {
-        double distTo(Vec3d p) {
+        double distTo(Vec3 p) {
             double tx = x + 0.5, tz = z + 0.5;
             return Math.hypot(tx - p.x, tz - p.z);
         }
     }
 
-    public static ArrayList<PairXZ> getPositions(Vec3d center, Vec3d normal, double halfWidth) {
+    public static ArrayList<PairXZ> getPositions(Vec3 center, Vec3 normal, double halfWidth) {
         return getPositions(center, normal, halfWidth, halfWidth);
     }
 
-    public static ArrayList<PairXZ> getPositions(Vec3d center, Vec3d normal, double leftWidth, double rightWidth) {
+    public static ArrayList<PairXZ> getPositions(Vec3 center, Vec3 normal, double leftWidth, double rightWidth) {
         ArrayList<PairXZ> left = new ArrayList<>(), right = new ArrayList<>();
         double EPS = 1e-4, step = 0.5, dx = normal.x, dz = normal.z;
         for (double s = 0; s <= leftWidth; s += step) {

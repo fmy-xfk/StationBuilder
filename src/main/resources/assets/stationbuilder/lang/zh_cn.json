@@ -1,5 +1,6 @@
 {
   "block.stationbuilder.station_builder": "火车站建设机",
+  "item.stationbuilder.station_builder": "车站建设器",
   "item.stationbuilder.rail_builder": "轨道建设器",
   "itemGroup.stationbuilder.group": "自动化火车站",
   "category.stationbuilder": "车站与轨道建设",
@@ -101,7 +102,7 @@
   "gui.stationbuilder.catenary_block": "连接方块",
   "gui.stationbuilder.catenary_bridge_pillar": "桥梁支柱",
   "gui.stationbuilder.catenary_tunnel_pillar": "隧道支柱",
-  "gui.stationbuilder.minecraft_block": "原版方块(暂不支持)",
+  "gui.stationbuilder.minecraft_block": "原版方块",
   "gui.stationbuilder.auto": "自动",
   "gui.stationbuilder.msd_catenary": "柔性接触网",
   "gui.stationbuilder.msd_electric": "电线",

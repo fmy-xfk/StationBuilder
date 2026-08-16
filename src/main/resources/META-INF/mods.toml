@@ -1,0 +1,26 @@
+modLoader="javafml"
+loaderVersion="[49,)"
+license="MIT"
+issueTrackerURL="https://github.com/fmy-xfk/StationBuilder/issues"
+
+[[mods]]
+modId="stationbuilder"
+version="${mod_version}"
+displayName="StationBuilder"
+authors="fmy_xfk"
+description='Create decorated railways and stations with few clicks!'
+logoFile="assets/stationbuilder/icon.png"
+
+[[dependencies.stationbuilder]]
+modId="forge"
+mandatory=true
+versionRange="[49.0,50.0)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.stationbuilder]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.4,1.20.5)"
+ordering="NONE"
+side="BOTH"
