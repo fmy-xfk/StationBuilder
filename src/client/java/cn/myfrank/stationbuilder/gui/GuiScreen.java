@@ -2,10 +2,13 @@ package cn.myfrank.stationbuilder.gui;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 
 public abstract class GuiScreen extends Screen {
     protected GuiPanel rootPanel;
+    public ItemStack cursorStack = ItemStack.EMPTY;
+
     public GuiScreen(Text title) {
         super(title);
         rootPanel = new GuiPanel(width, height);
@@ -31,12 +34,25 @@ public abstract class GuiScreen extends Screen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderBackground(context, mouseX, mouseY, delta);
         rootPanel.render(context, mouseX, mouseY, delta);
+        
+        // 渲染拿着的物品
+        if (!cursorStack.isEmpty()) {
+            context.getMatrices().push();
+            context.getMatrices().translate(0, 0, 300);
+            context.drawItem(cursorStack, mouseX - 8, mouseY - 8);
+            context.getMatrices().pop();
+        }
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (rootPanel.mouseClicked(mouseX, mouseY, button)) return true;
         rootPanel.setFocused(false);
+        // 若点击了空白处且手里拿着物品，则清空指针上的物品
+        if (!cursorStack.isEmpty()) {
+            cursorStack = ItemStack.EMPTY;
+            return true;
+        }
         return super.mouseClicked(mouseX, mouseY, button);
     }
     @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {

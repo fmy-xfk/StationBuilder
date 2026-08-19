@@ -296,18 +296,6 @@ public class RailBuilderScreen extends GuiScreen {
         catenaryPanel.setCrossAlign(CrossAlignMode.START);
         catenaryPanel.setGap(2);
 
-        ghostInventory.addSlot(ballastBlockInput)
-            .addSlot(railTypeInput)
-            .addSlot(bridgeGuardRailBlockInput)
-            .addSlot(bridgeBlockInput)
-            .addSlot(bridgePillarBlockInput)
-            .addSlot(tunnelWallBlockInput)
-            .addSlot(tunnelCeilingBlockInput)
-            .addSlot(tunnelFloorBlockInput)
-            .addSlot(catenaryLineBlockInput)
-            .addSlot(catenaryBridgePillarInput)
-            .addSlot(catenaryTunnelPillarInput);
-
         topPanel.addControl(railPanel).addControl(ballastPanel).addControl(catenaryPanel);
         addControl(topPanel);
 
