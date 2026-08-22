@@ -16,6 +16,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.structure.StructurePlacementData;
 import net.minecraft.structure.StructureTemplate;
 import net.minecraft.structure.processor.BlockIgnoreStructureProcessor;
+import net.minecraft.structure.processor.StructureProcessorType;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.BlockMirror;
@@ -61,6 +62,27 @@ public class BuildingPlacerItem extends Item {
                 if (!cfg.placeAir) {
                     placementData.addProcessor(BlockIgnoreStructureProcessor.IGNORE_AIR);
                 }
+
+                placementData.addProcessor(new net.minecraft.structure.processor.StructureProcessor() {
+                    @Override
+                    public net.minecraft.structure.StructureTemplate.StructureBlockInfo process(
+                            net.minecraft.world.WorldView world,
+                            BlockPos pos,
+                            BlockPos pivot,
+                            net.minecraft.structure.StructureTemplate.StructureBlockInfo original,
+                            net.minecraft.structure.StructureTemplate.StructureBlockInfo current,
+                            StructurePlacementData placementData
+                    ) {
+                        // 使用零 MTR 依赖的 BlockRotationUtil 进行强行校正
+                        BlockState rotatedState = BlockRotationUtil.forceRotateState(current.state(), placementData.getRotation());
+                        return new net.minecraft.structure.StructureTemplate.StructureBlockInfo(current.pos(), rotatedState, current.nbt());
+                    }
+
+                    @Override
+                    protected StructureProcessorType<?> getType() {
+                        return null;
+                    }
+                });
 
                 // === 新增：保存放置前的环境快照 ===
                 net.minecraft.util.math.Vec3i size = template.getSize();

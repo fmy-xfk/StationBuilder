@@ -12,6 +12,7 @@ import net.minecraft.state.property.Properties;
 import net.minecraft.structure.StructurePlacementData;
 import net.minecraft.structure.StructureTemplate;
 import net.minecraft.structure.StructureTemplateManager;
+import net.minecraft.structure.processor.StructureProcessorType;
 import net.minecraft.text.Text;
 import net.minecraft.util.BlockRotation;
 import net.minecraft.util.Identifier;
@@ -119,6 +120,27 @@ public class StationGenerator {
             if (!element.placeAir) {
                 data.addProcessor(net.minecraft.structure.processor.BlockIgnoreStructureProcessor.IGNORE_AIR);
             }
+
+            data.addProcessor(new net.minecraft.structure.processor.StructureProcessor() {
+                @Override
+                public net.minecraft.structure.StructureTemplate.StructureBlockInfo process(
+                        net.minecraft.world.WorldView world,
+                        BlockPos pos,
+                        BlockPos pivot,
+                        net.minecraft.structure.StructureTemplate.StructureBlockInfo original,
+                        net.minecraft.structure.StructureTemplate.StructureBlockInfo current,
+                        StructurePlacementData placementData
+                ) {
+                    // 使用零 MTR 依赖的 BlockRotationUtil 进行强行校正
+                    BlockState rotatedState = BlockRotationUtil.forceRotateState(current.state(), placementData.getRotation());
+                    return new net.minecraft.structure.StructureTemplate.StructureBlockInfo(current.pos(), rotatedState, current.nbt());
+                }
+
+                @Override
+                protected StructureProcessorType<?> getType() {
+                    return null;
+                }
+            });
 
             net.minecraft.util.math.Vec3i size = template.getSize();
             int sx = size.getX();
