@@ -16,10 +16,12 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.structure.StructurePlacementData;
 import net.minecraft.structure.StructureTemplate;
 import net.minecraft.structure.processor.BlockIgnoreStructureProcessor;
+import net.minecraft.structure.processor.StructureProcessorType;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.BlockMirror;
 import net.minecraft.util.Hand;
+import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
@@ -62,7 +64,29 @@ public class BuildingPlacerItem extends Item {
                     placementData.addProcessor(BlockIgnoreStructureProcessor.IGNORE_AIR);
                 }
 
-                // === 新增：保存放置前的环境快照 ===
+                // === 注册强行旋转处理器 ===
+                placementData.addProcessor(new net.minecraft.structure.processor.StructureProcessor() {
+                    @Override
+                    public net.minecraft.structure.StructureTemplate.StructureBlockInfo process(
+                            net.minecraft.world.WorldView world,
+                            BlockPos pos,
+                            BlockPos pivot,
+                            net.minecraft.structure.StructureTemplate.StructureBlockInfo original,
+                            net.minecraft.structure.StructureTemplate.StructureBlockInfo current,
+                            StructurePlacementData placementData
+                    ) {
+                        // 使用零 MTR 依赖的 BlockRotationUtil 进行强行校正
+                        BlockState rotatedState = BlockRotationUtil.forceRotateState(current.state(), placementData.getRotation());
+                        return new net.minecraft.structure.StructureTemplate.StructureBlockInfo(current.pos(), rotatedState, current.nbt());
+                    }
+
+                    @Override
+                    protected StructureProcessorType<?> getType() {
+                        return null;
+                    }
+                });
+
+                // === 保存放置前的环境快照 ===
                 net.minecraft.util.math.Vec3i size = template.getSize();
                 Map<BlockPos, PlacerHistoryManager.SavedBlockState> savedBlocks = new java.util.HashMap<>();
                 for (int x = 0; x < size.getX(); x++) {
@@ -95,7 +119,7 @@ public class BuildingPlacerItem extends Item {
     }
 
     @Override
-    public ActionResult use(World world, PlayerEntity user, Hand hand) {
+    public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
         ItemStack stack = user.getStackInHand(hand);
         if (user.isSneaking()) {
             if (!world.isClient) {
@@ -104,9 +128,9 @@ public class BuildingPlacerItem extends Item {
                         new StationBuilder.SyncOpenPlacerPayload(BuildingPlacerConfig.fromItem(stack).toNbt())
                 );
             }
-            return ActionResult.SUCCESS;
+            return TypedActionResult.success(stack);
         }
-        return ActionResult.PASS;
+        return TypedActionResult.pass(stack);
     }
     
     @Override

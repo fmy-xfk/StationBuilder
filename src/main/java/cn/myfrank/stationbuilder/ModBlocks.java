@@ -27,7 +27,6 @@ public class ModBlocks {
 
     public static final StationBuilderBlock STATION_BUILDER = new StationBuilderBlock(
             AbstractBlock.Settings.copy(Blocks.IRON_BLOCK)
-                    .registryKey(STATION_BUILDER_KEY)
                     .requiresTool()
                     .strength(3.0f, 6.0f)
     );
@@ -35,7 +34,6 @@ public class ModBlocks {
     public static final BlockItem STATION_BUILDER_ITEM = new BlockItem(
             STATION_BUILDER,
             new Item.Settings()
-                    .registryKey(STATION_BUILDER_ITEM_KEY)
     ) {
         @Override
         public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type) {

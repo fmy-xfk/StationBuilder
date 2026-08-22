@@ -691,7 +691,7 @@ public class StationEditorScreen extends GuiScreen {
             if (name.endsWith(".nbt")) {
                 NbtCompound nbt = NbtIo.readCompressed(file.toPath(), NbtSizeTracker.ofUnlimitedBytes());
                 StructureTemplate template = new StructureTemplate();
-                template.readNbt(Registries.BLOCK, nbt);
+                template.readNbt(Registries.BLOCK.getReadOnlyWrapper(), nbt);
                 return template;
             } else if (name.endsWith(".schem") || name.endsWith(".schematic")) {
                 return SchematicLoaderUtil.loadSchematic(file.toPath());
@@ -769,7 +769,7 @@ public class StationEditorScreen extends GuiScreen {
             ClientPlayNetworking.send(
                     new StationBuilder.SaveStationPayload(
                             pos,
-                            facing.getHorizontalQuarterTurns(),
+                            facing.getHorizontal(),
                             length,
                             new ArrayList<>(elements)
                     )
@@ -784,7 +784,7 @@ public class StationEditorScreen extends GuiScreen {
             ClientPlayNetworking.send(
                     new StationBuilder.BuildStationPayload(
                             pos,
-                            facing.getHorizontalQuarterTurns(),
+                            facing.getHorizontal(),
                             length,
                             new ArrayList<>(elements)
                     )

@@ -129,7 +129,7 @@ public class BuildingPlacerScreen extends GuiScreen {
             if (name.endsWith(".nbt")) {
                 NbtCompound nbt = NbtIo.readCompressed(file.toPath(), NbtSizeTracker.ofUnlimitedBytes());
                 StructureTemplate template = new StructureTemplate();
-                template.readNbt(Registries.BLOCK, nbt);
+                template.readNbt(Registries.BLOCK.getReadOnlyWrapper(), nbt);
                 return template;
             } else if (name.endsWith(".schem") || name.endsWith(".schematic")) {
                 return SchematicLoaderUtil.loadSchematic(file.toPath());

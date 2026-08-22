@@ -48,7 +48,7 @@ public class StationBuilderClient implements ClientModInitializer {
 				context.client().setScreen(
 						new StationEditorScreen(
 								payload.pos,
-								Direction.fromHorizontalQuarterTurns(payload.facing),
+								Direction.fromHorizontal(payload.facing),
 								payload.nbt
 						)
 				);
@@ -146,11 +146,11 @@ public class StationBuilderClient implements ClientModInitializer {
 				min.getX(), min.getY(), min.getZ(), 
 				max.getX() + 1, max.getY() + 1, max.getZ() + 1
 			).offset(-cam.x, -cam.y, -cam.z);
-			VertexRendering.drawBox(matrices, consumer, box, 0f, 1f, 0f, 0.4f); // 绿色高亮
+			WorldRenderer.drawBox(matrices, consumer, box, 0f, 1f, 0f, 0.4f); // 绿色高亮
 		} else {
 			BlockPos setPos = p1 != null ? p1 : p2;
 			Box box = new Box(setPos).offset(-cam.x, -cam.y, -cam.z);
-			VertexRendering.drawBox(matrices, consumer, box, 0f, 1f, 1f, 0.4f); // 青色高亮单个方块
+			WorldRenderer.drawBox(matrices, consumer, box, 0f, 1f, 1f, 0.4f); // 青色高亮单个方块
 		}
 	}
 
@@ -188,7 +188,7 @@ public class StationBuilderClient implements ClientModInitializer {
 			VertexConsumer consumer = context.consumers().getBuffer(RenderLayer.getLines());
 			MatrixStack matrices = context.matrixStack();
 			Box box = new Box(realMinX, realMinY, realMinZ, realMaxX, realMaxY, realMaxZ).offset(-cam.x, -cam.y, -cam.z);
-			VertexRendering.drawBox(matrices, consumer, box, 1f, 0.5f, 0f, 0.4f);
+			WorldRenderer.drawBox(matrices, consumer, box, 1f, 0.5f, 0f, 0.4f);
 		}
 	}
 
@@ -373,7 +373,7 @@ public class StationBuilderClient implements ClientModInitializer {
 			float r, float g, float b, float a
 	) {
 		Box box = new Box(pos).offset(-cam.x, -cam.y, -cam.z);
-		VertexRendering.drawBox(matrices, consumer, box, r, g, b, a);
+		WorldRenderer.drawBox(matrices, consumer, box, r, g, b, a);
 	}
 
 	private static Vec3d getPreviewCenterPos(
