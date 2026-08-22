@@ -14,6 +14,8 @@ import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.structure.StructurePlacementData;
+import net.minecraft.structure.StructureTemplate;
 import net.minecraft.text.Text;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
@@ -33,6 +35,12 @@ public class StationBuilderClient implements ClientModInitializer {
 					&& client.player.getMainHandStack().getItem() instanceof RailBuilderItem) {
 				ClientPlayNetworking.send(new StationBuilder.ClearRailStatePayload());
 			}
+            
+			if (StationBuilderKeyBindings.UNDO_PLACER.wasPressed()
+					&& client.player != null
+					&& client.player.getMainHandStack().getItem() instanceof BuildingPlacerItem) {
+				ClientPlayNetworking.send(new StationBuilder.UndoPlacerPayload());
+			}
 		});
 
 		ClientPlayNetworking.registerGlobalReceiver(StationBuilder.SyncOpenStationPayload.ID, (payload, context) -> {
@@ -51,21 +59,53 @@ public class StationBuilderClient implements ClientModInitializer {
 			context.client().execute(() -> context.client().setScreen(new RailBuilderScreen(payload.nbt)));
 		});
 
+		ClientPlayNetworking.registerGlobalReceiver(StationBuilder.SyncOpenSelectorPayload.ID, (payload, context) -> {
+			context.client().execute(() -> {
+				context.client().setScreen(new BuildingSelectorScreen(payload.pos1, payload.pos2));
+			});
+		});
+
+		ClientPlayNetworking.registerGlobalReceiver(StationBuilder.SyncOpenPlacerPayload.ID, (payload, context) -> {
+			context.client().execute(() -> {
+				context.client().setScreen(new BuildingPlacerScreen(payload.nbt));
+			});
+		});
+
 		WorldRenderEvents.AFTER_ENTITIES.register(context -> {
 			MinecraftClient client = MinecraftClient.getInstance();
 			if (client.player == null || client.world == null) return;
 
 			ItemStack stack = client.player.getMainHandStack();
-			if (!(stack.getItem() instanceof RailBuilderItem)) return;
 
-			HitResult hit = client.crosshairTarget;
-			if (!(hit instanceof BlockHitResult bhr)) return;
+			// 1. 选取工具 渲染
+			if (stack.getItem() instanceof BuildingSelectorItem) {
+				BlockPos p1 = BuildingSelectorItem.getPos1(stack);
+				BlockPos p2 = BuildingSelectorItem.getPos2(stack);
+				if (p1 != null || p2 != null) {
+					renderSelectionPreview(context, p1, p2);
+				}
+				return;
+			}
 
-			var state = client.world.getBlockState(bhr.getBlockPos());
-			var pos = bhr.getBlockPos();
-			if (!StationBuilder.isSoftTransparent(state)) pos = pos.offset(bhr.getSide());
+			// 2. 放置工具 渲染
+			if (stack.getItem() instanceof BuildingPlacerItem) {
+				HitResult hit = client.crosshairTarget;
+				if (hit instanceof BlockHitResult bhr) {
+					BlockPos pos = bhr.getBlockPos().offset(bhr.getSide());
+					renderPlacerPreview(context, pos, stack);
+				}
+				return;
+			}
 
-			renderRailPreviewGeometry(context, client.player, pos, stack);
+			// 3. 原本的 RailBuilder 渲染
+			if (stack.getItem() instanceof RailBuilderItem) {
+				HitResult hit = client.crosshairTarget;
+				if (!(hit instanceof BlockHitResult bhr)) return;
+				var state = client.world.getBlockState(bhr.getBlockPos());
+				var pos = bhr.getBlockPos();
+				if (!StationBuilder.isSoftTransparent(state)) pos = pos.offset(bhr.getSide());
+				renderRailPreviewGeometry(context, client.player, pos, stack);
+			}
 		});
 
 		WorldRenderEvents.AFTER_TRANSLUCENT.register(context -> {
@@ -84,6 +124,72 @@ public class StationBuilderClient implements ClientModInitializer {
 
 			renderRailPreviewText(context, client.player, pos, stack);
 		});
+	}
+
+	private static void renderSelectionPreview(WorldRenderContext context, BlockPos p1, BlockPos p2) {
+		Vec3d cam = context.camera().getPos();
+		VertexConsumer consumer = context.consumers().getBuffer(RenderLayer.getLines());
+		MatrixStack matrices = context.matrixStack();
+
+		if (p1 != null && p2 != null) {
+			BlockPos min = new BlockPos(
+					Math.min(p1.getX(), p2.getX()),
+					Math.min(p1.getY(), p2.getY()),
+					Math.min(p1.getZ(), p2.getZ())
+			);
+			BlockPos max = new BlockPos(
+					Math.max(p1.getX(), p2.getX()),
+					Math.max(p1.getY(), p2.getY()),
+					Math.max(p1.getZ(), p2.getZ())
+			);
+			Box box = new Box(
+				min.getX(), min.getY(), min.getZ(), 
+				max.getX() + 1, max.getY() + 1, max.getZ() + 1
+			).offset(-cam.x, -cam.y, -cam.z);
+			VertexRendering.drawBox(matrices, consumer, box, 0f, 1f, 0f, 0.4f); // 绿色高亮
+		} else {
+			BlockPos setPos = p1 != null ? p1 : p2;
+			Box box = new Box(setPos).offset(-cam.x, -cam.y, -cam.z);
+			VertexRendering.drawBox(matrices, consumer, box, 0f, 1f, 1f, 0.4f); // 青色高亮单个方块
+		}
+	}
+
+	private static void renderPlacerPreview(WorldRenderContext context, BlockPos targetPos, ItemStack stack) {
+		BuildingPlacerConfig cfg = BuildingPlacerConfig.fromItem(stack);
+		var templateOpt = BuildingTemplateManager.getTemplate(cfg.presetName);
+		if (templateOpt.isPresent()) {
+			StructureTemplate template = templateOpt.get();
+			Vec3i rawSize = template.getSize();
+			BlockPos sizePos = new BlockPos(rawSize.getX(), rawSize.getY(), rawSize.getZ());
+
+			// 1. 创建对齐当前放置设置的 StructurePlacementData
+			StructurePlacementData placementData = new StructurePlacementData()
+					.setRotation(cfg.rotation)
+					.setMirror(net.minecraft.util.BlockMirror.NONE);
+
+			// 2. 使用正确的静态 transform 方法进行坐标偏转
+			BlockPos rotatedSize = StructureTemplate.transform(placementData, sizePos);
+
+			double minX = targetPos.getX();
+			double minY = targetPos.getY();
+			double minZ = targetPos.getZ();
+			double maxX = minX + rotatedSize.getX();
+			double maxY = minY + rotatedSize.getY();
+			double maxZ = minZ + rotatedSize.getZ();
+
+			double realMinX = Math.min(minX, maxX);
+			double realMaxX = Math.max(minX, maxX);
+			double realMinY = Math.min(minY, maxY);
+			double realMaxY = Math.max(minY, maxY);
+			double realMinZ = Math.min(minZ, maxZ);
+			double realMaxZ = Math.max(minZ, maxZ);
+
+			Vec3d cam = context.camera().getPos();
+			VertexConsumer consumer = context.consumers().getBuffer(RenderLayer.getLines());
+			MatrixStack matrices = context.matrixStack();
+			Box box = new Box(realMinX, realMinY, realMinZ, realMaxX, realMaxY, realMaxZ).offset(-cam.x, -cam.y, -cam.z);
+			VertexRendering.drawBox(matrices, consumer, box, 1f, 0.5f, 0f, 0.4f);
+		}
 	}
 
 	private static void renderRailPreviewGeometry(

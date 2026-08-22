@@ -76,6 +76,7 @@ public class StationGenerator {
             if (element instanceof TrackElement track) {
                 StationElement leftNeighbor = (i > 0) ? elements.get(i - 1) : null;
                 if (leftNeighbor instanceof TrackElement) {
+                    fillTrackGap(world, currentLeftEdge, facing, right, length, track);
                     currentLeftEdge = currentLeftEdge.offset(right);
                 }
                 generateTrack(player, world, currentLeftEdge, facing, right, length, track);
@@ -93,28 +94,31 @@ public class StationGenerator {
     // --- 站房生成逻辑 ---
     private static void generateBuilding(ServerWorld world, BlockPos pos, Direction facing, BuildingElement element, int length) {
         Optional<StructureTemplate> custom = BuildingTemplateManager.getTemplate(element.presetName);
-        StructureTemplate template = null;
+        StructureTemplate template = custom.orElse(null);
 
-        if (custom.isPresent()) {
-            template = custom.get();
-        } else {
+        if (template == null) {
             StructureTemplateManager manager = world.getStructureTemplateManager();
-            Identifier templateId;
-            if (element.presetName.contains(":")) {
-                templateId = Identifier.of(element.presetName);
-            } else {
-                templateId = Identifier.of("stationbuilder", element.presetName);
-            }
+            Identifier templateId = element.presetName.contains(":") ? 
+                    Identifier.of(element.presetName) : Identifier.of("stationbuilder", element.presetName);
             template = manager.getTemplate(templateId).orElse(null);
         }
 
         Direction right = facing.rotateYClockwise();
 
         if (template != null) {
-            BlockRotation rot = getRotationFromDirection(facing);
+            // 获取车站主方向旋转
+            BlockRotation baseRot = getRotationFromDirection(facing);
+            // 叠加上站房自身的角度
+            BlockRotation finalRot = baseRot.rotate(element.rotation);
+
             StructurePlacementData data = new StructurePlacementData()
-                    .setRotation(rot)
+                    .setRotation(finalRot)
                     .setMirror(net.minecraft.util.BlockMirror.NONE);
+
+            // 如果默认选项（或关闭放置空气时）不生成空气
+            if (!element.placeAir) {
+                data.addProcessor(net.minecraft.structure.processor.BlockIgnoreStructureProcessor.IGNORE_AIR);
+            }
 
             net.minecraft.util.math.Vec3i size = template.getSize();
             int sx = size.getX();
@@ -136,7 +140,7 @@ public class StationGenerator {
                 int cz = corner[1];
                 int rx = cx, rz = cz;
                 // 原版 StructureTemplate.transform 的旋转矩阵规律
-                switch(rot) {
+                switch(finalRot) {
                     case CLOCKWISE_90:  rx = -cz; rz = cx;  break;
                     case CLOCKWISE_180: rx = -cx; rz = -cz; break;
                     case COUNTERCLOCKWISE_90: rx = cz; rz = -cx; break;
@@ -150,7 +154,6 @@ public class StationGenerator {
             }
 
             // 2. 找到分配给该建筑的真实目标中心点 (World Coordinate)
-            // 修正：(W - 1) / 2.0 是准确获取分配空间正中心点的公式
             double targetX = pos.getX() + 0.5 + right.getOffsetX() * (element.getWidth() - 1) / 2.0 + facing.getOffsetX() * (length - 1) / 2.0;
             double targetZ = pos.getZ() + 0.5 + right.getOffsetZ() * (element.getWidth() - 1) / 2.0 + facing.getOffsetZ() * (length - 1) / 2.0;
 
@@ -160,7 +163,7 @@ public class StationGenerator {
 
             BlockPos placePos = BlockPos.ofFloored(placeX, pos.getY(), placeZ);
 
-            // 4. 放置结构：传入 BlockPos.ORIGIN 作为 pivot，让游戏底层乖乖绕 (0,0,0) 旋转，我们外部在坐标上完全补偿它
+            // 4. 放置结构
             template.place(world, placePos, BlockPos.ORIGIN, data, world.random, 2);
         } else {
             // == 找不到模板时的回退火柴盒 ==
@@ -399,6 +402,15 @@ public class StationGenerator {
             return state.with(net.minecraft.state.property.Properties.SLAB_TYPE, net.minecraft.block.enums.SlabType.BOTTOM);
         } else {
             return state.with(net.minecraft.state.property.Properties.SLAB_TYPE, net.minecraft.block.enums.SlabType.TOP);
+        }
+    }
+
+    private static void fillTrackGap(ServerWorld world, BlockPos start, Direction facing, Direction right, int length, TrackElement t) {
+        BlockState ballast = net.minecraft.registry.Registries.BLOCK.get(t.ballastBlock).getDefaultState();
+        for (int l = 0; l < length; l++) {
+            BlockPos P = start.offset(facing, l);
+            world.setBlockState(P, Blocks.AIR.getDefaultState());
+            world.setBlockState(P.down(), ballast);
         }
     }
 

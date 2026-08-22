@@ -14,7 +14,11 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.tag.BlockTags;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.structure.StructureTemplate;
 import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.BlockRotation;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -41,6 +45,8 @@ public class StationBuilder implements ModInitializer {
 					.entries((displayContext, entries) -> {
 						entries.add(ModBlocks.STATION_BUILDER_ITEM);
 						entries.add(ModItems.RAIL_BUILDER_ITEM);
+						entries.add(ModItems.BUILDING_SELECTOR_ITEM);
+						entries.add(ModItems.BUILDING_PLACER_ITEM);
 					})
 					.build()
 	);
@@ -225,6 +231,135 @@ public class StationBuilder implements ModInitializer {
 		}
 	}
 
+	public static final class SyncOpenSelectorPayload implements CustomPayload {
+		public static final CustomPayload.Id<SyncOpenSelectorPayload> ID =
+				new CustomPayload.Id<>(Identifier.of(MOD_ID, "sync_open_selector"));
+		public static final PacketCodec<RegistryByteBuf, SyncOpenSelectorPayload> CODEC =
+				PacketCodec.ofStatic(
+						(buf, payload) -> {
+							buf.writeBoolean(payload.pos1 != null);
+							if (payload.pos1 != null) buf.writeBlockPos(payload.pos1);
+							buf.writeBoolean(payload.pos2 != null);
+							if (payload.pos2 != null) buf.writeBlockPos(payload.pos2);
+						},
+						buf -> {
+							BlockPos p1 = buf.readBoolean() ? buf.readBlockPos() : null;
+							BlockPos p2 = buf.readBoolean() ? buf.readBlockPos() : null;
+							return new SyncOpenSelectorPayload(p1, p2);
+						}
+				);
+
+		public final BlockPos pos1;
+		public final BlockPos pos2;
+
+		public SyncOpenSelectorPayload(BlockPos pos1, BlockPos pos2) {
+			this.pos1 = pos1;
+			this.pos2 = pos2;
+		}
+
+		@Override
+		public CustomPayload.Id<? extends CustomPayload> getId() {
+			return ID;
+		}
+	}
+
+    // 选取工具 保存选取结构
+	public static final class SaveSelectionPayload implements CustomPayload {
+		public static final CustomPayload.Id<SaveSelectionPayload> ID =
+				new CustomPayload.Id<>(Identifier.of(MOD_ID, "save_selection"));
+		public static final PacketCodec<RegistryByteBuf, SaveSelectionPayload> CODEC =
+				PacketCodec.ofStatic(
+						(buf, payload) -> {
+							buf.writeString(payload.name);
+							buf.writeBlockPos(payload.pos1);
+							buf.writeBlockPos(payload.pos2);
+							buf.writeBoolean(payload.includeEntities);
+						},
+						buf -> new SaveSelectionPayload(
+								buf.readString(),
+								buf.readBlockPos(),
+								buf.readBlockPos(),
+								buf.readBoolean()
+						)
+				);
+
+		public final String name;
+		public final BlockPos pos1;
+		public final BlockPos pos2;
+		public final boolean includeEntities;
+
+		public SaveSelectionPayload(String name, BlockPos pos1, BlockPos pos2, boolean includeEntities) {
+			this.name = name;
+			this.pos1 = pos1;
+			this.pos2 = pos2;
+			this.includeEntities = includeEntities;
+		}
+
+		@Override
+		public CustomPayload.Id<? extends CustomPayload> getId() {
+			return ID;
+		}
+	}
+
+    // 放置工具 GUI 开启同步
+	public static final class SyncOpenPlacerPayload implements CustomPayload {
+		public static final CustomPayload.Id<SyncOpenPlacerPayload> ID =
+				new CustomPayload.Id<>(Identifier.of(MOD_ID, "sync_open_placer"));
+		public static final PacketCodec<RegistryByteBuf, SyncOpenPlacerPayload> CODEC =
+				PacketCodec.ofStatic(
+						(buf, payload) -> buf.writeNbt(payload.nbt),
+						buf -> new SyncOpenPlacerPayload(buf.readNbt())
+				);
+
+		public final NbtCompound nbt;
+
+		public SyncOpenPlacerPayload(NbtCompound nbt) {
+			this.nbt = nbt;
+		}
+
+		@Override
+		public CustomPayload.Id<? extends CustomPayload> getId() {
+			return ID;
+		}
+	}
+
+    // 放置工具 保存属性配置
+	public static final class SavePlacerPayload implements CustomPayload {
+		public static final CustomPayload.Id<SavePlacerPayload> ID =
+				new CustomPayload.Id<>(Identifier.of(MOD_ID, "save_placer"));
+		public static final PacketCodec<RegistryByteBuf, SavePlacerPayload> CODEC =
+				PacketCodec.ofStatic(
+						(buf, payload) -> buf.writeNbt(payload.nbt),
+						buf -> new SavePlacerPayload(buf.readNbt())
+				);
+
+		public final NbtCompound nbt;
+
+		public SavePlacerPayload(NbtCompound nbt) {
+			this.nbt = nbt;
+		}
+
+		@Override
+		public CustomPayload.Id<? extends CustomPayload> getId() {
+			return ID;
+		}
+	}
+
+	public static final class UndoPlacerPayload implements CustomPayload {
+		public static final CustomPayload.Id<UndoPlacerPayload> ID =
+				new CustomPayload.Id<>(Identifier.of(MOD_ID, "undo_placer"));
+		public static final PacketCodec<RegistryByteBuf, UndoPlacerPayload> CODEC =
+				PacketCodec.ofStatic(
+						(buf, payload) -> { /* 空包 */ },
+						buf -> new UndoPlacerPayload()
+				);
+
+		@Override
+		public CustomPayload.Id<? extends CustomPayload> getId() {
+			return ID;
+		}
+	}
+	
 	private static final boolean hasMTR = FabricLoader.getInstance().isModLoaded("mtr");
 	public static boolean isMtrLoaded() { return hasMTR; }
 
@@ -258,6 +393,30 @@ public class StationBuilder implements ModInitializer {
 		PayloadTypeRegistry.playC2S().register(BuildStationPayload.ID, StationBuilder.BuildStationPayload.CODEC);
 		PayloadTypeRegistry.playC2S().register(SaveRailPayload.ID, StationBuilder.SaveRailPayload.CODEC);
 		PayloadTypeRegistry.playC2S().register(ClearRailStatePayload.ID, StationBuilder.ClearRailStatePayload.CODEC);
+
+		PayloadTypeRegistry.playS2C().register(SyncOpenSelectorPayload.ID, StationBuilder.SyncOpenSelectorPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(SyncOpenPlacerPayload.ID, StationBuilder.SyncOpenPlacerPayload.CODEC);
+
+        // 注册 C2S 网络通道
+        PayloadTypeRegistry.playC2S().register(SaveSelectionPayload.ID, StationBuilder.SaveSelectionPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(SavePlacerPayload.ID, StationBuilder.SavePlacerPayload.CODEC);
+		PayloadTypeRegistry.playC2S().register(UndoPlacerPayload.ID, StationBuilder.UndoPlacerPayload.CODEC);
+
+		ServerPlayNetworking.registerGlobalReceiver(UndoPlacerPayload.ID, (payload, context) -> {
+			context.server().execute(() -> {
+				net.minecraft.server.network.ServerPlayerEntity player = context.player();
+				if (player.getMainHandStack().getItem() instanceof BuildingPlacerItem) {
+					boolean success = PlacerHistoryManager.undo(player);
+					if (success) {
+						player.sendMessage(Text.translatable("message.stationbuilder.undo_success")
+								.formatted(net.minecraft.util.Formatting.GREEN), true);
+					} else {
+						player.sendMessage(Text.translatable("message.stationbuilder.undo_no_history")
+								.formatted(net.minecraft.util.Formatting.RED), true);
+					}
+				}
+			});
+		});
 
 		ServerPlayNetworking.registerGlobalReceiver(SaveStationPayload.ID, (payload, context) -> {
 			context.server().execute(() -> {
@@ -311,5 +470,68 @@ public class StationBuilder implements ModInitializer {
 				}
 			});
 		});
+		// 新增：拦截选取器的左键动作设定 Pos 1
+        net.fabricmc.fabric.api.event.player.AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
+            ItemStack stack = player.getStackInHand(hand);
+            if (stack.getItem() instanceof BuildingSelectorItem) {
+                if (!world.isClient) {
+                    BuildingSelectorItem.setPos1(stack, pos);
+                    player.sendMessage(Text.translatable("message.stationbuilder.pos1_set_to:", pos.toShortString())
+                            .formatted(net.minecraft.util.Formatting.GREEN), true);
+                }
+                return ActionResult.SUCCESS; // 拦截默认打破方块行为
+            }
+            return ActionResult.PASS;
+        });
+
+        // 放置包处理：客户端改变参数并关闭 Placer 界面时发给服务器
+        ServerPlayNetworking.registerGlobalReceiver(SavePlacerPayload.ID, (payload, context) -> {
+            context.server().execute(() -> {
+                ItemStack stack = context.player().getMainHandStack();
+                if (stack.getItem() instanceof BuildingPlacerItem) {
+                    BuildingPlacerConfig cfg = BuildingPlacerConfig.fromItem(stack);
+                    cfg.fromNbt(payload.nbt);
+                    cfg.saveToItem(stack);
+                }
+            });
+        });
+
+        // 选取结构保存包：在服务端提取坐标信息并构建 StructureTemplate 存盘
+        ServerPlayNetworking.registerGlobalReceiver(SaveSelectionPayload.ID, (payload, context) -> {
+            context.server().execute(() -> {
+                ServerWorld world = context.player().getServerWorld();
+                BlockPos p1 = payload.pos1;
+                BlockPos p2 = payload.pos2;
+                if (p1 == null || p2 == null) return;
+
+                BlockPos min = new BlockPos(
+                        Math.min(p1.getX(), p2.getX()),
+                        Math.min(p1.getY(), p2.getY()),
+                        Math.min(p1.getZ(), p2.getZ())
+                );
+                BlockPos max = new BlockPos(
+                        Math.max(p1.getX(), p2.getX()),
+                        Math.max(p1.getY(), p2.getY()),
+                        Math.max(p1.getZ(), p2.getZ())
+                );
+                // 1.21.4 `saveFromWorld` 使用的体积需为 Vec3i 宽、高、长
+                net.minecraft.util.math.Vec3i size = new net.minecraft.util.math.Vec3i(
+                        max.getX() - min.getX() + 1,
+                        max.getY() - min.getY() + 1,
+                        max.getZ() - min.getZ() + 1
+                );
+
+                StructureTemplate template = new StructureTemplate();
+                // 传入忽略列表，通常为空 list
+                template.saveFromWorld(world, min, size, payload.includeEntities, null);
+                BuildingTemplateManager.addTemplate(payload.name, template);
+
+                context.player().sendMessage(Text.literal("Saved selection as template: " + payload.name)
+                        .formatted(net.minecraft.util.Formatting.GREEN), false);
+            });
+        });
+	}
+	public static String getRotName(BlockRotation rotation) {
+		return Text.translatable("gui.stationbuilder.rotation_" + rotation.name()).getString();
 	}
 }

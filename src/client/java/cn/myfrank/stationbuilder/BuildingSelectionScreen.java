@@ -13,11 +13,11 @@ import java.util.List;
 
 @Environment(EnvType.CLIENT)
 public class BuildingSelectionScreen extends Screen {
-    private final StationEditorScreen parent;
+    private final Screen parent; // 重构：解耦为通用 Screen 基类
     private final GuiTextField buildingPresetField;
     private List<String> buildingNames;
 
-    public BuildingSelectionScreen(StationEditorScreen parent, GuiTextField buildingPresetField) {
+    public BuildingSelectionScreen(Screen parent, GuiTextField buildingPresetField) {
         super(Text.translatable("gui.stationbuilder.select_building"));
         this.parent = parent;
         this.buildingPresetField = buildingPresetField;
@@ -34,10 +34,13 @@ public class BuildingSelectionScreen extends Screen {
             String name = buildingNames.get(i);
             this.addDrawableChild(ButtonWidget.builder(Text.literal(name), b -> {
                 buildingPresetField.setText(name);
-                // 同步更新元素
-                int index = parent.getSelectedIndex();
-                if (index >= 0 && parent.getElements().get(index) instanceof BuildingElement be) {
-                    be.presetName = name;
+                
+                // 同步更新元素 (仅当父级是 StationEditorScreen 时)
+                if (parent instanceof StationEditorScreen editor) {
+                    int index = editor.getSelectedIndex();
+                    if (index >= 0 && editor.getElements().get(index) instanceof BuildingElement be) {
+                        be.presetName = name;
+                    }
                 }
                 client.setScreen(parent);
             }).dimensions(centerX - 100, 40 + i * 25, 200, 20).build());
@@ -45,8 +48,11 @@ public class BuildingSelectionScreen extends Screen {
 
         // 导入文件按钮
         this.addDrawableChild(ButtonWidget.builder(Text.translatable("gui.stationbuilder.import_file"), b -> {
-            parent.openFileChooser(); // 需要将 openFileChooser 设为 public
-            // 关闭当前屏幕，让父屏幕处理导入
+            if (parent instanceof StationEditorScreen editor) {
+                editor.openFileChooser();
+            } else if (parent instanceof BuildingPlacerScreen placer) {
+                placer.openFileChooser();
+            }
             client.setScreen(parent);
         }).dimensions(centerX - 50, height - 60, 100, 20).build());
 

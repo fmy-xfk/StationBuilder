@@ -14,6 +14,7 @@ import net.minecraft.nbt.NbtSizeTracker;
 import net.minecraft.registry.Registries;
 import net.minecraft.structure.StructureTemplate;
 import net.minecraft.text.Text;
+import net.minecraft.util.BlockRotation;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -25,6 +26,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class StationEditorScreen extends GuiScreen {
+    private static final int BTN_WIDTH_XXL = 120;
     private static final int BTN_WIDTH_XL = 75;
     private static final int BTN_WIDTH_L = 65;
     private static final int BTN_WIDTH = 50;
@@ -173,6 +175,22 @@ public class StationEditorScreen extends GuiScreen {
             Identifier.of("mtr", "pids_1"), false);
     private final GuiLabelSlot pidPoleSlot = new GuiLabelSlot(getText("pids_pole"), INPUT_WIDTH, INPUT_HEIGHT,
             Identifier.of("mtr", "pids_pole"), false);
+    private final GuiButton buildingRotBtn = new GuiButton(Text.translatable("gui.stationbuilder.building_rotation", StationBuilder.getRotName(BlockRotation.NONE)), b -> {
+        int index = canvas.getSelectedIndex();
+        if (index >= 0 && elements.get(index) instanceof BuildingElement be) {
+            BlockRotation[] rots = BlockRotation.values();
+            be.rotation = rots[(be.rotation.ordinal() + 1) % rots.length];
+            b.setMessage(Text.translatable("gui.stationbuilder.building_rotation", StationBuilder.getRotName(be.rotation)));
+        }
+    }, BTN_WIDTH_XXL, BTN_HEIGHT);
+
+    private final GuiButton buildingAirBtn = new GuiButton(Text.translatable("gui.stationbuilder.building_air_off"), b -> {
+        int index = canvas.getSelectedIndex();
+        if (index >= 0 && elements.get(index) instanceof BuildingElement be) {
+            be.placeAir = !be.placeAir;
+            b.setMessage(Text.translatable("gui.stationbuilder.building_air_" + (be.placeAir ? "on" : "off")));
+        }
+    }, BTN_WIDTH_XXL, BTN_HEIGHT);
 
     public int getSelectedIndex() {
         return canvas != null ? canvas.getSelectedIndex() : -1;
@@ -242,6 +260,8 @@ public class StationEditorScreen extends GuiScreen {
             } else if(e instanceof BuildingElement b) {
                 buildingProperties.setVisible(true);
                 buildingPresetField.setText(b.presetName);
+                buildingRotBtn.setMessage(Text.translatable("gui.stationbuilder.building_rotation", StationBuilder.getRotName(b.rotation)));
+                buildingAirBtn.setMessage(Text.translatable("gui.stationbuilder.building_air_" + (b.placeAir ? "on" : "off")));
             } else {
                 emptyProperties.setVisible(true);
             }
@@ -282,17 +302,17 @@ public class StationEditorScreen extends GuiScreen {
         GuiPanel elemOpPanel = new GuiPanel(width, elemOpPanelHeight)
         .addControl(new GuiButton(getText("add_track"), b -> {
             var e = new TrackElement(); elements.add(e);
-            canvas.addRect(e.getWidth() * 3, "T");
+            canvas.addRect(Math.min(20, e.getWidth()) * 3, "T");
             refreshPropertyArea();
         }, BTN_WIDTH, BTN_HEIGHT))
         .addControl(new GuiButton(getText("add_platform"), b -> {
             var e = new PlatformElement(); elements.add(e);
-            canvas.addRect(e.getWidth() * 3, "P");
+            canvas.addRect(Math.min(20, e.getWidth()) * 3, "P");
             refreshPropertyArea();
         }, BTN_WIDTH, BTN_HEIGHT))
         .addControl(new GuiButton(getText("add_building"), b -> {
             var e = new BuildingElement("matchbox"); elements.add(e);
-            canvas.addRect(e.getWidth() * 3, "B");
+            canvas.addRect(Math.min(20, e.getWidth()) * 3, "B");
             refreshPropertyArea();
         }, BTN_WIDTH, BTN_HEIGHT));
 
@@ -588,7 +608,6 @@ public class StationEditorScreen extends GuiScreen {
                 b.presetName = e.newText;
         });
 
-        // ---- 添加“浏览”按钮（打开列表屏幕） ----
         GuiButton browseButton = new GuiButton(
                 net.minecraft.text.Text.translatable("gui.stationbuilder.browse"),
                 b -> {
@@ -598,15 +617,18 @@ public class StationEditorScreen extends GuiScreen {
                 },
                 60, INPUT_HEIGHT
         );
-        // ---- 添加“导入文件”按钮 ----
         GuiButton importButton = new GuiButton(
                 net.minecraft.text.Text.translatable("gui.stationbuilder.import_file"),
                 b -> openFileChooser(),
                 60, INPUT_HEIGHT
         );
+        
         buildingProperties.addControl(buildingPresetField);
         buildingProperties.addControl(browseButton);
         buildingProperties.addControl(importButton);
+        buildingProperties.addControl(buildingRotBtn);
+        buildingProperties.addControl(buildingAirBtn);
+        
         return buildingProperties;
     }
 
@@ -686,7 +708,7 @@ public class StationEditorScreen extends GuiScreen {
     }
 
     private @NotNull GuiPanel getEmptyProperties(int propertyPanelWidth, int middlePanelHeight) {
-        GuiPanel panel = new  GuiPanel(propertyPanelWidth, middlePanelHeight);
+        GuiPanel panel = new GuiPanel(propertyPanelWidth, middlePanelHeight);
         initProperties(panel);
         panel.setMajorAlign(GuiPanel.MajorAlignMode.CENTER);
         panel.setCrossAlign(GuiPanel.CrossAlignMode.CENTER);
@@ -699,11 +721,11 @@ public class StationEditorScreen extends GuiScreen {
         canvas.clear();
         for (var element : elements) {
             if (element instanceof PlatformElement p) {
-                canvas.addRect(p.getWidth() * 3, "P");
+                canvas.addRect(Math.min(p.getWidth(), 20) * 3, "P");
             } else if (element instanceof BuildingElement b) {
-                canvas.addRect(b.getWidth() * 3, "B");
+                canvas.addRect(Math.min(b.getWidth(), 20) * 3, "B");
             } else if (element instanceof TrackElement t) {
-                canvas.addRect(t.getWidth() * 3, "T");
+                canvas.addRect(Math.min(t.getWidth(), 20) * 3, "T");
             }
         }
         if (oldIndex >= 0) {

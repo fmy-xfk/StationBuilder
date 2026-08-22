@@ -25,7 +25,24 @@ public class ModComponents {
                             .build()
             );
 
-    // 增加一个初始化方法，用于在游戏初始化早期触发该类的静态代码块
+    public static final ComponentType<NbtComponent> SELECTOR_DATA =
+            Registry.register(
+                    Registries.DATA_COMPONENT_TYPE,
+                    Identifier.of(StationBuilder.MOD_ID, "selector_data"),
+                    ComponentType.<NbtComponent>builder()
+                            .codec(NbtComponent.CODEC)
+                            .build()
+            );
+
+    public static final ComponentType<NbtComponent> PLACER_DATA =
+            Registry.register(
+                    Registries.DATA_COMPONENT_TYPE,
+                    Identifier.of(StationBuilder.MOD_ID, "placer_data"),
+                    ComponentType.<NbtComponent>builder()
+                            .codec(NbtComponent.CODEC)
+                            .build()
+            );
+
     public static void initialize() {
         StationBuilder.LOGGER.info("Registering Station Builder Components");
     }

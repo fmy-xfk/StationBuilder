@@ -3,6 +3,7 @@ package cn.myfrank.stationbuilder.elements;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.BlockRotation;
 import net.minecraft.util.Identifier;
 
 public abstract class StationElement {
@@ -59,7 +60,14 @@ public abstract class StationElement {
 
             case BUILDING:
                 String preset = nbt.getString("preset");
-                return new BuildingElement(preset.isEmpty() ? "matchbox" : preset);
+                BuildingElement buildingElement = new BuildingElement(preset.isEmpty() ? "matchbox" : preset);
+                if (nbt.contains("rotation")) {
+                    buildingElement.rotation = BlockRotation.valueOf(nbt.getString("rotation"));
+                }
+                if (nbt.contains("placeAir")) {
+                    buildingElement.placeAir = nbt.getBoolean("placeAir");
+                }
+                return buildingElement;
 
             default:
                 throw new IllegalArgumentException("Unknown element type_: " + typeStr);
@@ -115,7 +123,12 @@ public abstract class StationElement {
                 p.pidPoleId = buf.readIdentifier();
                 yield p;
             }
-            case BUILDING -> new BuildingElement(buf.readString());
+            case BUILDING -> {
+                BuildingElement buildingElement = new BuildingElement(buf.readString());
+                buildingElement.rotation = buf.readEnumConstant(BlockRotation.class);
+                buildingElement.placeAir = buf.readBoolean();
+                yield buildingElement;
+            }
         };
     }
 }
