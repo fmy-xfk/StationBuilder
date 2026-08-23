@@ -18,7 +18,9 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.structure.StructureTemplate;
 import net.minecraft.text.Text;
+import net.minecraft.util.BlockMirror;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
@@ -35,7 +37,10 @@ public class StationBuilderClient implements ClientModInitializer {
             if (StationBuilderKeyBindings.CLEAR_RAIL_STATE.wasPressed() && client.player != null && client.player.getMainHandStack().getItem() instanceof RailBuilderItem) {
                 ClientPlayNetworking.send(StationBuilder.CLEAR_RAIL_PACKET, PacketByteBufs.empty());
             }
-        });
+			if (StationBuilderKeyBindings.UNDO_PLACER.wasPressed() && client.player != null && client.player.getMainHandStack().getItem() instanceof BuildingPlacerItem) {
+				ClientPlayNetworking.send(StationBuilder.UNDO_PLACER_PACKET, PacketByteBufs.empty());
+			}
+		});
 
 		ClientPlayNetworking.registerGlobalReceiver(StationBuilder.SYNC_AND_OPEN_PACKET, (client, handler, buf, responseSender) -> {
 			BlockPos pos = buf.readBlockPos();
@@ -50,6 +55,23 @@ public class StationBuilderClient implements ClientModInitializer {
 			NbtCompound nbt = buf.readNbt();
 			client.execute(() -> {
 				client.setScreen(new RailBuilderScreen(nbt));
+			});
+		});
+
+		ClientPlayNetworking.registerGlobalReceiver(StationBuilder.SYNC_AND_OPEN_PACKET_SELECTOR, (client, handler, buf, responseSender) -> {
+			boolean hasP1 = buf.readBoolean();
+			BlockPos p1 = hasP1 ? buf.readBlockPos() : null;
+			boolean hasP2 = buf.readBoolean();
+			BlockPos p2 = hasP2 ? buf.readBlockPos() : null;
+			client.execute(() -> {
+				client.setScreen(new BuildingSelectorScreen(p1, p2));
+			});
+		});
+
+		ClientPlayNetworking.registerGlobalReceiver(StationBuilder.SYNC_AND_OPEN_PACKET_PLACER, (client, handler, buf, responseSender) -> {
+			NbtCompound nbt = buf.readNbt();
+			client.execute(() -> {
+				client.setScreen(new BuildingPlacerScreen(nbt));
 			});
 		});
 
@@ -76,17 +98,105 @@ public class StationBuilderClient implements ClientModInitializer {
 			if (client.player == null || client.world == null) return;
 
 			ItemStack stack = client.player.getMainHandStack();
-			if (!(stack.getItem() instanceof RailBuilderItem)) return;
 
-			HitResult hit = client.crosshairTarget;
-			if (!(hit instanceof BlockHitResult bhr)) return;
+			// 1. 选取工具高亮
+			if (stack.getItem() instanceof BuildingSelectorItem) {
+				BlockPos p1 = BuildingSelectorItem.getPos1(stack);
+				BlockPos p2 = BuildingSelectorItem.getPos2(stack);
+				if (p1 != null || p2 != null) {
+					renderSelectionPreview(context, p1, p2);
+				}
+				return;
+			}
 
-			var state = client.world.getBlockState(bhr.getBlockPos());
-			var pos = bhr.getBlockPos();
-			if (!StationBuilder.isSoftTransparent(state)) pos = pos.offset(bhr.getSide());
+			// 2. 放置预览盒高亮
+			if (stack.getItem() instanceof BuildingPlacerItem) {
+				HitResult hit = client.crosshairTarget;
+				if (hit instanceof BlockHitResult bhr) {
+					BlockPos pos = bhr.getBlockPos().offset(bhr.getSide());
+					renderPlacerPreview(context, pos, stack);
+				}
+				return;
+			}
 
-			renderRailPreview(context, client.player, pos, stack);
+			// 3. 铁轨放置工具高亮
+			if (stack.getItem() instanceof RailBuilderItem) {
+				HitResult hit = client.crosshairTarget;
+				if (!(hit instanceof BlockHitResult bhr)) return;
+				var state = client.world.getBlockState(bhr.getBlockPos());
+				var pos = bhr.getBlockPos();
+				if (!StationBuilder.isSoftTransparent(state)) pos = pos.offset(bhr.getSide());
+				renderRailPreview(context, client.player, pos, stack);
+			}
 		});
+	}
+
+	private static void renderSelectionPreview(WorldRenderContext context, BlockPos p1, BlockPos p2) {
+		Vec3d cam = context.camera().getPos();
+		VertexConsumer consumer = context.consumers().getBuffer(RenderLayer.getLines());
+		MatrixStack matrices = context.matrixStack();
+
+		if (p1 != null && p2 != null) {
+			BlockPos min = new BlockPos(
+					Math.min(p1.getX(), p2.getX()),
+					Math.min(p1.getY(), p2.getY()),
+					Math.min(p1.getZ(), p2.getZ())
+			);
+			BlockPos max = new BlockPos(
+					Math.max(p1.getX(), p2.getX()),
+					Math.max(p1.getY(), p2.getY()),
+					Math.max(p1.getZ(), p2.getZ())
+			);
+			Box box = new Box(
+					min.getX(), min.getY(), min.getZ(),
+					max.getX() + 1, max.getY() + 1, max.getZ() + 1
+			).offset(-cam.x, -cam.y, -cam.z);
+			WorldRenderer.drawBox(matrices, consumer, box, 0f, 1f, 0f, 0.4f);
+		} else {
+			BlockPos setPos = p1 != null ? p1 : p2;
+			Box box = new Box(setPos).offset(-cam.x, -cam.y, -cam.z);
+			WorldRenderer.drawBox(matrices, consumer, box, 0f, 1f, 1f, 0.4f);
+		}
+	}
+
+	private static void renderPlacerPreview(WorldRenderContext context, BlockPos targetPos, ItemStack stack) {
+		BuildingPlacerConfig cfg = BuildingPlacerConfig.fromItem(stack);
+		var templateOpt = BuildingTemplateManager.getTemplate(cfg.presetName);
+		if (templateOpt.isPresent()) {
+			StructureTemplate template = templateOpt.get();
+			Vec3i rawSize = template.getSize();
+			BlockPos sizePos = new BlockPos(rawSize.getX(), rawSize.getY(), rawSize.getZ());
+
+			net.minecraft.structure.StructurePlacementData placementData = new net.minecraft.structure.StructurePlacementData()
+					.setRotation(cfg.rotation)
+					.setMirror(BlockMirror.NONE);
+
+			BlockPos rotatedSize = StructureTemplate.transform(placementData, sizePos);
+
+			double minX = targetPos.getX();
+			double minY = targetPos.getY();
+			double minZ = targetPos.getZ();
+			
+			double rotatedSizeX = rotatedSize.getX();
+			double rotatedSizeY = rotatedSize.getY();
+			double rotatedSizeZ = rotatedSize.getZ();
+
+			// 修正：如果在负方向延伸，由于方块占用的是格子，需在極值下限上安全地引入 +1 偏移校正
+			double realMinX = Math.min(minX, minX + rotatedSizeX) + (rotatedSizeX < 0 ? 1 : 0);
+			double realMaxX = Math.max(minX, minX + rotatedSizeX) + (rotatedSizeX < 0 ? 1 : 0);
+
+			double realMinY = Math.min(minY, minY + rotatedSizeY) + (rotatedSizeY < 0 ? 1 : 0);
+			double realMaxY = Math.max(minY, minY + rotatedSizeY) + (rotatedSizeY < 0 ? 1 : 0);
+
+			double realMinZ = Math.min(minZ, minZ + rotatedSizeZ) + (rotatedSizeZ < 0 ? 1 : 0);
+			double realMaxZ = Math.max(minZ, minZ + rotatedSizeZ) + (rotatedSizeZ < 0 ? 1 : 0);
+
+			Vec3d cam = context.camera().getPos();
+			VertexConsumer consumer = context.consumers().getBuffer(RenderLayer.getLines());
+			MatrixStack matrices = context.matrixStack();
+			Box box = new Box(realMinX, realMinY, realMinZ, realMaxX, realMaxY, realMaxZ).offset(-cam.x, -cam.y, -cam.z);
+			WorldRenderer.drawBox(matrices, consumer, box, 1f, 0.5f, 0f, 0.4f);
+		}
 	}
 
 	private static void renderRailPreview(

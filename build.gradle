@@ -50,13 +50,19 @@ dependencies {
 	modImplementation "maven.modrinth:minecraft-transit-railway:FABRIC-${project.mtr_version}+${project.minecraft_version}"
 	// MSD FABRIC 1.4.0 for MTR 4.0.0+1.20.4
 	modImplementation "curse.maven:station-decoration-790307:6893840"
+	// MSD FABRIC 1.4.0 for MTR 4.0.0+1.20.1
+	// modImplementation "curse.maven:station-decoration-790307:6893835"
 }
 
 processResources {
 	inputs.property "version", project.version
+	inputs.property "minecraft_version", project.minecraft_version
+	inputs.property "loader_version", project.loader_version
 
 	filesMatching("fabric.mod.json") {
-		expand "version": inputs.properties.version
+		expand "version": inputs.properties.version,
+		       "minecraft_version": inputs.properties.minecraft_version,
+		       "loader_version": inputs.properties.loader_version
 	}
 }
 

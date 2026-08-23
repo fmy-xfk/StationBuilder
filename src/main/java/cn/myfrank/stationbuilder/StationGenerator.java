@@ -12,8 +12,8 @@ import net.minecraft.state.property.Properties;
 import net.minecraft.structure.StructurePlacementData;
 import net.minecraft.structure.StructureTemplate;
 import net.minecraft.structure.StructureTemplateManager;
+import net.minecraft.structure.processor.StructureProcessorType;
 import net.minecraft.text.Text;
-import net.minecraft.util.BlockMirror;
 import net.minecraft.util.BlockRotation;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -77,6 +77,12 @@ public class StationGenerator {
             if (element instanceof TrackElement track) {
                 StationElement leftNeighbor = (i > 0) ? elements.get(i - 1) : null;
                 if (leftNeighbor instanceof TrackElement) {
+                    BlockState ballast = net.minecraft.registry.Registries.BLOCK.get(track.ballastBlock).getDefaultState();
+                    for (int l = 0; l < length; l++) {
+                        BlockPos L = currentLeftEdge.offset(facing, l);
+                        world.setBlockState(L, Blocks.AIR.getDefaultState());
+                        world.setBlockState(L.down(), ballast);
+                    }
                     currentLeftEdge = currentLeftEdge.offset(right);
                 }
                 generateTrack(player, world, currentLeftEdge, facing, right, length, track);
@@ -94,28 +100,50 @@ public class StationGenerator {
     // --- 站房生成逻辑 ---
     private static void generateBuilding(ServerWorld world, BlockPos pos, Direction facing, BuildingElement element, int length) {
         Optional<StructureTemplate> custom = BuildingTemplateManager.getTemplate(element.presetName);
-        StructureTemplate template = null;
+        StructureTemplate template = custom.orElse(null);
 
-        if (custom.isPresent()) {
-            template = custom.get();
-        } else {
+        if (template == null) {
             StructureTemplateManager manager = world.getStructureTemplateManager();
-            Identifier templateId;
-            if (element.presetName.contains(":")) {
-                templateId = new Identifier(element.presetName);
-            } else {
-                templateId = new Identifier("stationbuilder", element.presetName);
-            }
+            Identifier templateId = element.presetName.contains(":") ?
+                    new Identifier(element.presetName) : new Identifier("stationbuilder", element.presetName);
             template = manager.getTemplate(templateId).orElse(null);
         }
 
         Direction right = facing.rotateYClockwise();
 
         if (template != null) {
-            BlockRotation rot = getRotationFromDirection(facing);
+            BlockRotation baseRot = getRotationFromDirection(facing);
+            BlockRotation finalRot = baseRot.rotate(element.rotation);
+
             StructurePlacementData data = new StructurePlacementData()
-                    .setRotation(rot)
+                    .setRotation(finalRot)
                     .setMirror(net.minecraft.util.BlockMirror.NONE);
+
+            if (!element.placeAir) {
+                data.addProcessor(net.minecraft.structure.processor.BlockIgnoreStructureProcessor.IGNORE_AIR);
+            }
+
+            // === 新增：注册强行旋转处理器（零 MTR 依赖） ===
+            data.addProcessor(new net.minecraft.structure.processor.StructureProcessor() {
+                @Override
+                public net.minecraft.structure.StructureTemplate.StructureBlockInfo process(
+                        net.minecraft.world.WorldView world,
+                        BlockPos pos,
+                        BlockPos pivot,
+                        net.minecraft.structure.StructureTemplate.StructureBlockInfo original,
+                        net.minecraft.structure.StructureTemplate.StructureBlockInfo current,
+                        StructurePlacementData placementData
+                ) {
+                    BlockState rotatedState = BlockRotationUtil.forceRotateState(current.state(), placementData.getRotation());
+                    return new net.minecraft.structure.StructureTemplate.StructureBlockInfo(current.pos(), rotatedState, current.nbt());
+                }
+
+                @Override
+                protected StructureProcessorType<?> getType() {
+                    return null;
+                }
+            });
+            // ===============================================
 
             net.minecraft.util.math.Vec3i size = template.getSize();
             int sx = size.getX();
@@ -137,7 +165,7 @@ public class StationGenerator {
                 int cz = corner[1];
                 int rx = cx, rz = cz;
                 // 原版 StructureTemplate.transform 的旋转矩阵规律
-                switch(rot) {
+                switch(finalRot) {
                     case CLOCKWISE_90:  rx = -cz; rz = cx;  break;
                     case CLOCKWISE_180: rx = -cx; rz = -cz; break;
                     case COUNTERCLOCKWISE_90: rx = cz; rz = -cx; break;
@@ -151,21 +179,19 @@ public class StationGenerator {
             }
 
             // 2. 找到分配给该建筑的真实目标中心点 (World Coordinate)
-            // 修正：(W - 1) / 2.0 是准确获取分配空间正中心点的公式
             double targetX = pos.getX() + 0.5 + right.getOffsetX() * (element.getWidth() - 1) / 2.0 + facing.getOffsetX() * (length - 1) / 2.0;
             double targetZ = pos.getZ() + 0.5 + right.getOffsetZ() * (element.getWidth() - 1) / 2.0 + facing.getOffsetZ() * (length - 1) / 2.0;
 
-            // 3. 反推起始放置点：目标中心 减去 旋转后结构的内部中心
+            // 3. 反推起始放置点
             double placeX = targetX - (minX + maxX) / 2.0;
             double placeZ = targetZ - (minZ + maxZ) / 2.0;
 
             BlockPos placePos = BlockPos.ofFloored(placeX, pos.getY(), placeZ);
 
-            // 4. 放置结构：传入 BlockPos.ORIGIN 作为 pivot，让游戏底层乖乖绕 (0,0,0) 旋转，我们外部在坐标上完全补偿它
             template.place(world, placePos, BlockPos.ORIGIN, data, world.random, 2);
         } else {
             // == 找不到模板时的回退火柴盒 ==
-            world.getPlayers().forEach(p -> p.sendMessage(net.minecraft.text.Text.literal("Template not found: " + element.presetName + ", building matchbox.").formatted(net.minecraft.util.Formatting.RED), false));
+            world.getPlayers().forEach(p -> p.sendMessage(net.minecraft.text.Text.translatable("message.stationbuilder.template_not_found", element.presetName).formatted(net.minecraft.util.Formatting.RED), false));
 
             int buildingWidth = 8; // 沿 right 方向
             int buildingDepth = 12; // 沿 facing 方向

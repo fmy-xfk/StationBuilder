@@ -16,6 +16,7 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.registry.Registries;
 import net.minecraft.structure.StructureTemplate;
 import net.minecraft.text.Text;
+import net.minecraft.util.BlockRotation;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -29,6 +30,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class StationEditorScreen extends GuiScreen {
+    private static final int BTN_WIDTH_XXL = 120;
     private static final int BTN_WIDTH_XL = 75;
     private static final int BTN_WIDTH_L = 65;
     private static final int BTN_WIDTH = 50;
@@ -172,6 +174,23 @@ public class StationEditorScreen extends GuiScreen {
             b.setMessage(pe.hasPids ? getText("pids_on") : getText("pids_off"));
         }
     }, BTN_WIDTH_XL, BTN_HEIGHT, getText("pids"));
+    private final GuiButton buildingRotBtn = new GuiButton(Text.translatable("gui.stationbuilder.building_rotation", StationBuilder.getRotName(BlockRotation.NONE)), b -> {
+        int index = canvas.getSelectedIndex();
+        if (index >= 0 && elements.get(index) instanceof BuildingElement be) {
+            BlockRotation[] rots = BlockRotation.values();
+            be.rotation = rots[(be.rotation.ordinal() + 1) % rots.length];
+            b.setMessage(Text.translatable("gui.stationbuilder.building_rotation", StationBuilder.getRotName(be.rotation)));
+            SyncCanvasWithElements();
+        }
+    }, BTN_WIDTH_XXL, BTN_HEIGHT);
+
+    private final GuiButton buildingAirBtn = new GuiButton(Text.translatable("gui.stationbuilder.building_air_off"), b -> {
+        int index = canvas.getSelectedIndex();
+        if (index >= 0 && elements.get(index) instanceof BuildingElement be) {
+            be.placeAir = !be.placeAir;
+            b.setMessage(Text.translatable("gui.stationbuilder.building_air_" + (be.placeAir ? "on" : "off")));
+        }
+    }, BTN_WIDTH_XXL, BTN_HEIGHT);
 
     private final GuiLabelSlot pidBlockSlot = new GuiLabelSlot(getText("pids_block"), INPUT_WIDTH, INPUT_HEIGHT,
             new Identifier("mtr", "pids_1"), false);
@@ -246,6 +265,8 @@ public class StationEditorScreen extends GuiScreen {
             } else if(e instanceof BuildingElement b) {
                 buildingProperties.setVisible(true);
                 buildingPresetField.setText(b.presetName);
+                buildingRotBtn.setMessage(Text.translatable("gui.stationbuilder.building_rotation", StationBuilder.getRotName(b.rotation)));
+                buildingAirBtn.setMessage(Text.translatable("gui.stationbuilder.building_air_" + (b.placeAir ? "on" : "off")));
             } else {
                 emptyProperties.setVisible(true);
             }
@@ -286,17 +307,17 @@ public class StationEditorScreen extends GuiScreen {
         GuiPanel elemOpPanel = new GuiPanel(width, elemOpPanelHeight)
         .addControl(new GuiButton(getText("add_track"), b -> {
             var e = new TrackElement(); elements.add(e);
-            canvas.addRect(e.getWidth() * 3, "T");
+            canvas.addRect(Math.min(e.getWidth(), 20) * 3, "T");
             refreshPropertyArea();
         }, BTN_WIDTH, BTN_HEIGHT))
         .addControl(new GuiButton(getText("add_platform"), b -> {
             var e = new PlatformElement(); elements.add(e);
-            canvas.addRect(e.getWidth() * 3, "P");
+            canvas.addRect(Math.min(e.getWidth(), 20) * 3, "P");
             refreshPropertyArea();
         }, BTN_WIDTH, BTN_HEIGHT))
         .addControl(new GuiButton(getText("add_building"), b -> {
             var e = new BuildingElement("matchbox"); elements.add(e);
-            canvas.addRect(e.getWidth() * 3, "B");
+            canvas.addRect(Math.min(e.getWidth(), 20) * 3, "B");
             refreshPropertyArea();
         }, BTN_WIDTH, BTN_HEIGHT));
 
@@ -610,6 +631,8 @@ public class StationEditorScreen extends GuiScreen {
         buildingProperties.addControl(buildingPresetField);
         buildingProperties.addControl(browseButton);
         buildingProperties.addControl(importButton);
+        buildingProperties.addControl(buildingRotBtn);
+        buildingProperties.addControl(buildingAirBtn);
         return buildingProperties;
     }
 
@@ -702,11 +725,11 @@ public class StationEditorScreen extends GuiScreen {
         canvas.clear();
         for (var element : elements) {
             if (element instanceof PlatformElement p) {
-                canvas.addRect(p.getWidth() * 3, "P");
+                canvas.addRect(Math.min(p.getWidth(), 20) * 3, "P");
             } else if (element instanceof BuildingElement b) {
-                canvas.addRect(b.getWidth() * 3, "B");
+                canvas.addRect(Math.min(b.getWidth(), 20) * 3, "B");
             } else if (element instanceof TrackElement t) {
-                canvas.addRect(t.getWidth() * 3, "T");
+                canvas.addRect(Math.min(t.getWidth(), 20) * 3, "T");
             }
         }
         if (oldIndex >= 0) {

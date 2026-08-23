@@ -9,6 +9,7 @@ import net.minecraft.client.util.InputUtil;
 public class StationBuilderKeyBindings {
 
     public static KeyBinding CLEAR_RAIL_STATE;
+    public static KeyBinding UNDO_PLACER; // 新增
 
     public static void register() {
         CLEAR_RAIL_STATE = KeyBindingHelper.registerKeyBinding(
@@ -16,6 +17,14 @@ public class StationBuilderKeyBindings {
                         "key.stationbuilder.clear_rail_state",
                         InputUtil.Type.KEYSYM,
                         GLFW.GLFW_KEY_V,
+                        "category.stationbuilder"
+                )
+        );
+        UNDO_PLACER = KeyBindingHelper.registerKeyBinding(
+                new KeyBinding(
+                        "key.stationbuilder.undo_placer",
+                        InputUtil.Type.KEYSYM,
+                        GLFW.GLFW_KEY_U, // 绑定至 U 键
                         "category.stationbuilder"
                 )
         );

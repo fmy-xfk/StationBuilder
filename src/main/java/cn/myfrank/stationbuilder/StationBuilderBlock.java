@@ -62,8 +62,7 @@ public class StationBuilderBlock extends HorizontalFacingBlock implements BlockE
                 buf.writeInt(state.get(FACING).getHorizontal());
 
                 // 写入 BE 数据
-                NbtCompound nbt = new NbtCompound();
-                builderBe.writeNbt(nbt);
+                NbtCompound nbt = builderBe.createNbt();
                 buf.writeNbt(nbt);
 
                 ServerPlayNetworking.send((ServerPlayerEntity) player, SYNC_AND_OPEN_PACKET, buf);
@@ -99,8 +98,7 @@ public class StationBuilderBlock extends HorizontalFacingBlock implements BlockE
             for (ItemStack stack : drops) {
                 if (stack.getItem() == ModBlocks.STATION_BUILDER_ITEM) {
                     // 将 BE 数据写入物品的 Nbt
-                    NbtCompound nbt = new NbtCompound();
-                    builderBe.writeNbt(nbt);
+                    NbtCompound nbt = builderBe.createNbt();
                     // 移除原版的坐标数据，只保留我们自定义的内容
                     nbt.remove("x"); nbt.remove("y"); nbt.remove("z"); nbt.remove("id");
                     stack.setSubNbt("BlockEntityTag", nbt);
@@ -126,8 +124,7 @@ public class StationBuilderBlock extends HorizontalFacingBlock implements BlockE
             if (be instanceof StationBuilderBlockEntity builderBe) {
                 ItemStack stack = new ItemStack(this);
                 // 写入数据
-                NbtCompound nbt = new NbtCompound();
-                builderBe.writeNbt(nbt);
+                NbtCompound nbt = builderBe.createNbt();
                 nbt.remove("x"); nbt.remove("y"); nbt.remove("z"); nbt.remove("id");
                 stack.setSubNbt("BlockEntityTag", nbt);
 

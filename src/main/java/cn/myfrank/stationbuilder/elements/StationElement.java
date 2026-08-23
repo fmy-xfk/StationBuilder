@@ -58,7 +58,14 @@ public abstract class StationElement {
 
             case BUILDING:
                 String preset = nbt.getString("preset");
-                return new BuildingElement(preset.isEmpty() ? "matchbox" : preset);
+                BuildingElement buildingElement = new BuildingElement(preset.isEmpty() ? "matchbox" : preset);
+                if (nbt.contains("rotation")) {
+                    buildingElement.rotation = net.minecraft.util.BlockRotation.valueOf(nbt.getString("rotation"));
+                }
+                if (nbt.contains("placeAir")) {
+                    buildingElement.placeAir = nbt.getBoolean("placeAir");
+                }
+                return buildingElement;
 
             default:
                 throw new IllegalArgumentException("Unknown element type_: " + typeStr);
@@ -114,7 +121,12 @@ public abstract class StationElement {
                 p.pidPoleId = buf.readIdentifier();
                 yield p;
             }
-            case BUILDING -> new BuildingElement(buf.readString());
+            case BUILDING -> {
+                BuildingElement buildingElement = new BuildingElement(buf.readString());
+                buildingElement.rotation = buf.readEnumConstant(net.minecraft.util.BlockRotation.class);
+                buildingElement.placeAir = buf.readBoolean();
+                yield buildingElement;
+            }
         };
     }
 }
