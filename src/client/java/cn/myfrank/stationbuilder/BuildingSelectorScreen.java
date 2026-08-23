@@ -23,7 +23,7 @@ public class BuildingSelectorScreen extends GuiScreen {
     }, 150, 18);
 
     public BuildingSelectorScreen(BlockPos pos1, BlockPos pos2) {
-        super(Text.literal("Selection Tool"));
+        super(Text.translatable("gui.stationbuilder.building_selector_title"));
         this.pos1 = pos1;
         this.pos2 = pos2;
     }

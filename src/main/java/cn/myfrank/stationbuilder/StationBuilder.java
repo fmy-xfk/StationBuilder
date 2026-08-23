@@ -526,7 +526,7 @@ public class StationBuilder implements ModInitializer {
                 template.saveFromWorld(world, min, size, payload.includeEntities, null);
                 BuildingTemplateManager.addTemplate(payload.name, template);
 
-                context.player().sendMessage(Text.literal("Saved selection as template: " + payload.name)
+                context.player().sendMessage(Text.translatable("message.stationbuilder.save_selection_success", payload.name)
                         .formatted(net.minecraft.util.Formatting.GREEN), false);
             });
         });

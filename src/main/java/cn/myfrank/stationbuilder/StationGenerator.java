@@ -189,7 +189,7 @@ public class StationGenerator {
             template.place(world, placePos, BlockPos.ORIGIN, data, world.random, 2);
         } else {
             // == 找不到模板时的回退火柴盒 ==
-            world.getPlayers().forEach(p -> p.sendMessage(net.minecraft.text.Text.literal("Template not found: " + element.presetName + ", building matchbox.").formatted(net.minecraft.util.Formatting.RED), false));
+            world.getPlayers().forEach(p -> p.sendMessage(net.minecraft.text.Text.translatable("message.stationbuilder.template_not_found", element.presetName).formatted(net.minecraft.util.Formatting.RED), false));
 
             int buildingWidth = 8; // 沿 right 方向
             int buildingDepth = 12; // 沿 facing 方向

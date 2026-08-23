@@ -181,6 +181,7 @@ public class StationEditorScreen extends GuiScreen {
             BlockRotation[] rots = BlockRotation.values();
             be.rotation = rots[(be.rotation.ordinal() + 1) % rots.length];
             b.setMessage(Text.translatable("gui.stationbuilder.building_rotation", StationBuilder.getRotName(be.rotation)));
+            SyncCanvasWithElements();
         }
     }, BTN_WIDTH_XXL, BTN_HEIGHT);
 
