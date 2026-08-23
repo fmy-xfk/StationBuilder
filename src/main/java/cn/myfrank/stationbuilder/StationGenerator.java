@@ -98,13 +98,13 @@ public class StationGenerator {
     }
 
     // --- 站房生成逻辑 ---
-    private static void generateBuilding(ServerWorld world, BlockPos pos, Direction facing, BuildingElement element, int length) {
+        private static void generateBuilding(ServerWorld world, BlockPos pos, Direction facing, BuildingElement element, int length) {
         Optional<StructureTemplate> custom = BuildingTemplateManager.getTemplate(element.presetName);
         StructureTemplate template = custom.orElse(null);
 
         if (template == null) {
             StructureTemplateManager manager = world.getStructureTemplateManager();
-            Identifier templateId = element.presetName.contains(":") ?
+            Identifier templateId = element.presetName.contains(":") ? 
                     new Identifier(element.presetName) : new Identifier("stationbuilder", element.presetName);
             template = manager.getTemplate(templateId).orElse(null);
         }
@@ -123,7 +123,7 @@ public class StationGenerator {
                 data.addProcessor(net.minecraft.structure.processor.BlockIgnoreStructureProcessor.IGNORE_AIR);
             }
 
-            // === 新增：注册强行旋转处理器（零 MTR 依赖） ===
+            // 注册强行旋转处理器（零 MTR 依赖）
             data.addProcessor(new net.minecraft.structure.processor.StructureProcessor() {
                 @Override
                 public net.minecraft.structure.StructureTemplate.StructureBlockInfo process(
@@ -143,7 +143,6 @@ public class StationGenerator {
                     return null;
                 }
             });
-            // ===============================================
 
             net.minecraft.util.math.Vec3i size = template.getSize();
             int sx = size.getX();
@@ -157,14 +156,13 @@ public class StationGenerator {
                     {sx, sz}
             };
 
-            int minX = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
-            int maxX = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+            int minX_raw = Integer.MAX_VALUE, minZ_raw = Integer.MAX_VALUE;
+            int maxX_raw = Integer.MIN_VALUE, maxZ_raw = Integer.MIN_VALUE;
 
             for (int[] corner : corners) {
                 int cx = corner[0];
                 int cz = corner[1];
                 int rx = cx, rz = cz;
-                // 原版 StructureTemplate.transform 的旋转矩阵规律
                 switch(finalRot) {
                     case CLOCKWISE_90:  rx = -cz; rz = cx;  break;
                     case CLOCKWISE_180: rx = -cx; rz = -cz; break;
@@ -172,19 +170,25 @@ public class StationGenerator {
                     case NONE:
                     default: break;
                 }
-                if (rx < minX) minX = rx;
-                if (rx > maxX) maxX = rx;
-                if (rz < minZ) minZ = rz;
-                if (rz > maxZ) maxZ = rz;
+                if (rx < minX_raw) minX_raw = rx;
+                if (rx > maxX_raw) maxX_raw = rx;
+                if (rz < minZ_raw) minZ_raw = rz;
+                if (rz > maxZ_raw) maxZ_raw = rz;
             }
 
-            // 2. 找到分配给该建筑的真实目标中心点 (World Coordinate)
+            // 2. 引入极值 +1 偏移算法，精确修正负向偏转带来的 AABB 坐标偏差
+            double realMinX = minX_raw + (minX_raw < 0 ? 1 : 0);
+            double realMaxX = maxX_raw + (minX_raw < 0 ? 1 : 0);
+            double realMinZ = minZ_raw + (minZ_raw < 0 ? 1 : 0);
+            double realMaxZ = maxZ_raw + (minZ_raw < 0 ? 1 : 0);
+
+            // 3. 找到分配给该建筑的真实目标中心点 (World Coordinate)
             double targetX = pos.getX() + 0.5 + right.getOffsetX() * (element.getWidth() - 1) / 2.0 + facing.getOffsetX() * (length - 1) / 2.0;
             double targetZ = pos.getZ() + 0.5 + right.getOffsetZ() * (element.getWidth() - 1) / 2.0 + facing.getOffsetZ() * (length - 1) / 2.0;
 
-            // 3. 反推起始放置点
-            double placeX = targetX - (minX + maxX) / 2.0;
-            double placeZ = targetZ - (minZ + maxZ) / 2.0;
+            // 4. 反推起始放置点：使用修正后的物理 AABB 中心
+            double placeX = targetX - (realMinX + realMaxX) / 2.0;
+            double placeZ = targetZ - (realMinZ + realMaxZ) / 2.0;
 
             BlockPos placePos = BlockPos.ofFloored(placeX, pos.getY(), placeZ);
 
