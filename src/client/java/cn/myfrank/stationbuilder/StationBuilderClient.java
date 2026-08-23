@@ -173,16 +173,20 @@ public class StationBuilderClient implements ClientModInitializer {
 			double minX = targetPos.getX();
 			double minY = targetPos.getY();
 			double minZ = targetPos.getZ();
-			double maxX = minX + rotatedSize.getX();
-			double maxY = minY + rotatedSize.getY();
-			double maxZ = minZ + rotatedSize.getZ();
+			
+			double rotatedSizeX = rotatedSize.getX();
+			double rotatedSizeY = rotatedSize.getY();
+			double rotatedSizeZ = rotatedSize.getZ();
 
-			double realMinX = Math.min(minX, maxX);
-			double realMaxX = Math.max(minX, maxX);
-			double realMinY = Math.min(minY, maxY);
-			double realMaxY = Math.max(minY, maxY);
-			double realMinZ = Math.min(minZ, maxZ);
-			double realMaxZ = Math.max(minZ, maxZ);
+			// 修正：如果在负方向延伸，由于方块占用的是格子，需在極值下限上安全地引入 +1 偏移校正
+			double realMinX = Math.min(minX, minX + rotatedSizeX) + (rotatedSizeX < 0 ? 1 : 0);
+			double realMaxX = Math.max(minX, minX + rotatedSizeX) + (rotatedSizeX < 0 ? 1 : 0);
+
+			double realMinY = Math.min(minY, minY + rotatedSizeY) + (rotatedSizeY < 0 ? 1 : 0);
+			double realMaxY = Math.max(minY, minY + rotatedSizeY) + (rotatedSizeY < 0 ? 1 : 0);
+
+			double realMinZ = Math.min(minZ, minZ + rotatedSizeZ) + (rotatedSizeZ < 0 ? 1 : 0);
+			double realMaxZ = Math.max(minZ, minZ + rotatedSizeZ) + (rotatedSizeZ < 0 ? 1 : 0);
 
 			Vec3d cam = context.camera().getPos();
 			VertexConsumer consumer = context.consumers().getBuffer(RenderLayer.getLines());
