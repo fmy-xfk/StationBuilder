@@ -38,11 +38,6 @@ public class StationBuilderBlock extends HorizontalFacingBlock implements BlockE
     }
 
     @Override
-    protected MapCodec<? extends HorizontalFacingBlock> getCodec() {
-        return null;
-    }
-
-    @Override
     protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
         builder.add(FACING);
     }
@@ -117,7 +112,7 @@ public class StationBuilderBlock extends HorizontalFacingBlock implements BlockE
     }
 
     @Override
-    public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
+    public void onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
         // 如果是创造模式，手动触发一次掉落逻辑
         if (!world.isClient && player.isCreative()) {
             BlockEntity be = world.getBlockEntity(pos);
@@ -134,6 +129,6 @@ public class StationBuilderBlock extends HorizontalFacingBlock implements BlockE
                 world.spawnEntity(itemEntity);
             }
         }
-        return super.onBreak(world, pos, state, player);
+        super.onBreak(world, pos, state, player);
     }
 }

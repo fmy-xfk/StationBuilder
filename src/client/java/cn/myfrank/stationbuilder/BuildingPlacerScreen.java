@@ -5,7 +5,6 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtSizeTracker;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.registry.Registries;
 import net.minecraft.structure.StructureTemplate;
@@ -126,7 +125,7 @@ public class BuildingPlacerScreen extends GuiScreen {
         String name = file.getName().toLowerCase();
         try {
             if (name.endsWith(".nbt")) {
-                NbtCompound nbt = NbtIo.readCompressed(file.toPath(), NbtSizeTracker.ofUnlimitedBytes());
+                NbtCompound nbt = NbtIo.readCompressed(file);
                 StructureTemplate template = new StructureTemplate();
                 template.readNbt(Registries.BLOCK.getReadOnlyWrapper(), nbt);
                 return template;
