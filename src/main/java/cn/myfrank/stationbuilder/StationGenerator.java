@@ -120,14 +120,38 @@ public class StationGenerator {
         Direction right = facing.getClockWise();
 
         if (template != null) {
-            Rotation rot = getRotationFromDirection(facing).getRotated(element.rotation);
+            Rotation baseRot = getRotationFromDirection(facing);
+            Rotation finalRot = baseRot.getRotated(element.rotation);
+
             StructurePlaceSettings data = new StructurePlaceSettings()
-                    .setRotation(rot)
+                    .setRotation(finalRot)
                     .setMirror(net.minecraft.world.level.block.Mirror.NONE);
 
             if (!element.placeAir) {
                 data.addProcessor(net.minecraft.world.level.levelgen.structure.templatesystem.BlockIgnoreProcessor.AIR);
             }
+
+            // 注册强行旋转处理器（提供零 MTR 依赖的完美朝向偏转）
+            data.addProcessor(new net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessor() {
+                @javax.annotation.Nullable
+                @Override
+                public net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo processBlock(
+                        net.minecraft.world.level.LevelReader world,
+                        BlockPos pos,
+                        BlockPos pivot,
+                        net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo original,
+                        net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo current,
+                        StructurePlaceSettings placementData
+                ) {
+                    BlockState rotatedState = BlockRotationUtil.forceRotateState(current.state(), placementData.getRotation());
+                    return new net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo(current.pos(), rotatedState, current.nbt());
+                }
+
+                @Override
+                protected net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessorType<?> getType() {
+                    return null;
+                }
+            });
 
             net.minecraft.core.Vec3i size = template.getSize();
             int sx = size.getX();
@@ -141,35 +165,41 @@ public class StationGenerator {
                     {sx, sz}
             };
 
-            int minX = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
-            int maxX = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+            int minX_raw = Integer.MAX_VALUE, minZ_raw = Integer.MAX_VALUE;
+            int maxX_raw = Integer.MIN_VALUE, maxZ_raw = Integer.MIN_VALUE;
 
             for (int[] corner : corners) {
                 int cx = corner[0];
                 int cz = corner[1];
                 int rx = cx, rz = cz;
                 // 原版 StructureTemplate.transform 的旋转矩阵规律
-                switch(rot) {
+                switch(finalRot) {
                     case CLOCKWISE_90:  rx = -cz; rz = cx;  break;
                     case CLOCKWISE_180: rx = -cx; rz = -cz; break;
                     case COUNTERCLOCKWISE_90: rx = cz; rz = -cx; break;
                     case NONE:
                     default: break;
                 }
-                if (rx < minX) minX = rx;
-                if (rx > maxX) maxX = rx;
-                if (rz < minZ) minZ = rz;
-                if (rz > maxZ) maxZ = rz;
+                if (rx < minX_raw) minX_raw = rx;
+                if (rx > maxX_raw) maxX_raw = rx;
+                if (rz < minZ_raw) minZ_raw = rz;
+                if (rz > maxZ_raw) maxZ_raw = rz;
             }
 
-            // 2. 找到分配给该建筑的真实目标中心点 (Level Coordinate)
+            // 2. 引入极值 +1 偏移算法，精确修正负向偏转带来的 AABB 坐标偏差
+            double realMinX = minX_raw + (minX_raw < 0 ? 1 : 0);
+            double realMaxX = maxX_raw + (minX_raw < 0 ? 1 : 0);
+            double realMinZ = minZ_raw + (minZ_raw < 0 ? 1 : 0);
+            double realMaxZ = maxZ_raw + (minZ_raw < 0 ? 1 : 0);
+
+            // 3. 找到分配给该建筑的真实目标中心点 (Level Coordinate)
             // 修正：(W - 1) / 2.0 是准确获取分配空间正中心点的公式
             double targetX = pos.getX() + 0.5 + right.getStepX() * (element.getWidth() - 1) / 2.0 + facing.getStepX() * (length - 1) / 2.0;
             double targetZ = pos.getZ() + 0.5 + right.getStepZ() * (element.getWidth() - 1) / 2.0 + facing.getStepZ() * (length - 1) / 2.0;
 
-            // 3. 反推起始放置点：目标中心 减去 旋转后结构的内部中心
-            double placeX = targetX - (minX + maxX) / 2.0;
-            double placeZ = targetZ - (minZ + maxZ) / 2.0;
+            // 4. 反推起始放置点：使用修正后的物理 AABB 中心
+            double placeX = targetX - (realMinX + realMaxX) / 2.0;
+            double placeZ = targetZ - (realMinZ + realMaxZ) / 2.0;
 
             BlockPos placePos = BlockPos.containing(placeX, pos.getY(), placeZ);
 
@@ -177,7 +207,7 @@ public class StationGenerator {
             template.placeInWorld(world, placePos, BlockPos.ZERO, data, world.random, 2);
         } else {
             // == 找不到模板时的回退火柴盒 ==
-            world.players().forEach(p -> p.displayClientMessage(net.minecraft.network.chat.Component.literal("Template not found: " + element.presetName + ", building matchbox.").withStyle(net.minecraft.ChatFormatting.RED), false));
+            world.players().forEach(p -> p.sendSystemMessage(net.minecraft.network.chat.Component.translatable("message.stationbuilder.template_not_found", element.presetName).withStyle(net.minecraft.ChatFormatting.RED)));
 
             int buildingWidth = 8; // 沿 right 方向
             int buildingDepth = 12; // 沿 facing 方向

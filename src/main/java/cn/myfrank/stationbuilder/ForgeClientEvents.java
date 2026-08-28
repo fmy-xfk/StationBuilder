@@ -1,15 +1,11 @@
 package cn.myfrank.stationbuilder;
 
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.KeyMapping;
 import net.minecraft.core.Direction;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import org.lwjgl.glfw.GLFW;
 
 // 重新启用自动扫描，指定仅在客户端加载
 @Mod.EventBusSubscriber(modid = StationBuilder.MOD_ID, value = Dist.CLIENT)
