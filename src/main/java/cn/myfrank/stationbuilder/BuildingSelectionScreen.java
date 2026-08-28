@@ -11,11 +11,11 @@ import net.minecraft.network.chat.Component;
 import java.util.List;
 
 public class BuildingSelectionScreen extends Screen {
-    private final StationEditorScreen parent;
+    private final Screen parent;
     private final GuiTextField buildingPresetField;
     private List<String> buildingNames;
 
-    public BuildingSelectionScreen(StationEditorScreen parent, GuiTextField buildingPresetField) {
+    public BuildingSelectionScreen(Screen parent, GuiTextField buildingPresetField) {
         super(Component.translatable("gui.stationbuilder.select_building"));
         this.parent = parent;
         this.buildingPresetField = buildingPresetField;
@@ -33,10 +33,12 @@ public class BuildingSelectionScreen extends Screen {
             String name = buildingNames.get(i);
             this.addRenderableWidget(Button.builder(Component.literal(name), b -> {
                 buildingPresetField.setText(name);
-                // 同步更新元素
-                int index = parent.getSelectedIndex();
-                if (index >= 0 && parent.getElements().get(index) instanceof BuildingElement be) {
-                    be.presetName = name;
+                // 同步更新元素（仅当父屏幕为站点编辑器时）
+                if (parent instanceof StationEditorScreen stationParent) {
+                    int index = stationParent.getSelectedIndex();
+                    if (index >= 0 && stationParent.getElements().get(index) instanceof BuildingElement be) {
+                        be.presetName = name;
+                    }
                 }
                 client.setScreen(parent);
             }).bounds(centerX - 100, 40 + i * 25, 200, 20).build());
@@ -44,7 +46,11 @@ public class BuildingSelectionScreen extends Screen {
 
         // 导入文件按钮
         this.addRenderableWidget(Button.builder(Component.translatable("gui.stationbuilder.import_file"), b -> {
-            parent.openFileChooser(); // 需要将 openFileChooser 设为 public
+            if (parent instanceof StationEditorScreen stationParent) {
+                stationParent.openFileChooser();
+            } else if (parent instanceof BuildingPlacerScreen placerScreen) {
+                placerScreen.openFileChooser();
+            }
             // 关闭当前屏幕，让父屏幕处理导入
             client.setScreen(parent);
         }).bounds(centerX - 50, height - 60, 100, 20).build());

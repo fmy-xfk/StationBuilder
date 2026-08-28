@@ -18,6 +18,8 @@ final class ForgeRegistry {
                 // 2. 向创造模式物品栏添加物品时加上 .get()
                 output.accept(ModBlocks.STATION_BUILDER_ITEM.get());
                 output.accept(ModItems.RAIL_BUILDER_ITEM.get());
+                output.accept(ModItems.BUILDING_SELECTOR_ITEM.get());
+                output.accept(ModItems.BUILDING_PLACER_ITEM.get());
             })
             .build());
 

@@ -75,6 +75,7 @@ public class StationGenerator {
             if (element instanceof TrackElement track) {
                 StationElement leftNeighbor = (i > 0) ? elements.get(i - 1) : null;
                 if (leftNeighbor instanceof TrackElement) {
+                    fillTrackGap(world, currentLeftEdge, facing, right, length, track);
                     currentLeftEdge = currentLeftEdge.relative(right);
                 }
                 generateTrack(player, world, currentLeftEdge, facing, right, length, track);
@@ -86,6 +87,15 @@ public class StationGenerator {
                 generateBuilding(world, currentLeftEdge, facing, building, length);
             }
             currentLeftEdge = currentLeftEdge.relative(right, element.getWidth());
+        }
+    }
+
+    private static void fillTrackGap(ServerLevel world, BlockPos start, Direction facing, Direction right, int length, TrackElement t) {
+        BlockState ballast = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(t.ballastBlock).defaultBlockState();
+        for (int l = 0; l < length; l++) {
+            BlockPos P = start.relative(facing, l);
+            world.setBlock(P, Blocks.AIR.defaultBlockState(), 3);
+            world.setBlock(P.below(), ballast, 3);
         }
     }
 
@@ -110,10 +120,14 @@ public class StationGenerator {
         Direction right = facing.getClockWise();
 
         if (template != null) {
-            Rotation rot = getRotationFromDirection(facing);
+            Rotation rot = getRotationFromDirection(facing).getRotated(element.rotation);
             StructurePlaceSettings data = new StructurePlaceSettings()
                     .setRotation(rot)
                     .setMirror(net.minecraft.world.level.block.Mirror.NONE);
+
+            if (!element.placeAir) {
+                data.addProcessor(net.minecraft.world.level.levelgen.structure.templatesystem.BlockIgnoreProcessor.AIR);
+            }
 
             net.minecraft.core.Vec3i size = template.getSize();
             int sx = size.getX();

@@ -18,6 +18,12 @@ public class ModItems {
     public static final RegistryObject<Item> RAIL_BUILDER_ITEM = ITEMS.register("rail_builder",
             () -> new RailBuilderItem(new Item.Properties().stacksTo(1)));
 
+    public static final RegistryObject<Item> BUILDING_SELECTOR_ITEM = ITEMS.register("building_selector",
+            () -> new BuildingSelectorItem(new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<Item> BUILDING_PLACER_ITEM = ITEMS.register("building_placer",
+            () -> new BuildingPlacerItem(new Item.Properties().stacksTo(1)));
+
     // 3. 事件总线绑定方法
     public static void register(IEventBus bus) {
         ITEMS.register(bus);

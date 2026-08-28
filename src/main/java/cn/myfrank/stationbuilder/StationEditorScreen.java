@@ -281,17 +281,17 @@ public class StationEditorScreen extends GuiScreen {
         GuiPanel elemOpPanel = new GuiPanel(width, elemOpPanelHeight)
         .addControl(new GuiButton(getText("add_track"), b -> {
             var e = new TrackElement(); elements.add(e);
-            canvas.addRect(e.getWidth() * 3, "T");
+            canvas.addRect(Math.min(e.getWidth(), 20) * 3, "T");
             refreshPropertyArea();
         }, BTN_WIDTH, BTN_HEIGHT))
         .addControl(new GuiButton(getText("add_platform"), b -> {
             var e = new PlatformElement(); elements.add(e);
-            canvas.addRect(e.getWidth() * 3, "P");
+            canvas.addRect(Math.min(e.getWidth(), 20) * 3, "P");
             refreshPropertyArea();
         }, BTN_WIDTH, BTN_HEIGHT))
         .addControl(new GuiButton(getText("add_building"), b -> {
             var e = new BuildingElement("matchbox"); elements.add(e);
-            canvas.addRect(e.getWidth() * 3, "B");
+            canvas.addRect(Math.min(e.getWidth(), 20) * 3, "B");
             refreshPropertyArea();
         }, BTN_WIDTH, BTN_HEIGHT));
 
@@ -700,11 +700,11 @@ public class StationEditorScreen extends GuiScreen {
         canvas.clear();
         for (var element : elements) {
             if (element instanceof PlatformElement p) {
-                canvas.addRect(p.getWidth() * 3, "P");
+                canvas.addRect(Math.min(p.getWidth(), 20) * 3, "P");
             } else if (element instanceof BuildingElement b) {
-                canvas.addRect(b.getWidth() * 3, "B");
+                canvas.addRect(Math.min(b.getWidth(), 20) * 3, "B");
             } else if (element instanceof TrackElement t) {
-                canvas.addRect(t.getWidth() * 3, "T");
+                canvas.addRect(Math.min(t.getWidth(), 20) * 3, "T");
             }
         }
         if (oldIndex >= 0) {

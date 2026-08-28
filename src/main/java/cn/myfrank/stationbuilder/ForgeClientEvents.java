@@ -35,6 +35,21 @@ public final class ForgeClientEvents {
                 Minecraft.getInstance().setScreen(new RailBuilderScreen(nbt));
             });
         });
+        PlatformServices.registerClientReceiver(StationBuilder.PACKET_SYNC_OPEN_SELECTOR, buf -> {
+            boolean hasP1 = buf.readBoolean();
+            var p1 = hasP1 ? buf.readBlockPos() : null;
+            boolean hasP2 = buf.readBoolean();
+            var p2 = hasP2 ? buf.readBlockPos() : null;
+            Minecraft.getInstance().execute(() -> {
+                Minecraft.getInstance().setScreen(new BuildingSelectorScreen(p1, p2));
+            });
+        });
+        PlatformServices.registerClientReceiver(StationBuilder.PACKET_SYNC_OPEN_PLACER, buf -> {
+            var nbt = buf.readNbt();
+            Minecraft.getInstance().execute(() -> {
+                Minecraft.getInstance().setScreen(new BuildingPlacerScreen(nbt));
+            });
+        });
     }
 
     @SubscribeEvent
@@ -43,6 +58,9 @@ public final class ForgeClientEvents {
         Minecraft client = Minecraft.getInstance();
         if (ForgeClientModEvents.CLEAR_RAIL_STATE.consumeClick() && client.player != null && client.player.getMainHandItem().getItem() instanceof RailBuilderItem) {
             PlatformServices.sendToServer(StationBuilder.PACKET_CLEAR_RAIL, StationBuilder.buf(b -> {}));
+        }
+        if (ForgeClientModEvents.UNDO_PLACER.consumeClick() && client.player != null && client.player.getMainHandItem().getItem() instanceof BuildingPlacerItem) {
+            PlatformServices.sendToServer(StationBuilder.PACKET_UNDO_PLACER, StationBuilder.buf(b -> {}));
         }
     }
 }
