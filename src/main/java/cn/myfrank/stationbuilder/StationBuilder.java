@@ -12,6 +12,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -35,7 +36,19 @@ public final class StationBuilder {
     public static final ResourceLocation PACKET_SAVE_RAIL = ResourceLocation.fromNamespaceAndPath(MOD_ID, "save_data_rail");
     public static final ResourceLocation PACKET_CLEAR_RAIL = ResourceLocation.fromNamespaceAndPath(MOD_ID, "clear_rail_state");
 
-    public StationBuilder() {
+    public StationBuilder() throws IOException {
+        System.out.println("=== Resource Test ===");
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        java.net.URL url = cl.getResource("mixins.stationbuilder.json");
+        System.out.println("TCCL URL: " + url);
+        java.io.InputStream is = cl.getResourceAsStream("mixins.stationbuilder.json");
+        System.out.println("TCCL InputStream: " + (is != null ? "found, available=" + is.available() : "null"));
+        if (is != null) try { is.close(); } catch (Exception e) {}
+        
+        // 使用 getClass() 加载
+        url = getClass().getResource("/mixins.stationbuilder.json");
+        System.out.println("getClass() URL: " + url);
+        
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
         PlatformServices.install(new ForgePlatformServices());
         StationBuilder.initCommon(modEventBus);

@@ -57,7 +57,7 @@ public class BuildingSelectionScreen extends Screen {
 
     @Override
     public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
-        this.renderBackground(context, mouseX, mouseY, delta);
+        this.renderBackground(context);
         context.drawCenteredString(font, getTitle(), width / 2, 15, 0xFFFFFF);
         super.render(context, mouseX, mouseY, delta);
     }

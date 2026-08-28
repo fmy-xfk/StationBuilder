@@ -39,7 +39,7 @@ public class BuildingTemplateManager {
                             StructureTemplate template = new StructureTemplate();
                             template.load(
                                     BuiltInRegistries.BLOCK.asLookup(),
-                                    NbtIo.readCompressed(p, NbtAccounter.unlimitedHeap())
+                                    NbtIo.readCompressed(p.toFile())
                             );
                             TEMPLATES.put(name, template);
                             LOGGER.info("Loaded building template: {}", name);
@@ -67,7 +67,7 @@ public class BuildingTemplateManager {
         Path file = BUILDINGS_PATH.resolve(name + ".nbt");
         try {
             CompoundTag nbt = template.save(new CompoundTag());
-            NbtIo.writeCompressed(nbt, file);
+            NbtIo.writeCompressed(nbt, file.toFile());
         } catch (IOException e) {
             LOGGER.error("Failed to save template: {}", file, e);
         }

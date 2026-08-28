@@ -668,7 +668,7 @@ public class StationEditorScreen extends GuiScreen {
         String name = file.getName().toLowerCase();
         try {
             if (name.endsWith(".nbt")) {
-                CompoundTag nbt = NbtIo.readCompressed(file.toPath(), NbtAccounter.unlimitedHeap());
+                CompoundTag nbt = NbtIo.readCompressed(file);
                 StructureTemplate template = new StructureTemplate();
                 template.load(BuiltInRegistries.BLOCK.asLookup(), nbt);
                 return template;

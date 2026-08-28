@@ -32,7 +32,6 @@ public class StationBuilderBlock extends HorizontalDirectionalBlock implements E
         super(properties);
         registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH));
     }
-    @Override protected MapCodec<? extends HorizontalDirectionalBlock> codec() { return null; }
 
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) { builder.add(FACING); }
     @Override public BlockState getStateForPlacement(BlockPlaceContext ctx) { return this.defaultBlockState().setValue(FACING, ctx.getHorizontalDirection()); }
@@ -80,13 +79,13 @@ public class StationBuilderBlock extends HorizontalDirectionalBlock implements E
     }
 
     @Override
-    public BlockState playerWillDestroy(Level world, BlockPos pos, BlockState state, Player player) {
+    public void playerWillDestroy(Level world, BlockPos pos, BlockState state, Player player) {
         if (!world.isClientSide && player.isCreative() && world.getBlockEntity(pos) instanceof StationBuilderBlockEntity be) {
             ItemStack stack = new ItemStack(this);
             StationBuilderState.saveFromBlockEntity(stack, be);
             world.addFreshEntity(new ItemEntity(world, pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5, stack));
         }
-        return super.playerWillDestroy(world, pos, state, player);
+        super.playerWillDestroy(world, pos, state, player);
     }
 
     @Nullable

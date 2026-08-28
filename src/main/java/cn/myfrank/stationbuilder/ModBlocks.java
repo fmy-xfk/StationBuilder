@@ -30,7 +30,7 @@ public class ModBlocks {
 
     // 2. 延迟注册方块
     public static final RegistryObject<StationBuilderBlock> STATION_BUILDER = BLOCKS.register("station_builder", () ->
-            new StationBuilderBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK).requiresCorrectToolForDrops().strength(3.0f, 6.0f))
+            new StationBuilderBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).requiresCorrectToolForDrops().strength(3.0f, 6.0f))
     );
 
     // 3. 延迟注册对应的 BlockItem (注意：通过 STATION_BUILDER.get() 来安全提取方块实例)

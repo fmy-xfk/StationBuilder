@@ -5,23 +5,25 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.loading.FMLPaths;
-import net.minecraftforge.network.ChannelBuilder;
-import net.minecraftforge.network.NetworkDirection;
+import net.minecraftforge.network.NetworkRegistry;
+import net.minecraftforge.network.NetworkEvent;
 import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.SimpleChannel;
-import net.minecraftforge.event.network.CustomPayloadEvent;
+import net.minecraftforge.network.simple.SimpleChannel;
 
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 final class ForgePlatformServices implements PlatformServices.Impl {
-    private static final SimpleChannel CHANNEL = ChannelBuilder.named(
-                    ResourceLocation.fromNamespaceAndPath(StationBuilder.MOD_ID, "main"))
-            .networkProtocolVersion(1)
-            .clientAcceptedVersions((status, version) -> true)
-            .serverAcceptedVersions((status, version) -> true)
-            .simpleChannel();
+    private static final String PROTOCOL_VERSION = "1";
+
+    private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
+            ResourceLocation.fromNamespaceAndPath(StationBuilder.MOD_ID, "main"), // 修正为 new ResourceLocation
+            () -> PROTOCOL_VERSION,
+            PROTOCOL_VERSION::equals,
+            PROTOCOL_VERSION::equals
+    );
 
     private static final Map<ResourceLocation, PlatformServices.ServerReceiver> SERVER = new ConcurrentHashMap<>();
     private static final Map<ResourceLocation, PlatformServices.ClientReceiver> CLIENT = new ConcurrentHashMap<>();
@@ -33,17 +35,16 @@ final class ForgePlatformServices implements PlatformServices.Impl {
 
         StationBuilder.LOGGER.info("[Network] Initializing Network Channel...");
 
-        CHANNEL.messageBuilder(ServerboundRawPacket.class, 0, NetworkDirection.PLAY_TO_SERVER)
-                .encoder(ServerboundRawPacket::encode)
-                .decoder(ServerboundRawPacket::decode)
-                .consumerMainThread(ForgePlatformServices::handleServer)
-                .add();
+        // 2. 修正：1.20.1 使用 CHANNEL.registerMessage 进行消息序列号注册
+        CHANNEL.registerMessage(0, ServerboundRawPacket.class,
+                ServerboundRawPacket::encode,
+                ServerboundRawPacket::decode,
+                ForgePlatformServices::handleServer);
 
-        CHANNEL.messageBuilder(ClientboundRawPacket.class, 1, NetworkDirection.PLAY_TO_CLIENT)
-                .encoder(ClientboundRawPacket::encode)
-                .decoder(ClientboundRawPacket::decode)
-                .consumerMainThread(ForgePlatformServices::handleClient)
-                .add();
+        CHANNEL.registerMessage(1, ClientboundRawPacket.class,
+                ClientboundRawPacket::encode,
+                ClientboundRawPacket::decode,
+                ForgePlatformServices::handleClient);
     }
 
     private record ServerboundRawPacket(ResourceLocation id, byte[] payload) {
@@ -66,26 +67,32 @@ final class ForgePlatformServices implements PlatformServices.Impl {
         }
     }
 
-    private static void handleServer(ServerboundRawPacket packet, CustomPayloadEvent.Context ctx) {
-        FriendlyByteBuf raw = new FriendlyByteBuf(io.netty.buffer.Unpooled.wrappedBuffer(packet.payload));
-        ServerPlayer player = ctx.getSender();
-        StationBuilder.LOGGER.info("[Network] Server received packet: {}, from: {}", packet.id, player != null ? player.getName().getString() : "Unknown");
-        if (player != null) {
-            var r = SERVER.get(packet.id);
-            if (r != null) r.receive(player, raw);
-        }
-        ctx.setPacketHandled(true);
+    private static void handleServer(ServerboundRawPacket packet, Supplier<NetworkEvent.Context> ctxSupplier) {
+        NetworkEvent.Context ctx = ctxSupplier.get();
+        ctx.enqueueWork(() -> {
+            FriendlyByteBuf raw = new FriendlyByteBuf(io.netty.buffer.Unpooled.wrappedBuffer(packet.payload));
+            ServerPlayer player = ctx.getSender();
+            StationBuilder.LOGGER.info("[Network] Server received packet: {}, from: {}", packet.id, player != null ? player.getName().getString() : "Unknown");
+            if (player != null) {
+                var r = SERVER.get(packet.id);
+                if (r != null) r.receive(player, raw);
+            }
+        });
+        ctx.setPacketHandled(true); // 声明此包已被正常消费和处理
     }
 
-    private static void handleClient(ClientboundRawPacket packet, CustomPayloadEvent.Context ctx) {
-        FriendlyByteBuf raw = new FriendlyByteBuf(io.netty.buffer.Unpooled.wrappedBuffer(packet.payload));
-        StationBuilder.LOGGER.info("[Network] Client received raw packet: {}", packet.id);
-        var r = CLIENT.get(packet.id);
-        if (r != null) {
-            r.receive(raw);
-        } else {
-            StationBuilder.LOGGER.error("[Network] No ClientReceiver registered for ID: {}", packet.id);
-        }
+    private static void handleClient(ClientboundRawPacket packet, Supplier<NetworkEvent.Context> ctxSupplier) {
+        NetworkEvent.Context ctx = ctxSupplier.get();
+        ctx.enqueueWork(() -> {
+            FriendlyByteBuf raw = new FriendlyByteBuf(io.netty.buffer.Unpooled.wrappedBuffer(packet.payload));
+            StationBuilder.LOGGER.info("[Network] Client received raw packet: {}", packet.id);
+            var r = CLIENT.get(packet.id);
+            if (r != null) {
+                r.receive(raw);
+            } else {
+                StationBuilder.LOGGER.error("[Network] No ClientReceiver registered for ID: {}", packet.id);
+            }
+        });
         ctx.setPacketHandled(true);
     }
 
@@ -107,13 +114,13 @@ final class ForgePlatformServices implements PlatformServices.Impl {
     @Override public void sendToPlayer(ServerPlayer player, ResourceLocation id, FriendlyByteBuf buf) {
         initChannel();
         StationBuilder.LOGGER.info("[Network] Sending packet to player {}: {}", player.getName().getString(), id);
-        CHANNEL.send(new ClientboundRawPacket(id, readAll(buf)), PacketDistributor.PLAYER.with(player));
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new ClientboundRawPacket(id, readAll(buf)));
     }
 
     @Override public void sendToServer(ResourceLocation id, FriendlyByteBuf buf) {
         initChannel();
         StationBuilder.LOGGER.info("[Network] Sending packet to Server: {}", id);
-        CHANNEL.send(new ServerboundRawPacket(id, readAll(buf)), PacketDistributor.SERVER.noArg());
+        CHANNEL.send(PacketDistributor.SERVER.noArg(), new ServerboundRawPacket(id, readAll(buf)));
     }
 
     private static byte[] readAll(FriendlyByteBuf buf) {
