@@ -5,9 +5,6 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Stream;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import cn.myfrank.stationbuilder.schematic4j.SchematicFormat;
 import cn.myfrank.stationbuilder.schematic4j.schematic.types.SchematicBlock;
 import cn.myfrank.stationbuilder.schematic4j.schematic.types.SchematicBlockEntity;
@@ -54,32 +51,32 @@ public class SchematicaSchematic implements Schematic {
 	/**
 	 * The unpacked list of block IDs.
 	 */
-	public int @NotNull [] blockIds = new int[0];
+	public int  [] blockIds = new int[0];
 
 	/**
 	 * The unpacked list of block metadata (used as discriminator before Minecraft's 1.7 block ID overhaul).
 	 */
-	public int @NotNull [] blockMetadata = new int[0];
+	public int  [] blockMetadata = new int[0];
 
 	/**
 	 * The unpacked list of blocks.
 	 */
-	public String @NotNull [] blockPalette = new String[0];
+	public String  [] blockPalette = new String[0];
 
 	/**
 	 * The list of block/tile entities.
 	 */
-	public @NotNull SchematicBlockEntity @NotNull [] blockEntities = new SchematicBlockEntity[0];
+	public  SchematicBlockEntity  [] blockEntities = new SchematicBlockEntity[0];
 
 	/**
 	 * The list of entities.
 	 */
-	public @NotNull SchematicEntity @NotNull [] entities = new SchematicEntity[0];
+	public  SchematicEntity  [] entities = new SchematicEntity[0];
 
 	/**
 	 * The schematic icon, if available.
 	 */
-	public @Nullable SchematicItem icon;
+	public  SchematicItem icon;
 
 	/**
 	 * The schematic materials, if available.
@@ -91,13 +88,13 @@ public class SchematicaSchematic implements Schematic {
 	 *     <li>{@link SchematicaSchematic#MATERIAL_STRUCTURE MATERIAL_STRUCTURE}</li>
 	 * </ul>
 	 */
-	public @Nullable String materials;
+	public  String materials;
 
 	public SchematicaSchematic() {
 	}
 
 	@Override
-	public @NotNull SchematicFormat format() {
+	public  SchematicFormat format() {
 		return SchematicFormat.SCHEMATICA;
 	}
 
@@ -117,12 +114,12 @@ public class SchematicaSchematic implements Schematic {
 	}
 
 	@Override
-	public @NotNull SchematicBlockPos offset() {
+	public  SchematicBlockPos offset() {
 		return SchematicBlockPos.ZERO;
 	}
 
 	@Override
-	public @NotNull SchematicBlock block(int x, int y, int z) {
+	public  SchematicBlock block(int x, int y, int z) {
 		final int blockIndex = posToIndex(x, y, z);
 		if (blockIndex < 0 || blockIndex >= blockIds.length) {
 			return AIR; // outside bounds
@@ -148,7 +145,7 @@ public class SchematicaSchematic implements Schematic {
 	 *
 	 * @return The raw block data
 	 */
-	public int @NotNull [] blockIdData() {
+	public int  [] blockIdData() {
 		return blockIds;
 	}
 
@@ -157,7 +154,7 @@ public class SchematicaSchematic implements Schematic {
 	 *
 	 * @return The raw block data
 	 */
-	public int @NotNull [] blockMetadata() {
+	public int  [] blockMetadata() {
 		return blockMetadata;
 	}
 
@@ -166,12 +163,12 @@ public class SchematicaSchematic implements Schematic {
 	 *
 	 * @return The raw block palette
 	 */
-	public String @NotNull [] blockPalette() {
+	public String  [] blockPalette() {
 		return blockPalette;
 	}
 
 	@Override
-	public @NotNull Stream<SchematicBlockEntity> blockEntities() {
+	public  Stream<SchematicBlockEntity> blockEntities() {
 		return Arrays.stream(blockEntities);
 	}
 
@@ -180,12 +177,12 @@ public class SchematicaSchematic implements Schematic {
 	 *
 	 * @return The raw block entity data
 	 */
-	public @NotNull SchematicBlockEntity[] blockEntityData() {
+	public  SchematicBlockEntity[] blockEntityData() {
 		return blockEntities;
 	}
 
 	@Override
-	public @NotNull Stream<SchematicEntity> entities() {
+	public  Stream<SchematicEntity> entities() {
 		return Arrays.stream(entities);
 	}
 
@@ -194,12 +191,12 @@ public class SchematicaSchematic implements Schematic {
 	 *
 	 * @return The raw entity data
 	 */
-	public @NotNull SchematicEntity[] entityData() {
+	public  SchematicEntity[] entityData() {
 		return entities;
 	}
 
 	@Override
-	public @Nullable SchematicItem icon() {
+	public  SchematicItem icon() {
 		return icon;
 	}
 
@@ -215,7 +212,7 @@ public class SchematicaSchematic implements Schematic {
 	 *
 	 * @return The schematic materials, if available
 	 */
-	public @Nullable String materials() {
+	public  String materials() {
 		return materials;
 	}
 
@@ -223,7 +220,7 @@ public class SchematicaSchematic implements Schematic {
 		return x + (z * width) + (y * width * length);
 	}
 
-	public @NotNull SchematicBlockPos indexToPos(int index) {
+	public  SchematicBlockPos indexToPos(int index) {
 		final int x = index % width;
 		final int z = (index / width) % length;
 		final int y = index / (width * length);

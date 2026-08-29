@@ -1,31 +1,16 @@
 package cn.myfrank.stationbuilder;
 
 import net.minecraft.world.item.Item;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.neoforge.registries.DeferredItem;
+import net.neoforged.neoforge.registries.DeferredRegister;
 
 public class ModItems {
-    public static final ResourceLocation RAIL_BUILDER_ID = ResourceLocation.fromNamespaceAndPath(StationBuilder.MOD_ID, "rail_builder");
+    public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(StationBuilder.MOD_ID);
 
-    // 1. 创建 ITEMS 延迟注册器
-    public static final DeferredRegister<Item> ITEMS =
-            DeferredRegister.create(ForgeRegistries.ITEMS, StationBuilder.MOD_ID);
-
-    // 2. 将静态实例化替换为延迟注册，返回 RegistryObject
-    public static final RegistryObject<Item> RAIL_BUILDER_ITEM = ITEMS.register("rail_builder",
-            () -> new RailBuilderItem(new Item.Properties().stacksTo(1)));
-
-    public static final RegistryObject<Item> BUILDING_SELECTOR_ITEM = ITEMS.register("building_selector",
-            () -> new BuildingSelectorItem(new Item.Properties().stacksTo(1)));
-
-    public static final RegistryObject<Item> BUILDING_PLACER_ITEM = ITEMS.register("building_placer",
-            () -> new BuildingPlacerItem(new Item.Properties().stacksTo(1)));
-
-    // 3. 事件总线绑定方法
-    public static void register(IEventBus bus) {
-        ITEMS.register(bus);
-    }
+    public static final DeferredItem<RailBuilderItem> RAIL_BUILDER_ITEM =
+            ITEMS.registerItem("rail_builder", props -> new RailBuilderItem(props.stacksTo(1)));
+    public static final DeferredItem<BuildingSelectorItem> BUILDING_SELECTOR_ITEM =
+            ITEMS.registerItem("building_selector", props -> new BuildingSelectorItem(props.stacksTo(1)));
+    public static final DeferredItem<BuildingPlacerItem> BUILDING_PLACER_ITEM =
+            ITEMS.registerItem("building_placer", props -> new BuildingPlacerItem(props.stacksTo(1)));
 }

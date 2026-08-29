@@ -7,8 +7,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +56,7 @@ public enum SchematicFormat {
 	 * @param nbt The NBT input to check
 	 * @return The format guesses from looking at the input, or {@link SchematicFormat#UNKNOWN} if no known format was found.
 	 */
-	public static @NotNull SchematicFormat guessFormat(@Nullable CompoundTag nbt) {
+	public static  SchematicFormat guessFormat( CompoundTag nbt) {
 		if (nbt == null) {
 			return SchematicFormat.UNKNOWN;
 		}
@@ -73,7 +71,7 @@ public enum SchematicFormat {
 		return guess;
 	}
 
-	private static void guessSpongeFormat(Candidates<SchematicFormat> candidates, @NotNull CompoundTag rootTag) {
+	private static void guessSpongeFormat(Candidates<SchematicFormat> candidates,  CompoundTag rootTag) {
 		if (rootTag.containsKey(SpongeParser.NBT_VERSION)) {
 			final int version = rootTag.getInt(SpongeParser.NBT_VERSION);
 			switch (version) {
@@ -146,7 +144,7 @@ public enum SchematicFormat {
 		}
 	}
 
-	private static void guessLitematicaFormat(Candidates<SchematicFormat> candidates, @NotNull CompoundTag nbt) {
+	private static void guessLitematicaFormat(Candidates<SchematicFormat> candidates,  CompoundTag nbt) {
 		if (nbt.containsKey(LitematicaParser.NBT_MINECRAFT_DATA_VERSION)) {
 			candidates.increment(SchematicFormat.LITEMATICA, 1);
 		}
@@ -163,7 +161,7 @@ public enum SchematicFormat {
 		}
 	}
 
-	private static void guessSchematicaFormat(Candidates<SchematicFormat> candidates, @NotNull CompoundTag nbt) {
+	private static void guessSchematicaFormat(Candidates<SchematicFormat> candidates,  CompoundTag nbt) {
 		if (nbt.containsKey(SchematicaParser.NBT_MAPPING_SCHEMATICA)) {
 			candidates.increment(SchematicFormat.SCHEMATICA, 10);
 		} else {

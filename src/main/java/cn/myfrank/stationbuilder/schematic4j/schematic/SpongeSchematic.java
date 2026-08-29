@@ -7,9 +7,6 @@ import java.util.TreeMap;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import cn.myfrank.stationbuilder.schematic4j.SchematicFormat;
 import cn.myfrank.stationbuilder.schematic4j.schematic.types.Pair;
 import cn.myfrank.stationbuilder.schematic4j.schematic.types.SchematicBiome;
@@ -37,12 +34,12 @@ public class SpongeSchematic implements Schematic {
 	 * This is dependent on the Minecraft version, e.g. Minecraft 1.12.2's data version is
 	 * <a href="https://minecraft.gamepedia.com/1.12.2">1343</a>.
 	 */
-	public @Nullable Integer dataVersion;
+	public  Integer dataVersion;
 
 	/**
 	 * The optional metadata about the schematic.
 	 */
-	public @NotNull Metadata metadata = new Metadata();
+	public  Metadata metadata = new Metadata();
 
 	/**
 	 * The width (the size of the area in the X-axis) of the schematic.
@@ -65,43 +62,43 @@ public class SpongeSchematic implements Schematic {
 	 * not provided is [0, 0, 0]. Example: If a player is pasting from 1, 2, 3, and the offset is 4, 5, 6, then the
 	 * first block should be placed at 5, 7, 9
 	 */
-	public @NotNull SchematicBlockPos offset = SchematicBlockPos.ZERO;
+	public  SchematicBlockPos offset = SchematicBlockPos.ZERO;
 
 	/**
 	 * The unpacked block data indices.
 	 */
-	public int @NotNull [] blocks = new int[0];
+	public int  [] blocks = new int[0];
 
 	/**
 	 * The unpacked block data indices.
 	 */
-	public SchematicBlock @NotNull [] blockPalette = new SchematicBlock[0];
+	public SchematicBlock  [] blockPalette = new SchematicBlock[0];
 
 	/**
 	 * The block/tile entity data.
 	 */
-	public SchematicBlockEntity @NotNull [] blockEntities = new SchematicBlockEntity[0];
+	public SchematicBlockEntity  [] blockEntities = new SchematicBlockEntity[0];
 
 	/**
 	 * The entity data.
 	 */
-	public SchematicEntity @NotNull [] entities = new SchematicEntity[0];
+	public SchematicEntity  [] entities = new SchematicEntity[0];
 
 	/**
 	 * The unpacked biome data.
 	 */
-	public int @NotNull [] biomes = new int[0];
+	public int  [] biomes = new int[0];
 
 	/**
 	 * The biome palette data.
 	 */
-	public @NotNull SchematicBiome[] biomePalette = new SchematicBiome[0];
+	public  SchematicBiome[] biomePalette = new SchematicBiome[0];
 
 	public SpongeSchematic() {
 	}
 
 	@Override
-	public @NotNull SchematicFormat format() {
+	public  SchematicFormat format() {
 		switch (version) {
 			case 1:
 				return SchematicFormat.SPONGE_V1;
@@ -129,12 +126,12 @@ public class SpongeSchematic implements Schematic {
 	}
 
 	@Override
-	public @NotNull SchematicBlockPos offset() {
+	public  SchematicBlockPos offset() {
 		return offset;
 	}
 
 	@Override
-	public @NotNull SchematicBlock block(int x, int y, int z) {
+	public  SchematicBlock block(int x, int y, int z) {
 		final int blockIndex = posToIndex(x, y, z);
 		if (blockIndex < 0 || blockIndex >= blocks.length) {
 			return AIR; // outside bounds
@@ -149,7 +146,7 @@ public class SpongeSchematic implements Schematic {
 	 *
 	 * @return The raw block data
 	 */
-	public int @NotNull [] blockData() {
+	public int  [] blockData() {
 		return blocks;
 	}
 
@@ -158,12 +155,12 @@ public class SpongeSchematic implements Schematic {
 	 *
 	 * @return The raw block palette
 	 */
-	public SchematicBlock @NotNull [] blockPalette() {
+	public SchematicBlock  [] blockPalette() {
 		return blockPalette;
 	}
 
 	@Override
-	public @NotNull Stream<SchematicBlockEntity> blockEntities() {
+	public  Stream<SchematicBlockEntity> blockEntities() {
 		return Arrays.stream(blockEntities);
 	}
 
@@ -172,12 +169,12 @@ public class SpongeSchematic implements Schematic {
 	 *
 	 * @return The raw block data
 	 */
-	public @NotNull SchematicBlockEntity[] blockEntityData() {
+	public  SchematicBlockEntity[] blockEntityData() {
 		return blockEntities;
 	}
 
 	@Override
-	public @NotNull Stream<SchematicEntity> entities() {
+	public  Stream<SchematicEntity> entities() {
 		return Arrays.stream(entities);
 	}
 
@@ -186,12 +183,12 @@ public class SpongeSchematic implements Schematic {
 	 *
 	 * @return The raw block data
 	 */
-	public SchematicEntity @NotNull [] entityData() {
+	public SchematicEntity  [] entityData() {
 		return entities;
 	}
 
 	@Override
-	public @NotNull SchematicBiome biome(int x, int y, int z) {
+	public  SchematicBiome biome(int x, int y, int z) {
 		// 3D biome data is only available starting in v3. Flatten the y coordinate for older versions
 		if (version <= 2) {
 			y = 0;
@@ -212,7 +209,7 @@ public class SpongeSchematic implements Schematic {
 	 * @return an iterator
 	 */
 	@Override
-	public @NotNull Stream<Pair<SchematicBlockPos, SchematicBiome>> biomes() {
+	public  Stream<Pair<SchematicBlockPos, SchematicBiome>> biomes() {
 		return IntStream.range(0, biomes.length).mapToObj(index -> {
 			SchematicBlockPos pos = indexToPos(index);
 			SchematicBiome biome = biomePalette[biomes[index]];
@@ -225,7 +222,7 @@ public class SpongeSchematic implements Schematic {
 	 *
 	 * @return The raw biome data
 	 */
-	public int @NotNull [] biomeData() {
+	public int  [] biomeData() {
 		return biomes;
 	}
 
@@ -234,22 +231,22 @@ public class SpongeSchematic implements Schematic {
 	 *
 	 * @return The raw biome palette
 	 */
-	public SchematicBiome @NotNull [] biomePalette() {
+	public SchematicBiome  [] biomePalette() {
 		return biomePalette;
 	}
 
 	@Override
-	public @Nullable String name() {
+	public  String name() {
 		return metadata.name;
 	}
 
 	@Override
-	public @Nullable String author() {
+	public  String author() {
 		return metadata.author;
 	}
 
 	@Override
-	public @Nullable LocalDateTime date() {
+	public  LocalDateTime date() {
 		return metadata.date;
 	}
 
@@ -262,7 +259,7 @@ public class SpongeSchematic implements Schematic {
 	 *
 	 * @return The Minecraft data version
 	 */
-	public @Nullable Integer dataVersion() {
+	public  Integer dataVersion() {
 		return dataVersion;
 	}
 
@@ -270,7 +267,7 @@ public class SpongeSchematic implements Schematic {
 	 * @deprecated Use {@link SpongeSchematic#dataVersion()} instead
 	 */
 	@Deprecated
-	public @Nullable Integer getDataVersion() {
+	public  Integer getDataVersion() {
 		return dataVersion();
 	}
 
@@ -279,7 +276,7 @@ public class SpongeSchematic implements Schematic {
 	 *
 	 * @return The schematic metadata
 	 */
-	public @NotNull Metadata metadata() {
+	public  Metadata metadata() {
 		return metadata;
 	}
 
@@ -287,7 +284,7 @@ public class SpongeSchematic implements Schematic {
 	 * @deprecated Use {@link SpongeSchematic#metadata()} instead
 	 */
 	@Deprecated
-	public @NotNull Metadata getMetadata() {
+	public  Metadata getMetadata() {
 		return metadata();
 	}
 
@@ -295,7 +292,7 @@ public class SpongeSchematic implements Schematic {
 		return x + (z * width) + (y * width * length);
 	}
 
-	public @NotNull SchematicBlockPos indexToPos(int index) {
+	public  SchematicBlockPos indexToPos(int index) {
 		final int x = index % width;
 		final int z = (index / width) % length;
 		final int y = index / (width * length);
@@ -320,27 +317,27 @@ public class SpongeSchematic implements Schematic {
 		/**
 		 * The name of the schematic.
 		 */
-		public @Nullable String name;
+		public  String name;
 
 		/**
 		 * The name of the author of the schematic.
 		 */
-		public @Nullable String author;
+		public  String author;
 
 		/**
 		 * The date that this schematic was created on.
 		 */
-		public @Nullable LocalDateTime date;
+		public  LocalDateTime date;
 
 		/**
 		 * An array of mod IDs.
 		 */
-		public String @NotNull [] requiredMods = new String[0];
+		public String  [] requiredMods = new String[0];
 
 		/**
 		 * Extra metadata not represented in the specification.
 		 */
-		public @NotNull Map<String, Object> extra = new TreeMap<>();
+		public  Map<String, Object> extra = new TreeMap<>();
 
 		public Metadata() {
 		}

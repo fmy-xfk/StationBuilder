@@ -1,33 +1,45 @@
 package cn.myfrank.stationbuilder;
 
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 
 public final class StationBuilderState {
-    private static final String KEY = "BlockEntityTag";
     private StationBuilderState() {}
 
     public static boolean hasData(ItemStack stack) {
-        return stack.hasTag() && stack.getTag() != null && stack.getTag().contains(KEY);
+        return stack.has(ModComponents.STATION_BUILDER_DATA.get());
     }
 
-    public static void saveFromBlockEntity(ItemStack stack, StationBuilderBlockEntity be) {
-        CompoundTag nbt = be.saveWithoutMetadata();
-        stack.addTagElement(KEY, nbt);
+    public static void saveFromBlockEntity(
+            ItemStack stack,
+            StationBuilderBlockEntity be,
+            HolderLookup.Provider registries
+    ) {
+        CompoundTag nbt = be.saveWithoutMetadata(registries);
+
+        // 保持和你旧版 BlockEntityTag 一样：不保存坐标/id
+        nbt.remove("x");
+        nbt.remove("y");
+        nbt.remove("z");
+        nbt.remove("id");
+
+        stack.set(ModComponents.STATION_BUILDER_DATA.get(), CustomData.of(nbt));
     }
 
-    public static void loadToBlockEntity(ItemStack stack, StationBuilderBlockEntity be) {
-        if (!stack.hasTag()) return;
+    public static void loadToBlockEntity(
+            ItemStack stack,
+            StationBuilderBlockEntity be,
+            HolderLookup.Provider registries
+    ) {
+        CustomData component = stack.get(ModComponents.STATION_BUILDER_DATA.get());
+        if (component == null) return;
 
-        CompoundTag nbt = stack.getTagElement(KEY);
-        if (nbt == null) return;
-
-        be.load(nbt);
-        be.setChanged();
+        be.loadData(component.getUnsafe(), registries);
     }
 
     public static void clear(ItemStack stack) {
-        // 替换了 removeSubNbt
-        stack.removeTagKey(KEY);
+        stack.remove(ModComponents.STATION_BUILDER_DATA.get());
     }
 }

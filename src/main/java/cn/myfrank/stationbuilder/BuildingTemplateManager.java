@@ -1,10 +1,11 @@
 package cn.myfrank.stationbuilder;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtAccounter;
+import net.minecraft.nbt.NbtIo;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.neoforged.fml.loading.FMLPaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,11 +18,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class BuildingTemplateManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(BuildingTemplateManager.class);
-    private static final Path BUILDINGS_PATH = PlatformServices.configDir()
+    private static final Path BUILDINGS_PATH = FMLPaths.GAMEDIR.get()
             .resolve("stationbuilder/buildings");
     private static final Map<String, StructureTemplate> TEMPLATES = new ConcurrentHashMap<>();
 
-    // 启动时加载 config/stationbuilder/buildings/ 下的所有 .nbt 文件
+    // 启动时加载 stationbuilder/buildings/ 下的所有 .nbt 文件
     public static void loadTemplates() {
         TEMPLATES.clear();
         File dir = BUILDINGS_PATH.toFile();
@@ -38,7 +39,7 @@ public class BuildingTemplateManager {
                             String name = p.getFileName().toString().replaceFirst("\\.nbt$", "");
                             StructureTemplate template = new StructureTemplate();
                             template.load(
-                                    BuiltInRegistries.BLOCK.asLookup(),
+                                    BuiltInRegistries.BLOCK,
                                     NbtIo.readCompressed(p, NbtAccounter.unlimitedHeap())
                             );
                             TEMPLATES.put(name, template);

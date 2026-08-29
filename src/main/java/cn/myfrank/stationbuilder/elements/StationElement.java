@@ -4,10 +4,11 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.Rotation;
 
 public abstract class StationElement {
     public abstract CompoundTag toNbt();
-    // 在 StationElement.java 中添加
+
     public static StationElement fromNbt(CompoundTag nbt) {
         String typeStr = nbt.getString("type");
         Type type = Type.valueOf(typeStr);
@@ -59,14 +60,14 @@ public abstract class StationElement {
 
             case BUILDING:
                 String preset = nbt.getString("preset");
-                BuildingElement be = new BuildingElement(preset.isEmpty() ? "matchbox" : preset);
+                BuildingElement buildingElement = new BuildingElement(preset.isEmpty() ? "matchbox" : preset);
                 if (nbt.contains("rotation")) {
-                    be.rotation = net.minecraft.world.level.block.Rotation.valueOf(nbt.getString("rotation"));
+                    buildingElement.rotation = Rotation.valueOf(nbt.getString("rotation"));
                 }
                 if (nbt.contains("placeAir")) {
-                    be.placeAir = nbt.getBoolean("placeAir");
+                    buildingElement.placeAir = nbt.getBoolean("placeAir");
                 }
-                return be;
+                return buildingElement;
 
             default:
                 throw new IllegalArgumentException("Unknown element type_: " + typeStr);
@@ -75,19 +76,17 @@ public abstract class StationElement {
 
     public enum Type { TRACK, PLATFORM, BUILDING }
 
-    public abstract Type narrationPriority();
+    public abstract Type getType();
     public abstract int getWidth();
 
-    // 将元素序列化到网络缓冲区
     public abstract void write(FriendlyByteBuf buf);
 
-    // 从缓冲区读取元素
     public static StationElement read(FriendlyByteBuf buf) {
         Type type = buf.readEnum(Type.class);
         return switch (type) {
             case TRACK -> {
                 TrackElement track = new TrackElement();
-                track.ballastBlock = buf.readResourceLocation(); // 读取路基方块ID
+                track.ballastBlock = buf.readResourceLocation();
                 track.isMtrTrack = buf.readBoolean();
                 yield track;
             }
@@ -95,7 +94,7 @@ public abstract class StationElement {
                 PlatformElement p = new PlatformElement();
                 p.width = buf.readInt();
                 p.safetyBlock = buf.readResourceLocation();
-                for(int i = 0; i < PlatformElement.MAX_BLOCK_COUNT; i++) {
+                for (int i = 0; i < PlatformElement.MAX_BLOCK_COUNT; i++) {
                     p.mixSlots[i] = new PlatformElement.MixSlot(
                             buf.readResourceLocation(),
                             buf.readDouble()
@@ -123,10 +122,10 @@ public abstract class StationElement {
                 yield p;
             }
             case BUILDING -> {
-                BuildingElement b = new BuildingElement(buf.readUtf());
-                b.rotation = buf.readEnum(net.minecraft.world.level.block.Rotation.class);
-                b.placeAir = buf.readBoolean();
-                yield b;
+                BuildingElement buildingElement = new BuildingElement(buf.readUtf());
+                buildingElement.rotation = buf.readEnum(Rotation.class);
+                buildingElement.placeAir = buf.readBoolean();
+                yield buildingElement;
             }
         };
     }

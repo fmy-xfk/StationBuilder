@@ -4,14 +4,14 @@ import cn.myfrank.stationbuilder.schematic4j.SchematicLoader;
 import cn.myfrank.stationbuilder.schematic4j.exception.ParsingException;
 import cn.myfrank.stationbuilder.schematic4j.schematic.Schematic;
 import net.minecraft.SharedConstants;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.IntTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -28,7 +28,7 @@ public class SchematicLoaderUtil {
         int length = schematic.length();
 
         CompoundTag nbt = new CompoundTag();
-        // 关键修复：加入 DataVersion，1.20 游戏需要这个版本号以确保正确的结构升级转换
+        // 关键修复：加入 DataVersion，游戏需要这个版本号以确保正确的结构升级转换
         nbt.putInt("DataVersion", SharedConstants.getCurrentVersion().getDataVersion().getVersion());
 
         ListTag sizeList = new ListTag();
@@ -74,7 +74,7 @@ public class SchematicLoaderUtil {
                             for (Map.Entry<String, String> entry : sBlock.states.entrySet()) {
                                 propertiesNbt.putString(entry.getKey(), entry.getValue());
                             }
-                            paletteEntry.put("BlockStateProperties", propertiesNbt);
+                            paletteEntry.put("Properties", propertiesNbt);
                         }
 
                         paletteList.add(paletteEntry);
@@ -99,7 +99,7 @@ public class SchematicLoaderUtil {
         nbt.put("entities", new ListTag());
 
         StructureTemplate template = new StructureTemplate();
-        template.load(BuiltInRegistries.BLOCK.asLookup(), nbt);
+        template.load(BuiltInRegistries.BLOCK, nbt);
 
         return template;
     }
@@ -115,7 +115,7 @@ public class SchematicLoaderUtil {
         ResourceLocation id = ResourceLocation.tryParse(blockId);
         if (id == null) return Blocks.AIR.defaultBlockState();
 
-        var block = BuiltInRegistries.BLOCK.get(id);
+        var block = BuiltInRegistries.BLOCK.getValue(id);
 
         // 如果注册表中找不到这个方块 (比如旧版模组的方块)，则用空气替代
         if (block == null || (block == Blocks.AIR && !blockId.equals("minecraft:air"))) {

@@ -7,7 +7,7 @@ import java.util.List;
 
 public class MTRPointProvider {
     private static Vec3 toVec3d(Vector v) {
-        return new Vec3(v.x, v.y, v.z);
+        return new Vec3(v.x(), v.y(), v.z());
     }
     private static final double EPS = 0.001;
     private final org.mtr.core.data.RailMath math;

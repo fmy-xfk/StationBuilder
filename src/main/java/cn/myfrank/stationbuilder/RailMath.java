@@ -39,7 +39,7 @@ public class RailMath {
         );
     }
 
-    
+
     public record PairXZ(int x, int z) {
         double distTo(Vec3 p) {
             double tx = x + 0.5, tz = z + 0.5;

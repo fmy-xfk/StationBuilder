@@ -2,9 +2,6 @@ package cn.myfrank.stationbuilder.schematic4j.schematic.types;
 
 import java.util.Comparator;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import cn.myfrank.stationbuilder.schematic4j.nbt.tag.DoubleTag;
 import cn.myfrank.stationbuilder.schematic4j.nbt.tag.ListTag;
 import cn.myfrank.stationbuilder.schematic4j.nbt.tag.Tag;
@@ -52,7 +49,7 @@ public class SchematicEntityPos implements Comparable<SchematicEntityPos> {
 	}
 
 	@SuppressWarnings("unchecked")
-	public static @Nullable SchematicEntityPos from(Tag<?> nbtTag) {
+	public static  SchematicEntityPos from(Tag<?> nbtTag) {
 		if (!(nbtTag instanceof ListTag<?>)) {
 			return null;
 		}
@@ -125,7 +122,7 @@ public class SchematicEntityPos implements Comparable<SchematicEntityPos> {
 	}
 
 	@Override
-	public int compareTo(@NotNull SchematicEntityPos o) {
+	public int compareTo( SchematicEntityPos o) {
 		return Comparator.nullsLast(
 				Comparator.<SchematicEntityPos>comparingDouble(obj -> obj.x)
 						.thenComparingDouble(obj -> obj.y)

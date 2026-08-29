@@ -6,8 +6,6 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.stream.StreamSupport;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,7 +79,7 @@ public class SpongeParser implements Parser {
 	private static final Logger log = LoggerFactory.getLogger(SpongeParser.class);
 
 	@Override
-	public @NotNull Schematic parse(@Nullable CompoundTag nbt) throws ParsingException {
+	public  Schematic parse( CompoundTag nbt) throws ParsingException {
 		log.debug("Parsing Sponge schematic");
 
 		final SpongeSchematic schematic = new SpongeSchematic();

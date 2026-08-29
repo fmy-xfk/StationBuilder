@@ -1,10 +1,8 @@
 {
   "required": true,
-  "minVersion": "0.8",
   "package": "cn.myfrank.stationbuilder.mixin",
-  "compatibilityLevel": "JAVA_17",
-  "refmap": "stationbuilder.refmap.json",
   "plugin": "cn.myfrank.stationbuilder.mixin.StationBuilderMixinPlugin",
+  "compatibilityLevel": "JAVA_21",
   "mixins": [
     "mtr.EnumPSDAPGItemAccessor",
     "mtr.EnumPSDAPGTypeAccessor",
@@ -16,5 +14,8 @@
   ],
   "injectors": {
     "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
   }
 }

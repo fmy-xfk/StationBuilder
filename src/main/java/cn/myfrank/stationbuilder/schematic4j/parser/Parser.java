@@ -1,8 +1,5 @@
 package cn.myfrank.stationbuilder.schematic4j.parser;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import cn.myfrank.stationbuilder.schematic4j.exception.ParsingException;
 import cn.myfrank.stationbuilder.schematic4j.nbt.tag.CompoundTag;
 import cn.myfrank.stationbuilder.schematic4j.schematic.Schematic;
@@ -19,6 +16,6 @@ public interface Parser {
 	 * @return The parsed schematic.
 	 * @throws ParsingException In case there is a parsing error
 	 */
-	@NotNull
-	Schematic parse(@Nullable CompoundTag nbt) throws ParsingException;
+	
+	Schematic parse( CompoundTag nbt) throws ParsingException;
 }

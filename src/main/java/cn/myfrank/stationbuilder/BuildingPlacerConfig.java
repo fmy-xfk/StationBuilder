@@ -1,7 +1,8 @@
 package cn.myfrank.stationbuilder;
 
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.Rotation;
 
 public class BuildingPlacerConfig {
@@ -11,14 +12,15 @@ public class BuildingPlacerConfig {
 
     public static BuildingPlacerConfig fromItem(ItemStack stack) {
         BuildingPlacerConfig cfg = new BuildingPlacerConfig();
-        if (stack.hasTag() && stack.getTag().contains("placerConfig")) {
-            cfg.fromNbt(stack.getTag().getCompound("placerConfig"));
+        CustomData component = stack.get(ModComponents.PLACER_DATA.get());
+        if (component != null) {
+            cfg.fromNbt(component.copyTag());
         }
         return cfg;
     }
 
     public void saveToItem(ItemStack stack) {
-        stack.getOrCreateTag().put("placerConfig", toNbt());
+        stack.set(ModComponents.PLACER_DATA.get(), CustomData.of(toNbt()));
     }
 
     public CompoundTag toNbt() {

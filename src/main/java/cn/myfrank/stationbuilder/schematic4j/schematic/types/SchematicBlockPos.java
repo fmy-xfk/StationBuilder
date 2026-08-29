@@ -2,9 +2,6 @@ package cn.myfrank.stationbuilder.schematic4j.schematic.types;
 
 import java.util.Comparator;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import cn.myfrank.stationbuilder.schematic4j.nbt.tag.CompoundTag;
 import cn.myfrank.stationbuilder.schematic4j.nbt.tag.Tag;
 
@@ -52,7 +49,7 @@ public class SchematicBlockPos implements Comparable<SchematicBlockPos> {
 		return from(pos[0], pos[1], pos[2]);
 	}
 
-	public static @Nullable SchematicBlockPos from(Tag<?> nbtTag) {
+	public static  SchematicBlockPos from(Tag<?> nbtTag) {
 		if (!(nbtTag instanceof CompoundTag)) {
 			return null;
 		}
@@ -120,7 +117,7 @@ public class SchematicBlockPos implements Comparable<SchematicBlockPos> {
 	}
 
 	@Override
-	public int compareTo(@NotNull SchematicBlockPos o) {
+	public int compareTo( SchematicBlockPos o) {
 		return Comparator.nullsLast(
 				Comparator.<SchematicBlockPos>comparingInt(obj -> obj.x)
 						.thenComparingInt(obj -> obj.y)

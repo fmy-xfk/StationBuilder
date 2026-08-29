@@ -4,8 +4,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 
-import org.jetbrains.annotations.Nullable;
-
 import cn.myfrank.stationbuilder.schematic4j.nbt.tag.CompoundTag;
 import cn.myfrank.stationbuilder.schematic4j.nbt.tag.Tag;
 
@@ -34,7 +32,7 @@ public class SchematicEntity extends SchematicNamed {
 		this.data = data;
 	}
 
-	public static @Nullable SchematicEntity fromNbt(Tag<?> nbtTag) {
+	public static  SchematicEntity fromNbt(Tag<?> nbtTag) {
 		if (!(nbtTag instanceof CompoundTag)) {
 			return null;
 		}

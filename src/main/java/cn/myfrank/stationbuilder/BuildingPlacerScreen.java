@@ -127,7 +127,7 @@ public class BuildingPlacerScreen extends GuiScreen {
             if (name.endsWith(".nbt")) {
                 CompoundTag nbt = NbtIo.readCompressed(file.toPath(), NbtAccounter.unlimitedHeap());
                 StructureTemplate template = new StructureTemplate();
-                template.load(BuiltInRegistries.BLOCK.asLookup(), nbt);
+                template.load(BuiltInRegistries.BLOCK, nbt);
                 return template;
             } else if (name.endsWith(".schem") || name.endsWith(".schematic")) {
                 return SchematicLoaderUtil.loadSchematic(file.toPath());
@@ -149,7 +149,7 @@ public class BuildingPlacerScreen extends GuiScreen {
         nbt.putString("rotation", rotation.name());
         nbt.putBoolean("placeAir", placeAir);
 
-        PlatformServices.sendToServer(StationBuilder.PACKET_SAVE_PLACER, StationBuilder.buf(buf -> buf.writeNbt(nbt)));
+        net.neoforged.neoforge.network.PacketDistributor.sendToServer(new StationBuilder.SavePlacerPayload(nbt));
         super.onClose();
     }
 }

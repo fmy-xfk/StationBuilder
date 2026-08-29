@@ -9,8 +9,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-import org.jetbrains.annotations.NotNull;
-
 import cn.myfrank.stationbuilder.schematic4j.nbt.MaxDepthIO;
 
 /**
@@ -161,7 +159,7 @@ public class ListTag<T extends Tag<?>> extends Tag<List<T>> implements Iterable<
 	}
 
 	@Override
-	public @NotNull Iterator<T> iterator() {
+	public  Iterator<T> iterator() {
 		return getValue().iterator();
 	}
 

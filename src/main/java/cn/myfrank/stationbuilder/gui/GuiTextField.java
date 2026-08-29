@@ -132,7 +132,7 @@ public class GuiTextField extends GuiControl {
         deleteSelectedText(); // 如果有选择区域，先删除
         StringBuilder builder = new StringBuilder(this.text);
         builder.insert(cursor, insertion);
-        String newText = SharedConstants.filterText(builder.toString()); // 过滤非法字符
+        String newText = StringUtil.filterText(builder.toString()); // 过滤非法字符
 
         if (textPredicate.test(newText) && newText.length() <= maxLength) {
             this.text = newText;
@@ -348,7 +348,7 @@ public class GuiTextField extends GuiControl {
     @Override
     public boolean charTyped(char chr, int modifiers) {
         if (!isFocused() || !editable) return false;
-        if (SharedConstants.isAllowedChatCharacter(chr) && (!numberOnly || Character.isDigit(chr))) {
+        if (StringUtil.isAllowedChatCharacter(chr) && (!numberOnly || Character.isDigit(chr))) {
             insertText(String.valueOf(chr));
             return true;
         }

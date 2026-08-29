@@ -2,8 +2,6 @@ package cn.myfrank.stationbuilder.schematic4j.parser;
 
 import java.util.Map.Entry;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,7 +53,7 @@ public class SchematicaParser implements Parser {
 	public static final String NBT_ENTITIES = "Entities";
 
 	@Override
-	public @NotNull Schematic parse(@Nullable CompoundTag nbt) throws ParsingException {
+	public  Schematic parse( CompoundTag nbt) throws ParsingException {
 		log.debug("Parsing Schematica schematic");
 
 		final SchematicaSchematic schematic = new SchematicaSchematic();

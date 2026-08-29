@@ -7,9 +7,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import cn.myfrank.stationbuilder.schematic4j.SchematicFormat;
 import cn.myfrank.stationbuilder.schematic4j.schematic.types.Pair;
 import cn.myfrank.stationbuilder.schematic4j.schematic.types.SchematicBiome;
@@ -31,7 +28,7 @@ public interface Schematic {
 	 *
 	 * @return the schematic format
 	 */
-	@NotNull SchematicFormat format();
+	 SchematicFormat format();
 
 	/**
 	 * The width of the schematic, the X axis.
@@ -61,7 +58,7 @@ public interface Schematic {
 	 *
 	 * @return the schematic offset from the origin
 	 */
-	@NotNull SchematicBlockPos offset();
+	 SchematicBlockPos offset();
 
 	/**
 	 * The block at the specified position.
@@ -73,7 +70,7 @@ public interface Schematic {
 	 * @param z The Z coordinate, can be a negative value
 	 * @return block, or {@code null} if information is not available.
 	 */
-	@NotNull SchematicBlock block(int x, int y, int z);
+	 SchematicBlock block(int x, int y, int z);
 
 	/**
 	 * The block at the specified position.
@@ -84,7 +81,7 @@ public interface Schematic {
 	 * @return block, or {@code null} if information is not available.
 	 * @see Schematic#block(int, int, int)
 	 */
-	default @NotNull SchematicBlock block(@Nullable SchematicBlockPos pos) {
+	default  SchematicBlock block( SchematicBlockPos pos) {
 		if (pos == null) {
 			return AIR;
 		}
@@ -96,7 +93,7 @@ public interface Schematic {
 	 *
 	 * @return An iterator over block and position pairs
 	 */
-	default @NotNull Stream<Pair<SchematicBlockPos, SchematicBlock>> blocks() {
+	default  Stream<Pair<SchematicBlockPos, SchematicBlock>> blocks() {
 		return IntStream.range(0, width() * length() * height()).mapToObj(index -> {
 			final int x = index % width();
 			final int z = (index / width()) % length();
@@ -112,7 +109,7 @@ public interface Schematic {
 	 *
 	 * @return list of block entities
 	 */
-	default @NotNull Stream<SchematicBlockEntity> blockEntities() {
+	default  Stream<SchematicBlockEntity> blockEntities() {
 		return Stream.empty();
 	}
 
@@ -121,7 +118,7 @@ public interface Schematic {
 	 *
 	 * @return list of entities
 	 */
-	default @NotNull Stream<SchematicEntity> entities() {
+	default  Stream<SchematicEntity> entities() {
 		return Stream.empty();
 	}
 
@@ -133,7 +130,7 @@ public interface Schematic {
 	 * @param z the Z coordinate
 	 * @return biome, or {@code SchematicBiome.AIR} if information is not available.
 	 */
-	default @NotNull SchematicBiome biome(int x, int y, int z) {
+	default  SchematicBiome biome(int x, int y, int z) {
 		return SchematicBiome.AIR;
 	}
 
@@ -142,7 +139,7 @@ public interface Schematic {
 	 *
 	 * @return An iterator over biome and position pairs
 	 */
-	default @NotNull Stream<Pair<SchematicBlockPos, SchematicBiome>> biomes() {
+	default  Stream<Pair<SchematicBlockPos, SchematicBiome>> biomes() {
 		return IntStream.range(0, width() * length() * height()).mapToObj(index -> {
 			final int x = index % width();
 			final int z = (index / width()) % length();
@@ -158,7 +155,7 @@ public interface Schematic {
 	 *
 	 * @return schematic name, or {@code null} if information is not available.
 	 */
-	default @Nullable String name() {
+	default  String name() {
 		return null;
 	}
 
@@ -167,7 +164,7 @@ public interface Schematic {
 	 *
 	 * @return author, or {@code null} if information is not available.
 	 */
-	default @Nullable String author() {
+	default  String author() {
 		return null;
 	}
 
@@ -176,7 +173,7 @@ public interface Schematic {
 	 *
 	 * @return creation date, or {@code null} if information is not available.
 	 */
-	default @Nullable LocalDateTime date() {
+	default  LocalDateTime date() {
 		return null;
 	}
 
@@ -185,7 +182,7 @@ public interface Schematic {
 	 *
 	 * @return icon, or {@code null} if information is not available.
 	 */
-	default @Nullable SchematicItem icon() {
+	default  SchematicItem icon() {
 		return null;
 	}
 

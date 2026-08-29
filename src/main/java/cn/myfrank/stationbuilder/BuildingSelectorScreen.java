@@ -52,12 +52,9 @@ public class BuildingSelectorScreen extends GuiScreen {
         rootPanel.addControl(new GuiButton(Component.translatable("gui.stationbuilder.building_selector_save"), b -> {
             String name = nameField.getText().trim();
             if (!name.isEmpty() && pos1 != null && pos2 != null) {
-                PlatformServices.sendToServer(StationBuilder.PACKET_SAVE_SELECTION, StationBuilder.buf(buf -> {
-                    buf.writeUtf(name);
-                    buf.writeBlockPos(pos1);
-                    buf.writeBlockPos(pos2);
-                    buf.writeBoolean(includeEntities);
-                }));
+                net.neoforged.neoforge.network.PacketDistributor.sendToServer(
+                        new StationBuilder.SaveSelectionPayload(name, pos1, pos2, includeEntities)
+                );
                 this.onClose();
             }
         }, 180, 18));

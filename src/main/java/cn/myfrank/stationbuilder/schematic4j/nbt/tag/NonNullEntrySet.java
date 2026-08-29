@@ -6,8 +6,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import org.jetbrains.annotations.NotNull;
-
 /**
  * A decorator for the Set returned by CompoundTag#entrySet()
  * that disallows setting null values.
@@ -39,17 +37,17 @@ class NonNullEntrySet<K, V> implements Set<Map.Entry<K, V>> {
 	}
 
 	@Override
-	public @NotNull Iterator<Map.Entry<K, V>> iterator() {
+	public  Iterator<Map.Entry<K, V>> iterator() {
 		return new NonNullEntrySetIterator(set.iterator());
 	}
 
 	@Override
-	public Object @NotNull [] toArray() {
+	public Object  [] toArray() {
 		return set.toArray();
 	}
 
 	@Override
-	public <T> T @NotNull [] toArray(T @NotNull [] a) {
+	public <T> T  [] toArray(T  [] a) {
 		return set.toArray(a);
 	}
 
@@ -64,22 +62,22 @@ class NonNullEntrySet<K, V> implements Set<Map.Entry<K, V>> {
 	}
 
 	@Override
-	public boolean containsAll(@NotNull Collection<?> c) {
+	public boolean containsAll( Collection<?> c) {
 		return set.containsAll(c);
 	}
 
 	@Override
-	public boolean addAll(@NotNull Collection<? extends Map.Entry<K, V>> c) {
+	public boolean addAll( Collection<? extends Map.Entry<K, V>> c) {
 		return set.addAll(c);
 	}
 
 	@Override
-	public boolean retainAll(@NotNull Collection<?> c) {
+	public boolean retainAll( Collection<?> c) {
 		return set.retainAll(c);
 	}
 
 	@Override
-	public boolean removeAll(@NotNull Collection<?> c) {
+	public boolean removeAll( Collection<?> c) {
 		return set.removeAll(c);
 	}
 

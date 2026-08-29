@@ -307,7 +307,7 @@ public class RailBuilderScreen extends GuiScreen {
         String currentRailCount = railCountInput.getText();
         // 如果 railCount 发生了变化，先清除状态
         if (!currentRailCount.equals(initialRailCount)) {
-            PlatformServices.sendToServer(StationBuilder.PACKET_CLEAR_RAIL, StationBuilder.buf(b -> {}));
+            net.neoforged.neoforge.network.PacketDistributor.sendToServer(new StationBuilder.ClearRailStatePayload());
         }
         // 关闭时自动发送保存包
         sendSyncPacket();
@@ -315,6 +315,6 @@ public class RailBuilderScreen extends GuiScreen {
     }
 
     private void sendSyncPacket() {
-        PlatformServices.sendToServer(StationBuilder.PACKET_SAVE_RAIL, StationBuilder.buf(b -> b.writeNbt(getTag())));
+        net.neoforged.neoforge.network.PacketDistributor.sendToServer(new StationBuilder.SaveRailPayload(getTag()));
     }
 }

@@ -7,6 +7,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.TagParser;
+import net.neoforged.fml.loading.FMLPaths;
 
 import java.io.File;
 import java.io.FileReader;
@@ -17,7 +18,7 @@ import java.util.List;
 
 public class PresetManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Path PRESET_PATH = PlatformServices.configDir().resolve("stationbuilder/presets");
+    private static final Path PRESET_PATH = FMLPaths.GAMEDIR.get().resolve("stationbuilder/presets");
 
     public static void savePreset(String name, int length, List<StationElement> elements) {
         try {
@@ -71,6 +72,6 @@ public class PresetManager {
     public record PresetData(int length, List<StationElement> elements) {}
 
     public static Path getPresetPath() {
-        return PlatformServices.configDir().resolve("stationbuilder/presets");
+        return FMLPaths.GAMEDIR.get().resolve("stationbuilder/presets");
     }
 }

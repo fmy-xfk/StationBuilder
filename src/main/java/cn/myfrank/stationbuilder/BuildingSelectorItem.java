@@ -1,31 +1,33 @@
 package cn.myfrank.stationbuilder;
 
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.entity.player.Player;
+import java.util.List;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.nbt.CompoundTag;
-
-import java.util.List;
-
-import net.minecraft.core.BlockPos;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 public class BuildingSelectorItem extends Item {
-    public BuildingSelectorItem(Properties properties) {
+    public BuildingSelectorItem(Item.Properties properties) {
         super(properties);
     }
 
     public static BlockPos getPos1(ItemStack stack) {
-        if (!stack.hasTag()) return null;
-        CompoundTag nbt = stack.getTag();
-        if (nbt != null && nbt.contains("pos1")) {
+        CustomData comp = stack.get(ModComponents.SELECTOR_DATA.get());
+        if (comp == null) return null;
+        CompoundTag nbt = comp.copyTag();
+        if (nbt.contains("pos1")) {
             CompoundTag pos = nbt.getCompound("pos1");
             return new BlockPos(pos.getInt("x"), pos.getInt("y"), pos.getInt("z"));
         }
@@ -33,7 +35,8 @@ public class BuildingSelectorItem extends Item {
     }
 
     public static void setPos1(ItemStack stack, BlockPos pos) {
-        CompoundTag nbt = stack.getOrCreateTag();
+        CustomData comp = stack.getOrDefault(ModComponents.SELECTOR_DATA.get(), CustomData.EMPTY);
+        CompoundTag nbt = comp.copyTag();
         if (pos == null) {
             nbt.remove("pos1");
         } else {
@@ -43,12 +46,14 @@ public class BuildingSelectorItem extends Item {
             p.putInt("z", pos.getZ());
             nbt.put("pos1", p);
         }
+        stack.set(ModComponents.SELECTOR_DATA.get(), CustomData.of(nbt));
     }
 
     public static BlockPos getPos2(ItemStack stack) {
-        if (!stack.hasTag()) return null;
-        CompoundTag nbt = stack.getTag();
-        if (nbt != null && nbt.contains("pos2")) {
+        CustomData comp = stack.get(ModComponents.SELECTOR_DATA.get());
+        if (comp == null) return null;
+        CompoundTag nbt = comp.copyTag();
+        if (nbt.contains("pos2")) {
             CompoundTag pos = nbt.getCompound("pos2");
             return new BlockPos(pos.getInt("x"), pos.getInt("y"), pos.getInt("z"));
         }
@@ -56,7 +61,8 @@ public class BuildingSelectorItem extends Item {
     }
 
     public static void setPos2(ItemStack stack, BlockPos pos) {
-        CompoundTag nbt = stack.getOrCreateTag();
+        CustomData comp = stack.getOrDefault(ModComponents.SELECTOR_DATA.get(), CustomData.EMPTY);
+        CompoundTag nbt = comp.copyTag();
         if (pos == null) {
             nbt.remove("pos2");
         } else {
@@ -66,61 +72,58 @@ public class BuildingSelectorItem extends Item {
             p.putInt("z", pos.getZ());
             nbt.put("pos2", p);
         }
+        stack.set(ModComponents.SELECTOR_DATA.get(), CustomData.of(nbt));
     }
 
     private void openGui(ServerPlayer player, ItemStack stack) {
-        BlockPos p1 = getPos1(stack);
-        BlockPos p2 = getPos2(stack);
-
-        PlatformServices.sendToPlayer(player, StationBuilder.PACKET_SYNC_OPEN_SELECTOR,
-                StationBuilder.buf(buf -> {
-                    buf.writeBoolean(p1 != null);
-                    if (p1 != null) buf.writeBlockPos(p1);
-                    buf.writeBoolean(p2 != null);
-                    if (p2 != null) buf.writeBlockPos(p2);
-                }));
+        PacketDistributor.sendToPlayer(
+                player,
+                new StationBuilder.SyncOpenSelectorPayload(getPos1(stack), getPos2(stack))
+        );
     }
 
     @Override
     public InteractionResult useOn(UseOnContext context) {
-        Level world = context.getLevel();
+        Level level = context.getLevel();
         Player player = context.getPlayer();
         if (player == null) return InteractionResult.PASS;
 
         ItemStack stack = context.getItemInHand();
-        if (player.isCrouching()) {
-            if (!world.isClientSide && player instanceof ServerPlayer serverPlayer) {
-                openGui(serverPlayer, stack);
+        if (player.isShiftKeyDown()) {
+            if (!level.isClientSide) {
+                openGui((ServerPlayer) player, stack);
             }
             return InteractionResult.SUCCESS;
         } else {
-            if (!world.isClientSide) {
+            if (!level.isClientSide) {
                 BlockPos pos = context.getClickedPos();
                 setPos2(stack, pos);
-                player.sendSystemMessage(Component.translatable("message.stationbuilder.pos2_set_to:", pos.toShortString())
-                        .withStyle(net.minecraft.ChatFormatting.GREEN));
+                player.displayClientMessage(
+                        Component.translatable("message.stationbuilder.pos2_set_to:", pos.toShortString())
+                                .withStyle(ChatFormatting.GREEN),
+                        true
+                );
             }
             return InteractionResult.SUCCESS;
         }
     }
 
     @Override
-    public InteractionResultHolder<ItemStack> use(Level world, Player user, InteractionHand hand) {
-        ItemStack stack = user.getItemInHand(hand);
-        if (user.isCrouching()) {
-            if (!world.isClientSide && user instanceof ServerPlayer serverPlayer) {
-                openGui(serverPlayer, stack);
+    public InteractionResult use(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+        if (player.isShiftKeyDown()) {
+            if (!level.isClientSide) {
+                openGui((ServerPlayer) player, stack);
             }
-            return InteractionResultHolder.success(stack);
+            return InteractionResult.SUCCESS;
         }
-        return InteractionResultHolder.pass(stack);
+        return InteractionResult.PASS;
     }
 
     @Override
-    public void appendHoverText(ItemStack pStack, Level pLevel, List<Component> pTooltipComponents, TooltipFlag pIsAdvanced) {
-        super.appendHoverText(pStack, pLevel, pTooltipComponents, pIsAdvanced);
-        pTooltipComponents.add(Component.translatable("tooltip.stationbuilder.building_selector_line1"));
-        pTooltipComponents.add(Component.translatable("tooltip.stationbuilder.building_selector_line2"));
-        pTooltipComponents.add(Component.translatable("tooltip.stationbuilder.building_selector_line3"));
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        tooltip.add(Component.translatable("tooltip.stationbuilder.building_selector_line1"));
+        tooltip.add(Component.translatable("tooltip.stationbuilder.building_selector_line2"));
+        tooltip.add(Component.translatable("tooltip.stationbuilder.building_selector_line3"));
     }
 }

@@ -1,5 +1,8 @@
 package cn.myfrank.stationbuilder;
 
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -7,16 +10,41 @@ import java.util.List;
 public class TickScheduler {
     private static final List<DelayedTask> tasks = new ArrayList<>();
     private static final List<Runnable> toRun = new ArrayList<>();
-    public static void init() {}
-    public static void tick() {
+
+    public static void init() {
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.register(TickScheduler.class);
+    }
+
+    @SubscribeEvent
+    public static void onServerTick(ServerTickEvent.Post event) {
+        // 1. tick 计数 & 收集要执行的任务
         Iterator<DelayedTask> it = tasks.iterator();
         while (it.hasNext()) {
             DelayedTask task = it.next();
-            if (--task.remainingTicks <= 0) { toRun.add(task.action); it.remove(); }
+            if (--task.remainingTicks <= 0) {
+                toRun.add(task.action);
+                it.remove();
+            }
         }
-        for (Runnable action : toRun) action.run();
+
+        // 2. 真正执行（此时 tasks 已不在迭代中）
+        for (Runnable action : toRun) {
+            action.run();
+        }
         toRun.clear();
     }
-    public static void schedule(int ticks, Runnable action) { tasks.add(new DelayedTask(ticks, action)); }
-    private static class DelayedTask { int remainingTicks; Runnable action; DelayedTask(int ticks,Runnable action){this.remainingTicks=ticks;this.action=action;} }
+
+    public static void schedule(int ticks, Runnable action) {
+        tasks.add(new DelayedTask(ticks, action));
+    }
+
+    private static class DelayedTask {
+        int remainingTicks;
+        Runnable action;
+
+        DelayedTask(int ticks, Runnable action) {
+            this.remainingTicks = ticks;
+            this.action = action;
+        }
+    }
 }

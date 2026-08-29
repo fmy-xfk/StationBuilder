@@ -6,16 +6,15 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 
 // 股道：固定3格宽
-// --- TrackElement 类内部 ---
 public class TrackElement extends StationElement {
     public boolean isMtrTrack = StationBuilder.isMtrLoaded();
-    public ResourceLocation ballastBlock = ResourceLocation.fromNamespaceAndPath("minecraft", "andesite"); // 默认路基为砾石
+    public ResourceLocation ballastBlock = ResourceLocation.fromNamespaceAndPath("minecraft", "andesite"); // 默认路基为安山岩
 
-    @Override public Type narrationPriority() { return Type.TRACK; }
+    @Override public Type getType() { return Type.TRACK; }
     @Override public int getWidth() { return 3; }
 
     @Override public void write(FriendlyByteBuf buf) {
-        buf.writeEnum(narrationPriority());
+        buf.writeEnum(getType());
         buf.writeResourceLocation(ballastBlock); // 写入路基方块ID
         buf.writeBoolean(isMtrTrack);
     }
@@ -23,8 +22,8 @@ public class TrackElement extends StationElement {
     @Override
     public CompoundTag toNbt() {
         CompoundTag nbt = new CompoundTag();
-        nbt.putString("type", narrationPriority().name()); // 存储枚举名：TRACK
-        nbt.putString("ballast", ballastBlock.toString()); // 存储 ResourceLocation 字符串
+        nbt.putString("type", getType().name()); // 存储枚举名：TRACK
+        nbt.putString("ballast", ballastBlock.toString()); // 存储 Identifier 字符串
         nbt.putBoolean("isMtrTrack", isMtrTrack);
         return nbt;
     }

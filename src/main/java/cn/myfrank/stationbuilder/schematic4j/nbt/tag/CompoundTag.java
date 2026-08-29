@@ -9,8 +9,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
 
-import org.jetbrains.annotations.NotNull;
-
 import cn.myfrank.stationbuilder.schematic4j.nbt.MaxDepthIO;
 
 /**
@@ -123,7 +121,7 @@ public class CompoundTag extends Tag<Map<String, Tag<?>>> implements Iterable<Ma
 	}
 
 	@Override
-	public @NotNull Iterator<Map.Entry<String, Tag<?>>> iterator() {
+	public  Iterator<Map.Entry<String, Tag<?>>> iterator() {
 		return entrySet().iterator();
 	}
 

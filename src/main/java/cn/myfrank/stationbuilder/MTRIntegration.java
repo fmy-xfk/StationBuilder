@@ -20,22 +20,21 @@ import net.minecraft.world.level.levelgen.Heightmap;
 
 import org.jetbrains.annotations.NotNull;
 
+import org.mtr.MTR;
 import org.mtr.core.data.Position;
 import org.mtr.core.data.Rail;
 import org.mtr.core.data.TransportMode;
 import org.mtr.core.tool.Angle;
 import org.mtr.core.tool.Vector;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.holder.ServerWorld;
-import org.mtr.mod.block.*;
-import org.mtr.mod.data.RailType;
-import org.mtr.mod.item.ItemPSDAPGBase;
-import org.mtr.mod.item.ItemRailModifier;
-import org.mtr.mod.Items;
-import org.mtr.mod.Blocks;
-import org.mtr.mod.packet.PacketUpdateData;
-
-import static org.mtr.mod.block.IBlock.*;
+import org.mtr.block.*;
+import org.mtr.data.RailType;
+import org.mtr.item.ItemPSDAPGBase;
+import org.mtr.item.ItemRailModifier;
+import org.mtr.registry.Items;
+import org.mtr.registry.Blocks;
+import org.mtr.packet.PacketUpdateData;
+import static org.mtr.block.IBlock.*;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -51,35 +50,35 @@ public class MTRIntegration {
 
     public static boolean isRailNode(ServerLevel world, BlockPos pos) {
         var block = world.getBlockState(pos).getBlock();
-        return block == Blocks.RAIL_NODE.get().data;
+        return block == Blocks.RAIL_NODE.get();
     }
 
     public static boolean isRailNode(BlockState state) {
-        return state.getBlock() == Blocks.RAIL_NODE.get().data;
+        return state.getBlock() == Blocks.RAIL_NODE.get();
     }
-
+    
     public static void placeRailNode(ServerLevel world, BlockPos pos, Direction facing) {
-        var mtrNodeState = Blocks.RAIL_NODE.get().data.defaultBlockState()
-                .setValue(BlockNode.FACING.data, facing == Direction.EAST || facing == Direction.WEST)
-                .setValue(BlockNode.IS_45.data, false)
-                .setValue(BlockNode.IS_22_5.data, false)
-                .setValue(BlockNode.IS_CONNECTED.data, false);
+        var mtrNodeState = Blocks.RAIL_NODE.get().defaultBlockState()
+                .setValue(BlockNode.FACING, facing == Direction.EAST || facing == Direction.WEST)
+                .setValue(BlockNode.IS_45, false)
+                .setValue(BlockNode.IS_22_5, false)
+                .setValue(BlockNode.IS_CONNECTED, false);
         world.setBlock(pos, mtrNodeState, 3);
     }
 
     public static void placeRailNode(ServerLevel world, BlockPos pos, float angle) {
         var quadrant = Angle.getQuadrant(angle, true);
-        var mtrNodeState = Blocks.RAIL_NODE.get().data.defaultBlockState()
-                .setValue(BlockNode.FACING.data, quadrant % 8 >= 4)
-                .setValue(BlockNode.IS_45.data, quadrant % 4 >= 2)
-                .setValue(BlockNode.IS_22_5.data, quadrant % 2 == 1)
-                .setValue(BlockNode.IS_CONNECTED.data, false);
+        var mtrNodeState = Blocks.RAIL_NODE.get().defaultBlockState()
+                .setValue(BlockNode.FACING, quadrant % 8 >= 4)
+                .setValue(BlockNode.IS_45, quadrant % 4 >= 2)
+                .setValue(BlockNode.IS_22_5, quadrant % 2 == 1)
+                .setValue(BlockNode.IS_CONNECTED, false);
         world.setBlock(pos, mtrNodeState, 3);
     }
 
     public static float getRailNodeAngle(ServerLevel world, BlockPos pos) {
         var state = world.getBlockState(pos);
-        return BlockNode.getAngle(new org.mtr.mapping.holder.BlockState(state));
+        return BlockNode.getAngle(state);
     }
 
     public static double getAngleFromVec3d(Vec3 v) {
@@ -90,17 +89,17 @@ public class MTRIntegration {
     }
 
     public static void placePIDSPole(ServerLevel world, BlockPos pos, Direction facing, ResourceLocation poleId) {
-        var state = BuiltInRegistries.BLOCK.get(poleId).defaultBlockState();
-        if (state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
-            state = state.setValue(BlockStateProperties.HORIZONTAL_FACING, facing);
-        } else if (state.hasProperty(BlockStateProperties.FACING)) {
-            state = state.setValue(BlockStateProperties.FACING, facing);
-        }
+        var state = BuiltInRegistries.BLOCK.getValue(poleId).defaultBlockState();
+        if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING)) {
+                state = state.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING, facing);
+            } else if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING)) {
+                state = state.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING, facing);
+            }
         world.setBlock(pos, state, 3);
     }
 
     public static boolean placePIDS(ServerLevel world, BlockPos pos, Direction facing, ResourceLocation blockId) {
-        var pids = BuiltInRegistries.BLOCK.get(blockId);
+        var pids = BuiltInRegistries.BLOCK.getValue(blockId);
         world.setBlock(
                 pos,
                 pids.defaultBlockState().setValue(HorizontalDirectionalBlock.FACING, facing),
@@ -116,7 +115,7 @@ public class MTRIntegration {
     }
 
     public static boolean placePsdItem(ServerLevel world, BlockPos pos, Direction facing, ResourceLocation blockId) {
-        var itemRaw = BuiltInRegistries.ITEM.get(blockId);
+        var itemRaw = BuiltInRegistries.ITEM.getValue(blockId);
         if (itemRaw instanceof ItemPSDAPGBase item) {
             ItemPSDAPGBaseAccessor accessor = (ItemPSDAPGBaseAccessor) item;
             var psdItem = accessor.item_();
@@ -133,33 +132,30 @@ public class MTRIntegration {
 
                 for (int y = 0; y < 2; ++y) {
                     // 获取基础 State 并手动设置属性
-                    var state = accessor.getBlockStateFromItem_().data
+                    var state = accessor.getBlockStateFromItem_()
                             .setValue(BlockStateProperties.HORIZONTAL_FACING, facing)
-                            .setValue(HALF.data, y == 1 ? IBlock.DoubleBlockHalf.UPPER : IBlock.DoubleBlockHalf.LOWER);
+                            .setValue(HALF, y == 1 ? IBlock.DoubleBlockHalf.UPPER : IBlock.DoubleBlockHalf.LOWER);
 
                     if (thisItem.isDoor()) {
                         var neighborState = state
-                                .setValue(SIDE.data, x == 0 ? IBlock.EnumSide.LEFT : IBlock.EnumSide.RIGHT);
+                                .setValue(SIDE, x == 0 ? IBlock.EnumSide.LEFT : IBlock.EnumSide.RIGHT);
                         if (thisType.isOdd()) {
-                            neighborState = neighborState.setValue(TripleHorizontalBlock.CENTER.data,
-                                    x > 0 && x < horizontalBlocks - 1);
+                            neighborState = neighborState.setValue(TripleHorizontalBlock.CENTER,
+                                x > 0 && x < horizontalBlocks - 1);
                         }
 
                         world.setBlock(newPos.above(y), neighborState, 3);
                     } else {
-                        world.setBlock(newPos.above(y), state.setValue(SIDE_EXTENDED.data, IBlock.EnumSide.SINGLE), 3);
+                        world.setBlock(newPos.above(y), state.setValue(SIDE_EXTENDED, IBlock.EnumSide.SINGLE), 3);
                     }
                 }
 
                 if (thisType.isPSD()) {
                     var newPos2 = newPos.above(2);
-                    var mappedWorldAccess = new org.mtr.mapping.holder.WorldAccess(world);
-                    var mappedPos = new org.mtr.mapping.holder.BlockPos(newPos2);
-                    var mappedState = BlockPSDTop.getActualState(mappedWorldAccess, mappedPos);
                     world.setBlock(
-                            newPos.above(2),
-                            mappedState.data,
-                            3
+                        newPos.above(2),
+                        BlockPSDTop.getActualState(world,newPos2),
+                        3
                     );
                 }
             }
@@ -174,41 +170,41 @@ public class MTRIntegration {
     ) {
         ItemRailModifier modifier;
         if (speed <= 0) {
-            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_PLATFORM.get().data;
+            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_PLATFORM.get();
         } else if (speed <= 20) {
-            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_20.get().data;
+            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_20.get();
         } else if (speed <= 40) {
-            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_40.get().data;
+            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_40.get();
         } else if (speed <= 60) {
-            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_60.get().data;
+            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_60.get();
         } else if (speed <= 80) {
-            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_80.get().data;
+            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_80.get();
         } else if (speed <= 100) {
-            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_100.get().data;
+            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_100.get();
         } else if (speed <= 120) {
-            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_120.get().data;
+            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_120.get();
         } else if (speed <= 140) {
-            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_140.get().data;
+            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_140.get();
         } else if (speed <= 160) {
-            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_160.get().data;
+            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_160.get();
         } else if (speed <= 200) {
-            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_200.get().data;
+            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_200.get();
         } else {
-            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_300.get().data;
+            modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_300.get();
         }
 
         return connectRailNodes(uuid, world, a, b, modifier);
     }
 
     public static boolean isValidRailType(ResourceLocation railType) {
-        var itemRaw = BuiltInRegistries.ITEM.get(railType);
+        var itemRaw = BuiltInRegistries.ITEM.getValue(railType);
         return itemRaw instanceof ItemRailModifier;
     }
-
+    
     public static Rail connectRailNodes(
             UUID uuid, ServerLevel world, BlockPos a, BlockPos b, ResourceLocation railType
     ) {
-        var itemRaw = BuiltInRegistries.ITEM.get(railType);
+        var itemRaw = BuiltInRegistries.ITEM.getValue(railType);
         if (itemRaw instanceof ItemRailModifier modifier) {
             return connectRailNodes(uuid, world, a, b, modifier);
         } else {
@@ -223,8 +219,8 @@ public class MTRIntegration {
         var sa = world.getBlockState(a);
         var sb = world.getBlockState(b);
         if (!isRailNode(world, a) || !isRailNode(world, b)) return null;
-        float facingStart = BlockNode.getAngle(new org.mtr.mapping.holder.BlockState(sa));
-        float facingEnd   = BlockNode.getAngle(new org.mtr.mapping.holder.BlockState(sb));
+        float facingStart = BlockNode.getAngle(sa);
+        float facingEnd   = BlockNode.getAngle(sb);
         return Pair.of(facingStart, facingEnd);
     }
 
@@ -237,9 +233,10 @@ public class MTRIntegration {
     }
 
     @NotNull
-    public static TestConnectResult testConnectRailNodes(
+    protected static TestConnectResult testConnectRailNodes(
             float angleStart, float angleEnd, BlockPos a, BlockPos b
     ) {
+        // Truncate angle
         var angles = Rail.getAngles(
                 new Position(a.getX(), a.getY(), a.getZ()), parseAngle(angleStart),
                 new Position(b.getX(), b.getY(), b.getZ()), parseAngle(angleEnd)
@@ -249,17 +246,17 @@ public class MTRIntegration {
         var posStart = new BlockPos(a);
         var posEnd = new BlockPos(b);
         var transportMode = TransportMode.TRAIN;
-        ItemRailModifier modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_160.get().data;
+        ItemRailModifier modifier = (ItemRailModifier) Items.RAIL_CONNECTOR_160.get();
         var railType = ((ItemRailModifierAccessor)modifier).railType_();
         if (railType != null) {
-            Position positionStart = new Position(posStart.getX(), posStart.getY(), posStart.getZ());
-            Position positionEnd = new Position(posEnd.getX(), posEnd.getY(), posEnd.getZ());
+            Position positionStart = MTR.blockPosToPosition(posStart);
+            Position positionEnd = MTR.blockPosToPosition(posEnd);
             Rail rail;
             switch (railType) {
-                case PLATFORM -> rail = Rail.newPlatformRail(positionStart, facingStart, positionEnd, facingEnd, Rail.Shape.QUADRATIC, 0.0F, new ObjectArrayList<>(), transportMode);
-                case SIDING -> rail = Rail.newSidingRail(positionStart, facingStart, positionEnd, facingEnd, Rail.Shape.QUADRATIC, 0.0F, new ObjectArrayList<>(), transportMode);
-                case TURN_BACK -> rail = Rail.newTurnBackRail(positionStart, facingStart, positionEnd, facingEnd, Rail.Shape.QUADRATIC, 0.0F, new ObjectArrayList<>(), transportMode);
-                default -> rail = Rail.newRail(positionStart, facingStart, positionEnd, facingEnd, railType.railShape, 0.0F, new ObjectArrayList<>(), (long)railType.speedLimit, (long)railType.speedLimit, false, false, railType.canAccelerate, railType == RailType.RUNWAY, railType.hasSignal, transportMode);
+                case PLATFORM -> rail = Rail.newPlatformRail(positionStart, facingStart, positionEnd, facingEnd, Rail.Shape.QUADRATIC, 0.0F, 0L, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, new ObjectArrayList<>(), transportMode);
+                case SIDING -> rail = Rail.newSidingRail(positionStart, facingStart, positionEnd, facingEnd, Rail.Shape.QUADRATIC, 0.0F, 0L, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, new ObjectArrayList<>(), transportMode);
+                case TURN_BACK -> rail = Rail.newTurnBackRail(positionStart, facingStart, positionEnd, facingEnd, Rail.Shape.QUADRATIC, 0.0F, 0L, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, new ObjectArrayList<>(), transportMode);
+                default -> rail = Rail.newRail(positionStart, facingStart, positionEnd, facingEnd, railType.railShape, 0.0F, 0L, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, new ObjectArrayList<>(), (long)railType.speedLimit, (long)railType.speedLimit, false, false, railType.canAccelerate, railType == RailType.RUNWAY, railType.hasSignal, transportMode);
             }
             if (rail.isValid()) {
                 var radii = rail.railMath.getHorizontalRadii();
@@ -294,22 +291,18 @@ public class MTRIntegration {
             return null;
         }
         var angles = Rail.getAngles(
-                new Position(a.getX(), a.getY(), a.getZ()), BlockNode.getAngle(new org.mtr.mapping.holder.BlockState(sa)),
-                new Position(b.getX(), b.getY(), b.getZ()), BlockNode.getAngle(new org.mtr.mapping.holder.BlockState(sb))
+            new Position(a.getX(), a.getY(), a.getZ()), BlockNode.getAngle(sa),
+            new Position(b.getX(), b.getY(), b.getZ()), BlockNode.getAngle(sb)
         );
         Angle facingStart = angles.left();
         Angle facingEnd   = angles.right();
 
-        Rail rail = modifier.createRail(uuid, TransportMode.TRAIN,
-                new org.mtr.mapping.holder.BlockState(sa),
-                new org.mtr.mapping.holder.BlockState(sb),
-                new org.mtr.mapping.holder.BlockPos(a),
-                new org.mtr.mapping.holder.BlockPos(b), facingStart, facingEnd);
+        Rail rail = modifier.createRail(uuid, TransportMode.TRAIN, sa, sb, a, b, facingStart, facingEnd);
 
         if (rail != null) {
-            world.setBlock(a, sa.setValue(BlockNode.IS_CONNECTED.data, true), 3);
-            world.setBlock(b, sb.setValue(BlockNode.IS_CONNECTED.data, true), 3);
-            PacketUpdateData.sendDirectlyToServerRail(new ServerWorld(world), rail);
+            world.setBlock(a, sa.setValue(BlockNode.IS_CONNECTED, true), 3);
+            world.setBlock(b, sb.setValue(BlockNode.IS_CONNECTED, true), 3);
+            PacketUpdateData.sendDirectlyToServerRail(world, rail);
             return rail;
         } else {
             System.out.println("Failed to create rail between " + a + "(" + facingStart + ") and " + b + "(" + facingEnd + ") with modifier " + modifier);
@@ -318,24 +311,15 @@ public class MTRIntegration {
     }
 
     private static void clearBlock(ServerLevel world, BlockPos pos, boolean includeCatenary) {
-        if(StationBuilder.isMsdLoaded()) {
-            if (MSDIntegration.isCatenaryNode(world, pos)) {
-                if (includeCatenary) {
-                    MSDIntegration.clearCatenary(world, pos);
-                } else {
-                    return;
-                }
-            }
-        }
         world.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
     }
 
-    private static double rlerp(double a, double b, double t) {
+    private static double lerp(double a, double b, double t) {
         return a + t * (b - a);
     }
 
     private static Vec3 toVec3d(Vector v) {
-        return new Vec3(v.x, v.y, v.z);
+        return new Vec3(v.x(), v.y(), v.z());
     }
 
     private static Vector toVector(BlockPos v) {
@@ -351,33 +335,8 @@ public class MTRIntegration {
         }
     }
 
-    private static BlockPos addCatenaryNode(
-            ServerLevel world, Vec3 center, Vec3 tangent, boolean isLeftest, boolean isRightest,
-            @Nullable BlockPos lastCatenaryNode, ResourceLocation block, CatenaryTypeMapping type, int height
-    ) {
-        Direction dir = horizontalDirectionFromVec(tangent);
-        double dirAngle = getAngleFromVec3d(tangent);
-        int blockY = (int) Math.floor(center.y);
-        var catenaryPos = new BlockPos((int) Math.floor(center.x), blockY + height, (int) Math.floor(center.z));
-        if (isLeftest || isRightest) {
-            if (isLeftest) {
-                dir = dir.getClockWise();
-            } else {
-                dir = dir.getCounterClockWise();
-            }
-            if (!MSDIntegration.placeCatenaryNode(world, catenaryPos, dir, dirAngle, block)){
-                return null;
-            }
-            if (lastCatenaryNode != null) {
-                MSDIntegration.connectCatenary(world, lastCatenaryNode, catenaryPos, type);
-            }
-            return catenaryPos;
-        }
-        return null;
-    }
-
     private static void drawLine(ServerLevel world, BlockPos a, BlockPos b, ResourceLocation lineBlock) {
-        var state = BuiltInRegistries.BLOCK.get(lineBlock).defaultBlockState();
+        var state = BuiltInRegistries.BLOCK.getValue(lineBlock).defaultBlockState();
         int x1 = a.getX(), y1 = a.getY(), z1 = a.getZ();
         int x2 = b.getX(), y2 = b.getY(), z2 = b.getZ();
 
@@ -402,6 +361,7 @@ public class MTRIntegration {
             int curX = x1 + Math.round((float)(i * (x2 - x1)) / max);
             int curY = y1 + Math.round((float)(i * (y2 - y1)) / max);
             int curZ = z1 + Math.round((float)(i * (z2 - z1)) / max);
+                        // 强制采取 6向（曼哈顿）步进移动，杜绝对角线产生不连接的孤立围栏
             while(x != curX || y != curY || z != curZ) {
                 if (x != curX) x += xs;
                 else if (z != curZ) z += zs;
@@ -412,9 +372,9 @@ public class MTRIntegration {
     }
 
     private static void buildPillarDown(ServerLevel world, BlockPos topPos, ResourceLocation pillarBlock) {
-        var state = BuiltInRegistries.BLOCK.get(pillarBlock).defaultBlockState();
+        var state = BuiltInRegistries.BLOCK.getValue(pillarBlock).defaultBlockState();
         BlockPos pos = topPos;
-        while(world.isInWorldBounds(pos) && StationBuilder.isSoftTransparent(world.getBlockState(pos))) {
+        while(!world.isOutsideBuildHeight(pos) && StationBuilder.isSoftTransparent(world.getBlockState(pos))) {
             world.setBlock(pos, state, 3);
             pos = pos.relative(Direction.DOWN);
         }
@@ -440,7 +400,7 @@ public class MTRIntegration {
             if (trackCount == 1) {
                 // 单条轨道只在最右侧放置 L 型支架
                 BlockPos rightEnd = new BlockPos(
-                        (int) Math.floor(center.y + normal.x * 3.0),
+                        (int) Math.floor(center.x + normal.x * 3.0),
                         trussPos.getY(),
                         (int) Math.floor(center.z + normal.z * 3.0)
                 );
@@ -477,7 +437,7 @@ public class MTRIntegration {
     }
 
     private static void clearHeights(Vec3 center, Vec3 normal, ServerLevel world, RailBuilderConfig config,
-                                     boolean isLeftest, boolean isRightest, boolean clearCatenary) {
+             boolean isLeftest, boolean isRightest, boolean clearCatenary) {
         double halfWidth = config.ballastTopWidth / 2.0 + EPS;
         int baseY = (int) Math.floor(center.y);
         if (config.clearFullHeight) {
@@ -530,7 +490,7 @@ public class MTRIntegration {
         double halfTopWidth = config.ballastTopWidth / 2.0 + EPS;
         double halfBottomWidth = config.ballastBottomWidth / 2.0 + EPS;
         for (int y = 0; y < ballastHeight; y++) {
-            double halfWidth = rlerp(halfTopWidth, halfBottomWidth, (double) y / ballastHeight);
+            double halfWidth = lerp(halfTopWidth, halfBottomWidth, (double) y / ballastHeight);
             Vec3 layerCenter = center.add(0, -y - 1, 0);
             int blockY = (int) Math.floor(layerCenter.y);
             var blockXZs = RailMath.getPositions(center, normal,
@@ -538,7 +498,7 @@ public class MTRIntegration {
                     isRightest? halfWidth: halfTopWidth);
             for(var block: blockXZs) {
                 var pos = new BlockPos(block.x(), blockY, block.z());
-                world.setBlock(pos, BuiltInRegistries.BLOCK.get(config.ballastBlock).defaultBlockState(), 3);
+                world.setBlock(pos, BuiltInRegistries.BLOCK.getValue(config.ballastBlock).defaultBlockState(), 3);
             }
         }
     }
@@ -559,7 +519,7 @@ public class MTRIntegration {
             for (int i = 0; i < bridgeXZs.size(); i++) {
                 var block = bridgeXZs.get(i);
                 int x = block.x(), z = block.z();
-                var bridgeBlockState = BuiltInRegistries.BLOCK.get(config.bridgeBlock).defaultBlockState();
+                var bridgeBlockState = BuiltInRegistries.BLOCK.getValue(config.bridgeBlock).defaultBlockState();
                 if ((isLeftest && i == 0) || (isRightest && i == bridgeXZs.size() - 1)) {
                     var pos = new BlockPos(x, blockY - 1, z);
                     if (!isRailNode(world, pos)) {
@@ -567,14 +527,14 @@ public class MTRIntegration {
                     }
                     var posU = new BlockPos(x, blockY, z);
                     if (!isRailNode(world, posU)) {
-                        world.setBlock(posU, BuiltInRegistries.BLOCK.get(config.bridgeGuardRailBlock).defaultBlockState(), 3);
+                        world.setBlock(posU, BuiltInRegistries.BLOCK.getValue(config.bridgeGuardRailBlock).defaultBlockState(), 3);
                         overpass_walls.add(posU);
                     }
                 } else {
                     var posD = new BlockPos(x, blockY - 2, z);
                     world.setBlock(posD, bridgeBlockState, 3);
                     var pos = new BlockPos(x, blockY - 1, z);
-                    world.setBlock(pos, BuiltInRegistries.BLOCK.get(config.ballastBlock).defaultBlockState(), 3);
+                    world.setBlock(pos, BuiltInRegistries.BLOCK.getValue(config.ballastBlock).defaultBlockState(), 3);
                     var posU = new BlockPos(x, blockY, z);
                     if (!isRailNode(world, posU)) {
                         clearBlock(world, posU, clearCatenary);
@@ -586,9 +546,9 @@ public class MTRIntegration {
                     if (dist <= halfPillarWidth) {
                         var pos = new BlockPos(x, blockY - 2, z);
                         int solidCount = 0;
-                        while(solidCount < 3 && world.isInWorldBounds(pos)) {
+                        while(solidCount < 3 && !world.isOutsideBuildHeight(pos)) {
                             if (StationBuilder.isSoftTransparent(world.getBlockState(pos))) {
-                                world.setBlock(pos, BuiltInRegistries.BLOCK.get(config.bridgePillarBlock).defaultBlockState(), 3);
+                                world.setBlock(pos, BuiltInRegistries.BLOCK.getValue(config.bridgePillarBlock).defaultBlockState(), 3);
                                 solidCount = 0;
                             } else {
                                 solidCount++;
@@ -607,16 +567,16 @@ public class MTRIntegration {
                 int x = block.x(), z = block.z();
                 var posTop = new BlockPos(x, blockY + config.tunnelHeight, z);
                 if (!isRailNode(world, posTop)) {
-                    world.setBlock(posTop, BuiltInRegistries.BLOCK.get(config.tunnelWallBlock).defaultBlockState(), 3);
+                    world.setBlock(posTop, BuiltInRegistries.BLOCK.getValue(config.tunnelWallBlock).defaultBlockState(), 3);
                 }
                 var posBottom = new BlockPos(x, blockY - 1, z);
                 if (!isRailNode(world, posBottom)) {
-                    world.setBlock(posBottom, BuiltInRegistries.BLOCK.get(config.ballastBlock).defaultBlockState(), 3);
+                    world.setBlock(posBottom, BuiltInRegistries.BLOCK.getValue(config.ballastBlock).defaultBlockState(), 3);
                 }
                 if ((isLeftest && i == 0) || (isRightest && i == tunnelXZs.size() - 1)) {
                     for(int y = 0; y < config.tunnelHeight; y++) {
                         world.setBlock(new BlockPos(x, blockY + y, z),
-                                BuiltInRegistries.BLOCK.get(config.tunnelWallBlock).defaultBlockState(), 3);
+                                BuiltInRegistries.BLOCK.getValue(config.tunnelWallBlock).defaultBlockState(), 3);
                     }
                 } else {
                     for(int y = 0; y < config.tunnelHeight; y++) {
@@ -631,7 +591,7 @@ public class MTRIntegration {
                 int x = block.x(), z = block.z();
                 var pos = new BlockPos(x, blockY - 1, z);
                 if (!isRailNode(world, pos)) {
-                    world.setBlock(pos, BuiltInRegistries.BLOCK.get(config.ballastBlock).defaultBlockState(), 3);
+                    world.setBlock(pos, BuiltInRegistries.BLOCK.getValue(config.ballastBlock).defaultBlockState(), 3);
                 }
             }
         }
@@ -639,16 +599,16 @@ public class MTRIntegration {
             var state = world.getBlockState(pos);
             if (state.getBlock() instanceof WallBlock) {
                 if (world.getBlockState(pos.relative(Direction.NORTH)).getBlock() instanceof WallBlock) {
-                    state = state.setValue(WallBlock.NORTH_WALL, WallSide.LOW);
+                    state = state.setValue(BlockStateProperties.NORTH_WALL, WallSide.LOW);
                 }
                 if (world.getBlockState(pos.relative(Direction.SOUTH)).getBlock() instanceof WallBlock) {
-                    state = state.setValue(WallBlock.SOUTH_WALL, WallSide.LOW);
+                    state = state.setValue(BlockStateProperties.SOUTH_WALL, WallSide.LOW);
                 }
                 if (world.getBlockState(pos.relative(Direction.EAST)).getBlock() instanceof WallBlock) {
-                    state = state.setValue(WallBlock.EAST_WALL, WallSide.LOW);
+                    state = state.setValue(BlockStateProperties.EAST_WALL, WallSide.LOW);
                 }
                 if (world.getBlockState(pos.relative(Direction.WEST)).getBlock() instanceof WallBlock) {
-                    state = state.setValue(WallBlock.WEST_WALL, WallSide.LOW);
+                    state = state.setValue(BlockStateProperties.WEST_WALL, WallSide.LOW);
                 }
                 world.setBlock(pos, state, 3 | 16);
             }
@@ -656,9 +616,9 @@ public class MTRIntegration {
     }
     // >0: R is on left side of vector AB, <0 R is on right side of vector AB
     public static double getSide(Vector a, Vector b, Vector r) {
-        Vector AB = new Vector(b.x - a.x, b.y - a.y, b.z - a.z);
-        Vector AR = new Vector(r.x - a.x, r.y - a.y, r.z - a.z);
-        return AB.x * AR.z - AB.z * AR.x;
+        Vector AB = new Vector(b.x() - a.x(), b.y() - a.y(), b.z() - a.z());
+        Vector AR = new Vector(r.x() - a.x(), r.y() - a.y(), r.z() - a.z());
+        return AB.x() * AR.z() - AB.z() * AR.x();
     }
 
     public static boolean buildRails(
@@ -789,7 +749,6 @@ public class MTRIntegration {
         boolean failToPlaceCatenaryNode = false;
         for(int i = 0; i < count; i++) {
             BlockPos lastCatenaryNode = null;
-            BuildingMode.Up lastUbm = null;
             var rail = rails[i];
             if (rail == null) continue;
             MTRPointProvider pp = new MTRPointProvider(rail.railMath, segments, reverse[i]);
@@ -806,35 +765,7 @@ public class MTRIntegration {
                                 thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar,
                                 config.catenaryBlock);
                     } else {
-                        if (isLeftest[i] || isRightest[i]) {
-                            CatenaryTypeMapping type = CatenaryTypeMapping.values()[config.catenaryModeIndex];
-                            ResourceLocation pillarBlock = thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar;
-
-                            if (type == CatenaryTypeMapping.Auto) {
-                                if (thisUbm == BuildingMode.Up.Tunnel) {
-                                    pillarBlock = ResourceLocation.fromNamespaceAndPath("msd", "rigid_catenary_node");
-                                } else {
-                                    pillarBlock = ResourceLocation.fromNamespaceAndPath("msd", "catenary_with_long");
-                                }
-
-                                if (lastUbm != null) {
-                                    if (lastUbm == BuildingMode.Up.Tunnel && thisUbm == BuildingMode.Up.Tunnel) {
-                                        type = CatenaryTypeMapping.MSDRigidCatenary;
-                                    } else if (lastUbm == BuildingMode.Up.Clear && thisUbm == BuildingMode.Up.Clear) {
-                                        type = CatenaryTypeMapping.MSDCatenary;
-                                    } else {
-                                        type = CatenaryTypeMapping.MSDRigidSoftCatenary;
-                                    }
-                                }
-                            }
-
-                            lastCatenaryNode = addCatenaryNode(world, center, tangent, isLeftest[i], isRightest[i],
-                                    lastCatenaryNode, pillarBlock, type, config.tunnelHeight - 1);
-                            if (lastCatenaryNode == null) {
-                                failToPlaceCatenaryNode = true;
-                            }
-                            lastUbm = thisUbm;
-                        }
+                        // Cannot be MSD catenary, because MSD catenary is not implemented yet
                     }
                 }
             }
@@ -855,8 +786,8 @@ public class MTRIntegration {
         int i = 0;
         for (var pp = new MTRPointProvider(math, segments, reverseMath); pp.notExhausted(); pp.next(), i++) {
             var tuple = pp.get();
-            var center = tuple.get(0);
-            var normal = tuple.get(2);
+            Vec3 center = tuple.get(0);
+            Vec3 normal = tuple.get(2);
 
             // Stretch left and right from the center point, and get a bundle of BlockPos
             int blockY = (int) Math.floor(center.y);
@@ -873,7 +804,7 @@ public class MTRIntegration {
                 int floorBlocks = 0, floorSolidBlocks = 0;
                 for (int y = -thickBallastHeight - 1; y <= config.tunnelHeight + 3; y++) {
                     var pos = new BlockPos(block.x(), blockY + y, block.z());
-                    if (!world.isInWorldBounds(pos)) continue;
+                    if (!!world.isOutsideBuildHeight(pos)) continue;
                     var state = world.getBlockState(pos);
                     boolean isRailNode = isRailNode(world, pos);
                     boolean isSoftTransparent = StationBuilder.isSoftTransparent(state);

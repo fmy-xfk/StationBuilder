@@ -4,8 +4,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
 
-import org.jetbrains.annotations.NotNull;
-
 /**
  * Represents a block as a resource identifier plus block states, like "minecraft:dirt" or "minecraft:chest[facing=south]".
  */
@@ -18,16 +16,16 @@ public class SchematicBlock extends SchematicNamed {
 	 * <br>
 	 * For example, the block state "minecraft:chest[facing=south]" would become just "minecraft:chest".
 	 */
-	public @NotNull String block;
+	public  String block;
 
 	/**
 	 * The list of block states or properties.
 	 * <br>
 	 * For example, chests have the "facing", "type" and "waterlogged" properties.
 	 */
-	public @NotNull Map<String, String> states;
+	public  Map<String, String> states;
 
-	public SchematicBlock(@NotNull String block, @NotNull Map<String, String> states) {
+	public SchematicBlock( String block,  Map<String, String> states) {
 		super(blockNameAndStatesToString(block, states));
 		this.block = block;
 		this.states = states;
@@ -44,7 +42,7 @@ public class SchematicBlock extends SchematicNamed {
 	 *
 	 * @return The block name
 	 */
-	public @NotNull String block() {
+	public  String block() {
 		return block;
 	}
 
@@ -55,7 +53,7 @@ public class SchematicBlock extends SchematicNamed {
 	 *
 	 * @return The block states
 	 */
-	public @NotNull Map<String, String> states() {
+	public  Map<String, String> states() {
 		return states;
 	}
 
@@ -113,7 +111,7 @@ public class SchematicBlock extends SchematicNamed {
 		return states;
 	}
 
-	public static String blockNameAndStatesToString(@NotNull String block, Map<String, String> states) {
+	public static String blockNameAndStatesToString( String block, Map<String, String> states) {
 		if (states.isEmpty()) {
 			return block;
 		}

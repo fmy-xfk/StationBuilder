@@ -6,8 +6,6 @@ import java.util.Spliterators;
 import java.util.TreeMap;
 import java.util.stream.StreamSupport;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,7 +75,7 @@ public class LitematicaParser implements Parser {
 	public static final String NBT_REGION_PENDING_FLUID_TICKS = "PendingFluidTicks";
 
 	@Override
-	public @NotNull Schematic parse(@Nullable CompoundTag nbt) throws ParsingException {
+	public  Schematic parse( CompoundTag nbt) throws ParsingException {
 		log.debug("Parsing Litematica schematic");
 
 		final LitematicaSchematic schematic = new LitematicaSchematic();
@@ -303,7 +301,7 @@ public class LitematicaParser implements Parser {
 		region.pendingBlockTicks = readPendingTicks(pendingTicksTag);
 	}
 
-	public static @Nullable SchematicBlock readBlockPaletteEntry(CompoundTag nbt) {
+	public static  SchematicBlock readBlockPaletteEntry(CompoundTag nbt) {
 		if (nbt == null) {
 			return null;
 		}
@@ -321,7 +319,7 @@ public class LitematicaParser implements Parser {
 		return new SchematicBlock(name, states);
 	}
 
-	public static @NotNull SchematicBlockPos getRegionSize(Region region) {
+	public static  SchematicBlockPos getRegionSize(Region region) {
 		int posEndRelX = region.size.x;
 		int posEndRelY = region.size.y;
 		int posEndRelZ = region.size.z;
@@ -344,7 +342,7 @@ public class LitematicaParser implements Parser {
 		return new SchematicBlockPos(posMaxX - posMinX + 1, posMaxY - posMinY + 1, posMaxZ - posMinZ + 1);
 	}
 
-	@NotNull
+	
 	private static PendingTicks[] readPendingTicks(ListTag<CompoundTag> pendingTicksListTag) {
 		if (pendingTicksListTag == null) {
 			return new PendingTicks[0];

@@ -8,9 +8,6 @@ import java.util.TreeMap;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import cn.myfrank.stationbuilder.schematic4j.SchematicFormat;
 import cn.myfrank.stationbuilder.schematic4j.schematic.types.Pair;
 import cn.myfrank.stationbuilder.schematic4j.schematic.types.SchematicBlock;
@@ -38,17 +35,17 @@ public class LitematicaSchematic implements Schematic {
 	 * This is dependent on the Minecraft version, e.g. Minecraft 1.12.2's data version is
 	 * <a href="https://minecraft.gamepedia.com/1.12.2">1343</a>.
 	 */
-	public @Nullable Integer minecraftDataVersion;
+	public  Integer minecraftDataVersion;
 
 	/**
 	 * The optional metadata about the schematic.
 	 */
-	public @NotNull Metadata metadata = new Metadata();
+	public  Metadata metadata = new Metadata();
 
 	/**
 	 * The regions that compose this schematic. They can be thought of as their own little schematics.
 	 */
-	public Region @NotNull [] regions = new Region[0];
+	public Region  [] regions = new Region[0];
 
 	/**
 	 * A Litematica schematic.
@@ -57,7 +54,7 @@ public class LitematicaSchematic implements Schematic {
 	}
 
 	@Override
-	public @NotNull SchematicFormat format() {
+	public  SchematicFormat format() {
 		return SchematicFormat.LITEMATICA;
 	}
 
@@ -77,12 +74,12 @@ public class LitematicaSchematic implements Schematic {
 	}
 
 	@Override
-	public @NotNull SchematicBlockPos offset() {
+	public  SchematicBlockPos offset() {
 		return SchematicBlockPos.ZERO;
 	}
 
 	@Override
-	public @NotNull SchematicBlock block(int x, int y, int z) {
+	public  SchematicBlock block(int x, int y, int z) {
 		for (Region region : regions) {
 			if ((region.position.x <= x && region.position.x + region.size.x > x)
 					&& (region.position.y <= y && region.position.y + region.size.y > y)
@@ -98,7 +95,7 @@ public class LitematicaSchematic implements Schematic {
 	}
 
 	@Override
-	public @NotNull Stream<Pair<SchematicBlockPos, SchematicBlock>> blocks() {
+	public  Stream<Pair<SchematicBlockPos, SchematicBlock>> blocks() {
 		return Arrays.stream(regions).flatMap(region -> IntStream.range(0, region.blockStates.length).mapToObj(idx -> {
 			final SchematicBlockPos pos = region.indexToPos(idx);
 			final int paletteIdx = region.blockStates[idx];
@@ -108,12 +105,12 @@ public class LitematicaSchematic implements Schematic {
 	}
 
 	@Override
-	public @NotNull Stream<SchematicBlockEntity> blockEntities() {
+	public  Stream<SchematicBlockEntity> blockEntities() {
 		return Arrays.stream(regions).flatMap(r -> Arrays.stream(r.blockEntities));
 	}
 
 	@Override
-	public @NotNull Stream<SchematicEntity> entities() {
+	public  Stream<SchematicEntity> entities() {
 		return Arrays.stream(regions).flatMap(r -> Arrays.stream(r.entities));
 	}
 
@@ -122,22 +119,22 @@ public class LitematicaSchematic implements Schematic {
 	 *
 	 * @return The regions
 	 */
-	public @NotNull Region[] regions() {
+	public  Region[] regions() {
 		return regions;
 	}
 
 	@Override
-	public @Nullable String name() {
+	public  String name() {
 		return metadata.name;
 	}
 
 	@Override
-	public @Nullable String author() {
+	public  String author() {
 		return metadata.author;
 	}
 
 	@Override
-	public @Nullable LocalDateTime date() {
+	public  LocalDateTime date() {
 		return metadata.timeCreated;
 	}
 
@@ -150,7 +147,7 @@ public class LitematicaSchematic implements Schematic {
 	 *
 	 * @return The Minecraft data version
 	 */
-	public @Nullable Integer dataVersion() {
+	public  Integer dataVersion() {
 		return minecraftDataVersion;
 	}
 
@@ -159,7 +156,7 @@ public class LitematicaSchematic implements Schematic {
 	 *
 	 * @return The schematic metadata
 	 */
-	public @NotNull Metadata metadata() {
+	public  Metadata metadata() {
 		return metadata;
 	}
 
@@ -181,57 +178,57 @@ public class LitematicaSchematic implements Schematic {
 		/**
 		 * The name of the schematic.
 		 */
-		public @Nullable String name;
+		public  String name;
 
 		/**
 		 * The description of the schematic.
 		 */
-		public @Nullable String description;
+		public  String description;
 
 		/**
 		 * The name of the author of the schematic.
 		 */
-		public @Nullable String author;
+		public  String author;
 
 		/**
 		 * The date that this schematic was created on.
 		 */
-		public @Nullable LocalDateTime timeCreated;
+		public  LocalDateTime timeCreated;
 
 		/**
 		 * The date that this schematic was modified on.
 		 */
-		public @Nullable LocalDateTime timeModified;
+		public  LocalDateTime timeModified;
 
 		/**
 		 * The size of the schematic including all regions.
 		 */
-		public @Nullable SchematicBlockPos enclosingSize;
+		public  SchematicBlockPos enclosingSize;
 
 		/**
 		 * The number of regions inside this schematic.
 		 */
-		public @Nullable Integer regionCount;
+		public  Integer regionCount;
 
 		/**
 		 * The total number of blocks from all the regions that compose this schematic. Does not include air blocks.
 		 */
-		public @Nullable Long totalBlocks;
+		public  Long totalBlocks;
 
 		/**
 		 * The total volume of blocks from all the regions that compose this schematic. This includes air blocks.
 		 */
-		public @Nullable Long totalVolume;
+		public  Long totalVolume;
 
 		/**
 		 * Schematic thumbnail, if available.
 		 */
-		public int @Nullable [] previewImageData;
+		public int  [] previewImageData;
 
 		/**
 		 * Extra metadata not represented in the specification.
 		 */
-		public @NotNull Map<String, Object> extra = new TreeMap<>();
+		public  Map<String, Object> extra = new TreeMap<>();
 
 		public Metadata() {
 		}
@@ -256,17 +253,17 @@ public class LitematicaSchematic implements Schematic {
 		/**
 		 * The region name.
 		 */
-		public @Nullable String name;
+		public  String name;
 
 		/**
 		 * The region position in reference to the schematic origin at (0, 0, 0).
 		 */
-		public @NotNull SchematicBlockPos position = SchematicBlockPos.ZERO;
+		public  SchematicBlockPos position = SchematicBlockPos.ZERO;
 
 		/**
 		 * The region size.
 		 */
-		public @NotNull SchematicBlockPos size = SchematicBlockPos.ZERO;
+		public  SchematicBlockPos size = SchematicBlockPos.ZERO;
 
 		/**
 		 * The encoded (but unpacked) block states. Each index represents a block position and each value represents
@@ -282,34 +279,34 @@ public class LitematicaSchematic implements Schematic {
 		 * @see Region#indexToPos(int) to convert an index to a block position
 		 * @see Region#posToIndex(int, int, int) to convert a block position to an index
 		 */
-		public int @NotNull [] blockStates = new int[0];
+		public int  [] blockStates = new int[0];
 
 		/**
 		 * The block state palette. Each entry in the array represents a unique block state in this schematic region.
 		 * <p>
 		 * The values in {@link Region#blockStates} are indices to this array.
 		 */
-		public SchematicBlock @NotNull [] blockStatePalette = new SchematicBlock[0];
+		public SchematicBlock  [] blockStatePalette = new SchematicBlock[0];
 
 		/**
 		 * The block/tile entities in this schematic region.
 		 */
-		public SchematicBlockEntity @NotNull [] blockEntities = new SchematicBlockEntity[0];
+		public SchematicBlockEntity  [] blockEntities = new SchematicBlockEntity[0];
 
 		/**
 		 * The entities in this schematic region.
 		 */
-		public SchematicEntity @NotNull [] entities = new SchematicEntity[0];
+		public SchematicEntity  [] entities = new SchematicEntity[0];
 
 		/**
 		 * The list of blocks with pending tick calculations.
 		 */
-		public PendingTicks @NotNull [] pendingBlockTicks = new PendingTicks[0];
+		public PendingTicks  [] pendingBlockTicks = new PendingTicks[0];
 
 		/**
 		 * The list of fluids with pending tick calculations.
 		 */
-		public PendingTicks @NotNull [] pendingFluidTicks = new PendingTicks[0];
+		public PendingTicks  [] pendingFluidTicks = new PendingTicks[0];
 
 		public Region() {
 		}
@@ -318,7 +315,7 @@ public class LitematicaSchematic implements Schematic {
 			return x + (z * size.x) + (y * size.x * size.z);
 		}
 
-		public @NotNull SchematicBlockPos indexToPos(int index) {
+		public  SchematicBlockPos indexToPos(int index) {
 			final int x = index % size.x;
 			final int z = (index / size.x) % size.z;
 			final int y = index / (size.x * size.z);
@@ -330,7 +327,7 @@ public class LitematicaSchematic implements Schematic {
 		 *
 		 * @return The region name
 		 */
-		public @Nullable String name() {
+		public  String name() {
 			return name;
 		}
 
@@ -339,7 +336,7 @@ public class LitematicaSchematic implements Schematic {
 		 *
 		 * @return The region position
 		 */
-		public @NotNull SchematicBlockPos position() {
+		public  SchematicBlockPos position() {
 			return position;
 		}
 
@@ -348,7 +345,7 @@ public class LitematicaSchematic implements Schematic {
 		 *
 		 * @return The region size
 		 */
-		public @NotNull SchematicBlockPos size() {
+		public  SchematicBlockPos size() {
 			return size;
 		}
 
@@ -367,7 +364,7 @@ public class LitematicaSchematic implements Schematic {
 		 * @see Region#indexToPos(int) to convert an index to a block position
 		 * @see Region#posToIndex(int, int, int) to convert a block position to an index
 		 */
-		public int @NotNull [] blockStates() {
+		public int  [] blockStates() {
 			return blockStates;
 		}
 
@@ -378,7 +375,7 @@ public class LitematicaSchematic implements Schematic {
 		 *
 		 * @return The block state palette
 		 */
-		public SchematicBlock @NotNull [] blockStatePalette() {
+		public SchematicBlock  [] blockStatePalette() {
 			return blockStatePalette;
 		}
 
@@ -387,7 +384,7 @@ public class LitematicaSchematic implements Schematic {
 		 *
 		 * @return The block entities in this region
 		 */
-		public SchematicBlockEntity @NotNull [] blockEntities() {
+		public SchematicBlockEntity  [] blockEntities() {
 			return blockEntities;
 		}
 
@@ -396,7 +393,7 @@ public class LitematicaSchematic implements Schematic {
 		 *
 		 * @return The entities in this region
 		 */
-		public SchematicEntity @NotNull [] entities() {
+		public SchematicEntity  [] entities() {
 			return entities;
 		}
 
@@ -405,7 +402,7 @@ public class LitematicaSchematic implements Schematic {
 		 *
 		 * @return The blocks pending ticks
 		 */
-		public PendingTicks @NotNull [] pendingBlockTicks() {
+		public PendingTicks  [] pendingBlockTicks() {
 			return pendingBlockTicks;
 		}
 
@@ -414,7 +411,7 @@ public class LitematicaSchematic implements Schematic {
 		 *
 		 * @return The fluids pending ticks
 		 */
-		public PendingTicks @NotNull [] pendingFluidTicks() {
+		public PendingTicks  [] pendingFluidTicks() {
 			return pendingFluidTicks;
 		}
 
@@ -455,31 +452,31 @@ public class LitematicaSchematic implements Schematic {
 		/**
 		 * The pending tick priority.
 		 */
-		public @Nullable Integer priority;
+		public  Integer priority;
 
 		/**
 		 * The sub-tick.
 		 */
-		public @Nullable Long subTick;
+		public  Long subTick;
 
 		/**
 		 * The time.
 		 */
-		public @Nullable Integer time;
+		public  Integer time;
 
 		/**
 		 * The X coordinate inside the region it is found.
 		 */
-		public @Nullable Integer x;
+		public  Integer x;
 
 		/**
 		 * The Y coordinate inside the region it is found.
 		 */
-		public @Nullable Integer y;
+		public  Integer y;
 
 		/**
 		 * The Z coordinate inside the region it is found.
 		 */
-		public @Nullable Integer z;
+		public  Integer z;
 	}
 }

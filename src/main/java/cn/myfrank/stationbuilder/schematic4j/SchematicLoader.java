@@ -8,8 +8,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +38,7 @@ public class SchematicLoader {
 	 * @see SchematicLoader#load(File)
 	 * @see SchematicLoader#load(String)
 	 */
-	public static @NotNull Schematic load(@NotNull InputStream is) throws ParsingException, IOException {
+	public static  Schematic load( InputStream is) throws ParsingException, IOException {
 		final NamedTag rootTag = NBTUtil.Reader.read().from(is);
 		return parse(rootTag);
 	}
@@ -56,7 +54,7 @@ public class SchematicLoader {
 	 * @see SchematicLoader#load(File)
 	 * @see SchematicLoader#load(String)
 	 */
-	public static @NotNull Schematic load(@NotNull Path path) throws ParsingException, IOException {
+	public static  Schematic load( Path path) throws ParsingException, IOException {
 		try (InputStream is = new BufferedInputStream(Files.newInputStream(path))) {
 			return load(is);
 		}
@@ -73,7 +71,7 @@ public class SchematicLoader {
 	 * @see SchematicLoader#load(Path)
 	 * @see SchematicLoader#load(String)
 	 */
-	public static @NotNull Schematic load(@NotNull File file) throws ParsingException, IOException {
+	public static  Schematic load( File file) throws ParsingException, IOException {
 		return load(file.toPath());
 	}
 
@@ -88,7 +86,7 @@ public class SchematicLoader {
 	 * @see SchematicLoader#load(Path)
 	 * @see SchematicLoader#load(File)
 	 */
-	public static @NotNull Schematic load(@NotNull String filePath) throws ParsingException, IOException {
+	public static  Schematic load( String filePath) throws ParsingException, IOException {
 		return load(Paths.get(filePath));
 	}
 
@@ -101,7 +99,7 @@ public class SchematicLoader {
 	 * @return The parsed schematic
 	 * @throws ParsingException in case no supported parses was found or there was a parsing error
 	 */
-	public static @NotNull Schematic parse(@Nullable CompoundTag nbt) throws ParsingException {
+	public static  Schematic parse( CompoundTag nbt) throws ParsingException {
 		SchematicFormat format = SchematicFormat.guessFormat(nbt);
 		log.info("Found format: {}", format);
 
@@ -120,7 +118,7 @@ public class SchematicLoader {
 	 * @return The parsed schematic
 	 * @throws ParsingException in case no supported parses was found or there was a parsing error
 	 */
-	public static @NotNull Schematic parse(@Nullable NamedTag input) throws ParsingException {
+	public static  Schematic parse( NamedTag input) throws ParsingException {
 		CompoundTag nbt = input != null && input.getTag() instanceof CompoundTag ? (CompoundTag) input.getTag() : null;
 
 		// === 核心修复：解开 WorldEdit 生成的包裹层 ===

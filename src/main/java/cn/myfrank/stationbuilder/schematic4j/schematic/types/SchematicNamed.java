@@ -2,16 +2,14 @@ package cn.myfrank.stationbuilder.schematic4j.schematic.types;
 
 import java.util.Comparator;
 
-import org.jetbrains.annotations.NotNull;
-
 public abstract class SchematicNamed implements Comparable<SchematicNamed> {
 
 	/**
 	 * The resource name, usually as a resource identifier like "minecraft:dirt".
 	 */
-	public @NotNull String name;
+	public  String name;
 
-	public SchematicNamed(@NotNull String name) {
+	public SchematicNamed( String name) {
 		this.name = name;
 	}
 
@@ -20,7 +18,7 @@ public abstract class SchematicNamed implements Comparable<SchematicNamed> {
 	 *
 	 * @return The resource name
 	 */
-	public @NotNull String name() {
+	public  String name() {
 		return name;
 	}
 
@@ -45,7 +43,7 @@ public abstract class SchematicNamed implements Comparable<SchematicNamed> {
 	}
 
 	@Override
-	public int compareTo(@NotNull SchematicNamed o) {
+	public int compareTo( SchematicNamed o) {
 		return Comparator.nullsLast(Comparator.<SchematicNamed, String>comparing(obj -> obj.name)).compare(this, o);
 	}
 }

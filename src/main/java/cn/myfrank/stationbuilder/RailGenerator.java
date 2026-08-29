@@ -2,13 +2,13 @@ package cn.myfrank.stationbuilder;
 
 import java.util.ArrayList;
 
-import net.minecraft.world.item.ItemStack;
-import org.jetbrains.annotations.Nullable;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.network.chat.Component;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 
 public class RailGenerator {
     public static void placeFirstRailNode(ServerLevel world, BlockPos pos, Player player) {
@@ -83,7 +83,6 @@ public class RailGenerator {
             // 清除该玩家的轨道建造状态（服务端清除）
             ItemStack stack = player.getMainHandItem();
             RailBuilderState.clear(stack);
-            // stack.remove(DataComponentTypes.CUSTOM_MODEL_DATA);
             return null;
         }
 

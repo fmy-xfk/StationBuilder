@@ -484,7 +484,7 @@ public class StationEditorScreen extends GuiScreen {
             int index = canvas.getSelectedIndex();
             if (index >= 0 && elements.get(index) instanceof PlatformElement p) {
                 p.safetyBlock = e.newId;
-                autoRotate.setVisible(net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(p.safetyBlock).
+                autoRotate.setVisible(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(p.safetyBlock).
                         defaultBlockState().hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING));
             }
         });
@@ -695,7 +695,7 @@ public class StationEditorScreen extends GuiScreen {
             if (name.endsWith(".nbt")) {
                 CompoundTag nbt = NbtIo.readCompressed(file.toPath(), NbtAccounter.unlimitedHeap());
                 StructureTemplate template = new StructureTemplate();
-                template.load(BuiltInRegistries.BLOCK.asLookup(), nbt);
+                template.load(BuiltInRegistries.BLOCK, nbt);
                 return template;
             } else if (name.endsWith(".schem") || name.endsWith(".schematic")) {
                 return SchematicLoaderUtil.loadSchematic(file.toPath());
@@ -770,13 +770,9 @@ public class StationEditorScreen extends GuiScreen {
     private void sendSyncPacket() {
         try {
             int length = Integer.parseInt(lengthField.getText());
-            PlatformServices.sendToServer(StationBuilder.PACKET_SAVE_DATA, StationBuilder.buf(buf -> {
-                buf.writeBlockPos(pos);
-                buf.writeInt(facing.get2DDataValue());
-                buf.writeInt(length);
-                buf.writeInt(elements.size());
-                for (var element : elements) element.write(buf);
-            }));
+            net.neoforged.neoforge.network.PacketDistributor.sendToServer(
+                    new StationBuilder.SaveStationPayload(pos, facing.get2DDataValue(), length, new ArrayList<>(elements))
+            );
         } catch (Exception ignored) {
         }
     }
@@ -784,13 +780,9 @@ public class StationEditorScreen extends GuiScreen {
     private void sendBuildPacket() {
         try {
             int length = Integer.parseInt(lengthField.getText());
-            PlatformServices.sendToServer(StationBuilder.PACKET_BUILD, StationBuilder.buf(buf -> {
-                buf.writeBlockPos(pos);
-                buf.writeInt(facing.get2DDataValue());
-                buf.writeInt(length);
-                buf.writeInt(elements.size());
-                for (var element : elements) element.write(buf);
-            }));
+            net.neoforged.neoforge.network.PacketDistributor.sendToServer(
+                    new StationBuilder.BuildStationPayload(pos, facing.get2DDataValue(), length, new ArrayList<>(elements))
+            );
         } catch (Exception ignored) {
         }
     }

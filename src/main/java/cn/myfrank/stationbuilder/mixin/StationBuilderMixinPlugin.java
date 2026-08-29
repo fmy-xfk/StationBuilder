@@ -15,7 +15,7 @@ public final class StationBuilderMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName.contains(".mtr.")) {
             try {
                 // 1. 尝试使用 LoadingModList 检测。它在 FML 加载的最早期对 MixinConfigPlugin 是可用的
-                return net.minecraftforge.fml.loading.LoadingModList.get().getModFileById("mtr") != null;
+                return net.neoforged.fml.loading.LoadingModList.get().getModFileById("mtr") != null;
             } catch (Throwable e) {
                 try {
                     // 2. 备用安全方案：直接检测 MTR 相关的关键类是否在当前 classpath 下

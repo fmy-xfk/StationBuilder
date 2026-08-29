@@ -1,12 +1,12 @@
 package cn.myfrank.stationbuilder;
 
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.*;
 
@@ -34,14 +34,16 @@ public class PlacerHistoryManager {
         }
     }
 
+    // 压入一次放置前的环境备份
     public static void push(ServerPlayer player, ServerLevel world, Map<BlockPos, SavedBlockState> savedBlocks) {
         LinkedList<UndoStep> steps = HISTORIES.computeIfAbsent(player.getUUID(), k -> new LinkedList<>());
         steps.addFirst(new UndoStep(world.dimension(), savedBlocks));
         if (steps.size() > MAX_STEPS) {
-            steps.removeLast();
+            steps.removeLast(); // 保持最大10步限制
         }
     }
 
+    // 执行回滚还原操作
     public static boolean undo(ServerPlayer player) {
         LinkedList<UndoStep> steps = HISTORIES.get(player.getUUID());
         if (steps == null || steps.isEmpty()) {
@@ -55,11 +57,13 @@ public class PlacerHistoryManager {
             BlockPos pos = entry.getKey();
             SavedBlockState saved = entry.getValue();
 
+            // 还原 BlockState
             world.setBlock(pos, saved.state, 3);
+            // 还原 BlockEntity 的 NBT 状态
             if (saved.nbt != null) {
                 var be = world.getBlockEntity(pos);
                 if (be != null) {
-                    be.load(saved.nbt);
+                    be.loadWithComponents(saved.nbt, world.registryAccess());
                     be.setChanged();
                 }
             }

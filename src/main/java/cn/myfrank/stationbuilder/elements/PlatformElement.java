@@ -69,7 +69,7 @@ public class PlatformElement extends StationElement {
     @Override
     public CompoundTag toNbt() {
         CompoundTag nbt = new CompoundTag();
-        nbt.putString("type", narrationPriority().name()); // PLATFORM
+        nbt.putString("type", getType().name()); // PLATFORM
         nbt.putInt("width", width);
         nbt.putString("safety", safetyBlock.toString());
 
@@ -104,10 +104,10 @@ public class PlatformElement extends StationElement {
         return nbt;
     }
 
-    @Override public Type narrationPriority() { return Type.PLATFORM; }
+    @Override public Type getType() { return Type.PLATFORM; }
     @Override public int getWidth() { return width; }
     @Override public void write(FriendlyByteBuf buf) {
-        buf.writeEnum(narrationPriority());
+        buf.writeEnum(getType());
         buf.writeInt(width);
         buf.writeResourceLocation(safetyBlock);
         for (MixSlot slot : mixSlots) {

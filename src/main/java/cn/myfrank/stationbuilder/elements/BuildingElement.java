@@ -1,42 +1,45 @@
 package cn.myfrank.stationbuilder.elements;
 
 import cn.myfrank.stationbuilder.BuildingTemplateManager;
+import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.block.Rotation;
 
-// 站房：使用预设名称
+// 站房：增加自定义旋转及空气剔除设置
 public class BuildingElement extends StationElement {
     public String presetName;
-    public Rotation rotation = Rotation.NONE;
-    public boolean placeAir = false;
+    public Rotation rotation = Rotation.NONE; // 新增：单体元素旋转
+    public boolean placeAir = false;          // 新增：默认不包含空气 (false)
+
     public BuildingElement(String name) { this.presetName = name; }
 
     @Override
     public CompoundTag toNbt() {
         CompoundTag nbt = new CompoundTag();
-        nbt.putString("type", narrationPriority().name()); // BUILDING
+        nbt.putString("type", getType().name()); // BUILDING
         nbt.putString("preset", presetName);
-        nbt.putString("rotation", rotation.name());
-        nbt.putBoolean("placeAir", placeAir);
+        nbt.putString("rotation", rotation.name()); // 保存旋转角度
+        nbt.putBoolean("placeAir", placeAir);       // 保存空气放置选项
         return nbt;
     }
 
-    @Override public Type narrationPriority() { return Type.BUILDING; }
+    @Override public Type getType() { return Type.BUILDING; }
     @Override public int getWidth() {
+        // 修改：根据当前旋转角度，自动返回正确的物理对齐宽度
         return BuildingTemplateManager.getTemplate(presetName)
                 .map(t -> {
-                    net.minecraft.core.Vec3i size = t.getSize();
+                    Vec3i size = t.getSize();
                     if (rotation == Rotation.CLOCKWISE_90 || rotation == Rotation.COUNTERCLOCKWISE_90) {
-                        return size.getZ();
+                        return size.getZ(); // 旋转 90/270 度时，横向投影大小变为 Z 轴长度
                     } else {
-                        return size.getX();
+                        return size.getX(); // 0/180 度时，横向投影大小为 X 轴长度
                     }
                 })
-                .orElse(8); // 如果没找到模板，默认8宽
+                .orElse(8); // 如果没找到模板，默认 8 宽
     }
     @Override public void write(FriendlyByteBuf buf) {
-        buf.writeEnum(narrationPriority());
+        buf.writeEnum(getType());
         buf.writeUtf(presetName);
         buf.writeEnum(rotation);
         buf.writeBoolean(placeAir);
