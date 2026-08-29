@@ -7,8 +7,12 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.nbt.CompoundTag;
+
+import java.util.List;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.network.chat.Component;
@@ -110,5 +114,13 @@ public class BuildingSelectorItem extends Item {
             return InteractionResultHolder.success(stack);
         }
         return InteractionResultHolder.pass(stack);
+    }
+
+    @Override
+    public void appendHoverText(ItemStack pStack, Level pLevel, List<Component> pTooltipComponents, TooltipFlag pIsAdvanced) {
+        super.appendHoverText(pStack, pLevel, pTooltipComponents, pIsAdvanced);
+        pTooltipComponents.add(Component.translatable("tooltip.stationbuilder.building_selector_line1"));
+        pTooltipComponents.add(Component.translatable("tooltip.stationbuilder.building_selector_line2"));
+        pTooltipComponents.add(Component.translatable("tooltip.stationbuilder.building_selector_line3"));
     }
 }

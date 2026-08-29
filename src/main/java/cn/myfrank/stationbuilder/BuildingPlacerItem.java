@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.core.BlockPos;
@@ -24,6 +25,7 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemp
 import net.minecraft.network.chat.Component;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class BuildingPlacerItem extends Item {
@@ -125,5 +127,13 @@ public class BuildingPlacerItem extends Item {
             return InteractionResultHolder.success(stack);
         }
         return InteractionResultHolder.pass(stack);
+    }
+
+    @Override
+    public void appendHoverText(ItemStack pStack, Level pLevel, List<Component> pTooltipComponents, TooltipFlag pIsAdvanced) {
+        super.appendHoverText(pStack, pLevel, pTooltipComponents, pIsAdvanced);
+        pTooltipComponents.add(Component.translatable("tooltip.stationbuilder.building_placer_line1"));
+        pTooltipComponents.add(Component.translatable("tooltip.stationbuilder.building_placer_line2"));
+        pTooltipComponents.add(Component.translatable("tooltip.stationbuilder.building_placer_line3"));
     }
 }
