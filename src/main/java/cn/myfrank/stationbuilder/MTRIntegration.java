@@ -671,7 +671,14 @@ public class MTRIntegration {
         Rail[] rails = new Rail[count];
         double maxLength = -1.0;
         for (int i = 0; i < count; i++) {
-            var rail = connectRailNodes(uuid, world, startPositions.get(i), endPositions.get(i), config.railType);
+            var pos1 = startPositions.get(i);
+            var pos2 = endPositions.get(i);
+            if (i < count / 2) {
+                var temp = pos1;
+                pos1 = pos2;
+                pos2 = temp;
+            }
+            var rail = connectRailNodes(uuid, world, pos1, pos2, config.railType);
             rails[i] = rail;
             if (rail != null) {
                 maxLength = Math.max(maxLength, rail.railMath.getLength());

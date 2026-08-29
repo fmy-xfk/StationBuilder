@@ -85,7 +85,6 @@ public class StationBuilderBlock extends HorizontalDirectionalBlock implements E
             StationBuilderState.saveFromBlockEntity(stack, be);
             world.addFreshEntity(new ItemEntity(world, pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5, stack));
         }
-        super.playerWillDestroy(world, pos, state, player);
     }
 
     @Nullable

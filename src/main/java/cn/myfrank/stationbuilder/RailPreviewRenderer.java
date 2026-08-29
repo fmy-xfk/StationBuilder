@@ -18,6 +18,9 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.block.Mirror;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -41,6 +44,25 @@ public final class RailPreviewRenderer {
         if (client.player == null || client.level == null) return;
 
         ItemStack stack = client.player.getMainHandItem();
+
+        if (stack.getItem() instanceof BuildingSelectorItem) {
+            BlockPos p1 = BuildingSelectorItem.getPos1(stack);
+            BlockPos p2 = BuildingSelectorItem.getPos2(stack);
+            if (p1 != null || p2 != null) {
+                renderSelectionPreview(event, p1, p2);
+            }
+            return;
+        }
+
+        if (stack.getItem() instanceof BuildingPlacerItem) {
+            HitResult hit = client.hitResult;
+            if (hit instanceof BlockHitResult bhr) {
+                BlockPos pos = bhr.getBlockPos().relative(bhr.getDirection());
+                renderPlacerPreview(event, pos, stack);
+            }
+            return;
+        }
+
         if (!(stack.getItem() instanceof RailBuilderItem)) return;
 
         HitResult hit = client.hitResult;
@@ -51,6 +73,75 @@ public final class RailPreviewRenderer {
         if (!StationBuilder.isSoftTransparent(state)) pos = pos.relative(bhr.getDirection());
 
         renderRailPreview(event, client.player, pos, stack);
+    }
+
+    private static void renderSelectionPreview(RenderLevelStageEvent event, BlockPos p1, BlockPos p2) {
+        Vec3 cam = event.getCamera().getPosition();
+        MultiBufferSource.BufferSource bufferSource = Minecraft.getInstance().renderBuffers().bufferSource();
+        VertexConsumer consumer = bufferSource.getBuffer(RenderType.lines());
+        PoseStack matrices = event.getPoseStack();
+
+        if (p1 != null && p2 != null) {
+            BlockPos min = new BlockPos(
+                    Math.min(p1.getX(), p2.getX()),
+                    Math.min(p1.getY(), p2.getY()),
+                    Math.min(p1.getZ(), p2.getZ())
+            );
+            BlockPos max = new BlockPos(
+                    Math.max(p1.getX(), p2.getX()),
+                    Math.max(p1.getY(), p2.getY()),
+                    Math.max(p1.getZ(), p2.getZ())
+            );
+            AABB box = new AABB(
+                    min.getX(), min.getY(), min.getZ(),
+                    max.getX() + 1, max.getY() + 1, max.getZ() + 1
+            ).move(-cam.x, -cam.y, -cam.z);
+            LevelRenderer.renderLineBox(matrices, consumer, box, 0f, 1f, 0f, 0.4f);
+        } else {
+            BlockPos setPos = p1 != null ? p1 : p2;
+            AABB box = new AABB(setPos).move(-cam.x, -cam.y, -cam.z);
+            LevelRenderer.renderLineBox(matrices, consumer, box, 0f, 1f, 1f, 0.4f);
+        }
+    }
+
+    private static void renderPlacerPreview(RenderLevelStageEvent event, BlockPos targetPos, ItemStack stack) {
+        BuildingPlacerConfig cfg = BuildingPlacerConfig.fromItem(stack);
+        var templateOpt = BuildingTemplateManager.getTemplate(cfg.presetName);
+        if (templateOpt.isPresent()) {
+            StructureTemplate template = templateOpt.get();
+            net.minecraft.core.Vec3i rawSize = template.getSize();
+            BlockPos sizePos = new BlockPos(rawSize.getX(), rawSize.getY(), rawSize.getZ());
+
+            StructurePlaceSettings placementData = new StructurePlaceSettings()
+                    .setRotation(cfg.rotation)
+                    .setMirror(Mirror.NONE);
+
+            BlockPos rotatedSize = StructureTemplate.calculateRelativePosition(placementData, sizePos);
+
+            double minX = targetPos.getX();
+            double minY = targetPos.getY();
+            double minZ = targetPos.getZ();
+
+            double rotatedSizeX = rotatedSize.getX();
+            double rotatedSizeY = rotatedSize.getY();
+            double rotatedSizeZ = rotatedSize.getZ();
+
+            double realMinX = Math.min(minX, minX + rotatedSizeX) + (rotatedSizeX < 0 ? 1 : 0);
+            double realMaxX = Math.max(minX, minX + rotatedSizeX) + (rotatedSizeX < 0 ? 1 : 0);
+
+            double realMinY = Math.min(minY, minY + rotatedSizeY) + (rotatedSizeY < 0 ? 1 : 0);
+            double realMaxY = Math.max(minY, minY + rotatedSizeY) + (rotatedSizeY < 0 ? 1 : 0);
+
+            double realMinZ = Math.min(minZ, minZ + rotatedSizeZ) + (rotatedSizeZ < 0 ? 1 : 0);
+            double realMaxZ = Math.max(minZ, minZ + rotatedSizeZ) + (rotatedSizeZ < 0 ? 1 : 0);
+
+            Vec3 cam = event.getCamera().getPosition();
+            MultiBufferSource.BufferSource bufferSource = Minecraft.getInstance().renderBuffers().bufferSource();
+            VertexConsumer consumer = bufferSource.getBuffer(RenderType.lines());
+            PoseStack matrices = event.getPoseStack();
+            AABB box = new AABB(realMinX, realMinY, realMinZ, realMaxX, realMaxY, realMaxZ).move(-cam.x, -cam.y, -cam.z);
+            LevelRenderer.renderLineBox(matrices, consumer, box, 1f, 0.5f, 0f, 0.4f);
+        }
     }
 
     private static void renderRailPreview(

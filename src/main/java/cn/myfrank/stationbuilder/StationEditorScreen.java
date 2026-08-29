@@ -16,6 +16,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.block.Rotation;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -168,6 +169,24 @@ public class StationEditorScreen extends GuiScreen {
         }
     }, BTN_WIDTH_XL, BTN_HEIGHT, getText("pids"));
 
+    private final GuiButton buildingRotBtn = new GuiButton(Component.translatable("gui.stationbuilder.building_rotation", StationBuilder.getRotName(Rotation.NONE)), b -> {
+        int index = canvas.getSelectedIndex();
+        if (index >= 0 && elements.get(index) instanceof BuildingElement be) {
+            Rotation[] rots = Rotation.values();
+            be.rotation = rots[(be.rotation.ordinal() + 1) % rots.length];
+            b.setMessage(Component.translatable("gui.stationbuilder.building_rotation", StationBuilder.getRotName(be.rotation)));
+            SyncCanvasWithElements(); // 触发画布横向块数重绘
+        }
+    }, 120, BTN_HEIGHT);
+
+    private final GuiButton buildingAirBtn = new GuiButton(Component.translatable("gui.stationbuilder.building_air_off"), b -> {
+        int index = canvas.getSelectedIndex();
+        if (index >= 0 && elements.get(index) instanceof BuildingElement be) {
+            be.placeAir = !be.placeAir;
+            b.setMessage(Component.translatable("gui.stationbuilder.building_air_" + (be.placeAir ? "on" : "off")));
+        }
+    }, 120, BTN_HEIGHT);
+
     private final GuiLabelSlot pidBlockSlot = new GuiLabelSlot(getText("pids_block"), INPUT_WIDTH, INPUT_HEIGHT,
             ResourceLocation.fromNamespaceAndPath("mtr", "pids_1"), false);
     private final GuiLabelSlot pidPoleSlot = new GuiLabelSlot(getText("pids_pole"), INPUT_WIDTH, INPUT_HEIGHT,
@@ -241,6 +260,8 @@ public class StationEditorScreen extends GuiScreen {
             } else if(e instanceof BuildingElement b) {
                 buildingProperties.setVisible(true);
                 buildingPresetField.setText(b.presetName);
+                buildingRotBtn.setMessage(Component.translatable("gui.stationbuilder.building_rotation", StationBuilder.getRotName(b.rotation)));
+                buildingAirBtn.setMessage(Component.translatable("gui.stationbuilder.building_air_" + (b.placeAir ? "on" : "off")));
             } else {
                 emptyProperties.setVisible(true);
             }
@@ -281,17 +302,17 @@ public class StationEditorScreen extends GuiScreen {
         GuiPanel elemOpPanel = new GuiPanel(width, elemOpPanelHeight)
         .addControl(new GuiButton(getText("add_track"), b -> {
             var e = new TrackElement(); elements.add(e);
-            canvas.addRect(e.getWidth() * 3, "T");
+            canvas.addRect(Math.min(e.getWidth(), 20) * 3, "T");
             refreshPropertyArea();
         }, BTN_WIDTH, BTN_HEIGHT))
         .addControl(new GuiButton(getText("add_platform"), b -> {
             var e = new PlatformElement(); elements.add(e);
-            canvas.addRect(e.getWidth() * 3, "P");
+            canvas.addRect(Math.min(e.getWidth(), 20) * 3, "P");
             refreshPropertyArea();
         }, BTN_WIDTH, BTN_HEIGHT))
         .addControl(new GuiButton(getText("add_building"), b -> {
             var e = new BuildingElement("matchbox"); elements.add(e);
-            canvas.addRect(e.getWidth() * 3, "B");
+            canvas.addRect(Math.min(e.getWidth(), 20) * 3, "B");
             refreshPropertyArea();
         }, BTN_WIDTH, BTN_HEIGHT));
 
@@ -583,8 +604,10 @@ public class StationEditorScreen extends GuiScreen {
         buildingPresetField.getTextField().textChanged.clear();
         buildingPresetField.getTextField().textChanged.addHandler((sender, e) -> {
             int index = canvas.getSelectedIndex();
-            if (index >= 0 && elements.get(index) instanceof BuildingElement b)
+            if (index >= 0 && elements.get(index) instanceof BuildingElement b) {
                 b.presetName = e.newText;
+                SyncCanvasWithElements(); // 修改模板名字时，其原本物理大小也可能改变
+            }
         });
 
         // ---- 添加“浏览”按钮（打开列表屏幕） ----
@@ -607,6 +630,8 @@ public class StationEditorScreen extends GuiScreen {
         buildingProperties.addControl(buildingPresetField);
         buildingProperties.addControl(browseButton);
         buildingProperties.addControl(importButton);
+        buildingProperties.addControl(buildingRotBtn); // 载入旋转控制器
+        buildingProperties.addControl(buildingAirBtn); // 载入空气阻断控制器
         return buildingProperties;
     }
 
@@ -700,11 +725,11 @@ public class StationEditorScreen extends GuiScreen {
         canvas.clear();
         for (var element : elements) {
             if (element instanceof PlatformElement p) {
-                canvas.addRect(p.getWidth() * 3, "P");
+                canvas.addRect(Math.min(p.getWidth(), 20) * 3, "P");
             } else if (element instanceof BuildingElement b) {
-                canvas.addRect(b.getWidth() * 3, "B");
+                canvas.addRect(Math.min(b.getWidth(), 20) * 3, "B");
             } else if (element instanceof TrackElement t) {
-                canvas.addRect(t.getWidth() * 3, "T");
+                canvas.addRect(Math.min(t.getWidth(), 20) * 3, "T");
             }
         }
         if (oldIndex >= 0) {

@@ -14,10 +14,12 @@ import org.lwjgl.glfw.GLFW;
 @Mod.EventBusSubscriber(modid = StationBuilder.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class ForgeClientModEvents {
     public static final KeyMapping CLEAR_RAIL_STATE = new KeyMapping("key.stationbuilder.clear_rail_state", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "category.stationbuilder");
+    public static final KeyMapping UNDO_PLACER = new KeyMapping("key.stationbuilder.undo_placer", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_U, "category.stationbuilder");
 
     @SubscribeEvent
     public static void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(CLEAR_RAIL_STATE);
+        event.register(UNDO_PLACER);
         ForgeClientEvents.registerReceivers();
     }
 
