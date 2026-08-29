@@ -99,7 +99,7 @@ public class StationGenerator {
     }
 
     private static void fillTrackGap(ServerLevel world, BlockPos start, Direction facing, Direction right, int length, TrackElement t) {
-        BlockState ballast = BuiltInRegistries.BLOCK.getValue(t.ballastBlock).defaultBlockState();
+        BlockState ballast = BuiltInRegistries.BLOCK.get(t.ballastBlock).defaultBlockState();
         for (int l = 0; l < length; l++) {
             BlockPos P = start.relative(facing, l);
             world.setBlock(P, Blocks.AIR.defaultBlockState(), 3);
@@ -294,7 +294,7 @@ public class StationGenerator {
                 else if (isRightEdge && rightN instanceof TrackElement) trackDirection = right;
 
                 if (trackDirection != null) {
-                    BlockState safetyState = BuiltInRegistries.BLOCK.getValue(p.safetyBlock).defaultBlockState();
+                    BlockState safetyState = BuiltInRegistries.BLOCK.get(p.safetyBlock).defaultBlockState();
                     safetyState = applySmartFacing(safetyState, trackDirection);
                     world.setBlock(pos, safetyState, 3);
                 } else {
@@ -438,7 +438,7 @@ public class StationGenerator {
     }
 
     private static BlockState getSlabState(ResourceLocation slabId, int halfY) {
-        BlockState state = BuiltInRegistries.BLOCK.getValue(slabId).defaultBlockState();
+        BlockState state = BuiltInRegistries.BLOCK.get(slabId).defaultBlockState();
         if (!state.hasProperty(BlockStateProperties.SLAB_TYPE)) {
             return state; // 如果不是半砖，原样返回
         }
@@ -454,7 +454,7 @@ public class StationGenerator {
 
     private static void generateTrack(ServerPlayer player, ServerLevel world, BlockPos start,
               Direction facing, Direction right, int length, TrackElement t) {
-        BlockState ballast = BuiltInRegistries.BLOCK.getValue(t.ballastBlock).defaultBlockState();
+        BlockState ballast = BuiltInRegistries.BLOCK.get(t.ballastBlock).defaultBlockState();
         boolean hasMTR = StationBuilder.isMtrLoaded();
         RailShape shape = (facing.getAxis() == Direction.Axis.X)
                 ? RailShape.EAST_WEST
@@ -497,7 +497,7 @@ public class StationGenerator {
         double current = 0;
         for (var slot : p.mixSlots) {
             current += slot.weight;
-            if (current >= r) return BuiltInRegistries.BLOCK.getValue(slot.blockId).defaultBlockState();
+            if (current >= r) return BuiltInRegistries.BLOCK.get(slot.blockId).defaultBlockState();
         }
         return Blocks.SMOOTH_STONE.defaultBlockState();
     }
@@ -513,7 +513,7 @@ public class StationGenerator {
 
     private static void generatePillars(ServerLevel world, Direction facing, BlockPos pos, int w,
             PlatformElement p, StationElement leftN, StationElement rightN, int totalHalfY, boolean frontLight, boolean backLight) {
-        BlockState pillarState = BuiltInRegistries.BLOCK.getValue(p.pillarBlockId).defaultBlockState();
+        BlockState pillarState = BuiltInRegistries.BLOCK.get(p.pillarBlockId).defaultBlockState();
 
         // 计算支柱顶部的 Y 偏移量（相对于站台表面）
         // 逻辑：如果 totalHalfY 是 10 (5.0格, 下半砖)，支柱应到 4格处；
@@ -548,7 +548,7 @@ public class StationGenerator {
             }
         }
         if (buildHere) {
-            BlockState lightState = BuiltInRegistries.BLOCK.getValue(p.lightBlockId).defaultBlockState();
+            BlockState lightState = BuiltInRegistries.BLOCK.get(p.lightBlockId).defaultBlockState();
             if (frontLight) world.setBlock(pos.above(pillarTopRelY).relative(facing), lightState, 3);
             if (backLight) world.setBlock(pos.above(pillarTopRelY).relative(facing.getOpposite()), lightState, 3);
         }

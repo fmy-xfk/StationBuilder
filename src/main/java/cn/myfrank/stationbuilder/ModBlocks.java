@@ -6,8 +6,6 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
@@ -45,5 +43,5 @@ public class ModBlocks {
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<StationBuilderBlockEntity>> STATION_BUILDER_ENTITY =
             BLOCK_ENTITY_TYPES.register("station_builder_be",
-                    () -> new BlockEntityType<>(StationBuilderBlockEntity::new, STATION_BUILDER.get()));
+                    () -> BlockEntityType.Builder.of(StationBuilderBlockEntity::new, STATION_BUILDER.get()).build(null));
 }

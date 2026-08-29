@@ -5,18 +5,15 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.ShapeRenderer;
+import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -32,7 +29,6 @@ import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
-import net.neoforged.neoforge.network.handling.IPayloadHandler;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import org.joml.Matrix4f;
 
@@ -173,11 +169,11 @@ public class StationBuilderClient {
                     min.getX(), min.getY(), min.getZ(),
                     max.getX() + 1, max.getY() + 1, max.getZ() + 1
             ).move(-cam.x, -cam.y, -cam.z);
-            ShapeRenderer.renderLineBox(poseStack, consumer, box, 0f, 1f, 0f, 0.4f); // 绿色高亮
+            LevelRenderer.renderLineBox(poseStack, consumer, box, 0f, 1f, 0f, 0.4f); // 绿色高亮
         } else {
             BlockPos setPos = p1 != null ? p1 : p2;
             AABB box = new AABB(setPos).move(-cam.x, -cam.y, -cam.z);
-            ShapeRenderer.renderLineBox(poseStack, consumer, box, 0f, 1f, 1f, 0.4f); // 青色高亮单个方块
+            LevelRenderer.renderLineBox(poseStack, consumer, box, 0f, 1f, 1f, 0.4f); // 青色高亮单个方块
         }
     }
 
@@ -188,11 +184,6 @@ public class StationBuilderClient {
             StructureTemplate template = templateOpt.get();
             Vec3i rawSize = template.getSize();
             BlockPos sizePos = new BlockPos(rawSize.getX(), rawSize.getY(), rawSize.getZ());
-
-            StructurePlaceSettings placementData = new StructurePlaceSettings()
-                    .setRotation(cfg.rotation)
-                    .setMirror(net.minecraft.world.level.block.Mirror.NONE);
-
             BlockPos rotatedSize = StructureTemplate.transform(sizePos, net.minecraft.world.level.block.Mirror.NONE, cfg.rotation, BlockPos.ZERO);
 
             double minX = targetPos.getX();
@@ -214,7 +205,7 @@ public class StationBuilderClient {
             VertexConsumer consumer = Minecraft.getInstance().renderBuffers().bufferSource().getBuffer(RenderType.lines());
             PoseStack poseStack = event.getPoseStack();
             AABB box = new AABB(realMinX, realMinY, realMinZ, realMaxX, realMaxY, realMaxZ).move(-cam.x, -cam.y, -cam.z);
-            ShapeRenderer.renderLineBox(poseStack, consumer, box, 1f, 0.5f, 0f, 0.4f);
+            LevelRenderer.renderLineBox(poseStack, consumer, box, 1f, 0.5f, 0f, 0.4f);
         }
     }
 
@@ -379,7 +370,7 @@ public class StationBuilderClient {
     private static void drawBox(PoseStack poseStack, VertexConsumer consumer, BlockPos pos, Vec3 cam,
                                 float r, float g, float b, float a) {
         AABB box = new AABB(pos).move(-cam.x, -cam.y, -cam.z);
-        ShapeRenderer.renderLineBox(poseStack, consumer, box, r, g, b, a);
+        LevelRenderer.renderLineBox(poseStack, consumer, box, r, g, b, a);
     }
 
     private static Vec3 getPreviewCenterPos(List<BlockPos> lastNodes, BlockPos anchor) {

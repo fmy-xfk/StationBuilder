@@ -484,7 +484,7 @@ public class StationEditorScreen extends GuiScreen {
             int index = canvas.getSelectedIndex();
             if (index >= 0 && elements.get(index) instanceof PlatformElement p) {
                 p.safetyBlock = e.newId;
-                autoRotate.setVisible(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(p.safetyBlock).
+                autoRotate.setVisible(net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(p.safetyBlock).
                         defaultBlockState().hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING));
             }
         });
@@ -695,7 +695,7 @@ public class StationEditorScreen extends GuiScreen {
             if (name.endsWith(".nbt")) {
                 CompoundTag nbt = NbtIo.readCompressed(file.toPath(), NbtAccounter.unlimitedHeap());
                 StructureTemplate template = new StructureTemplate();
-                template.load(BuiltInRegistries.BLOCK, nbt);
+                template.load(BuiltInRegistries.BLOCK.asLookup(), nbt);
                 return template;
             } else if (name.endsWith(".schem") || name.endsWith(".schematic")) {
                 return SchematicLoaderUtil.loadSchematic(file.toPath());

@@ -89,7 +89,7 @@ public class MTRIntegration {
     }
 
     public static void placePIDSPole(ServerLevel world, BlockPos pos, Direction facing, ResourceLocation poleId) {
-        var state = BuiltInRegistries.BLOCK.getValue(poleId).defaultBlockState();
+        var state = BuiltInRegistries.BLOCK.get(poleId).defaultBlockState();
         if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING)) {
                 state = state.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING, facing);
             } else if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING)) {
@@ -99,7 +99,7 @@ public class MTRIntegration {
     }
 
     public static boolean placePIDS(ServerLevel world, BlockPos pos, Direction facing, ResourceLocation blockId) {
-        var pids = BuiltInRegistries.BLOCK.getValue(blockId);
+        var pids = BuiltInRegistries.BLOCK.get(blockId);
         world.setBlock(
                 pos,
                 pids.defaultBlockState().setValue(HorizontalDirectionalBlock.FACING, facing),
@@ -115,7 +115,7 @@ public class MTRIntegration {
     }
 
     public static boolean placePsdItem(ServerLevel world, BlockPos pos, Direction facing, ResourceLocation blockId) {
-        var itemRaw = BuiltInRegistries.ITEM.getValue(blockId);
+        var itemRaw = BuiltInRegistries.ITEM.get(blockId);
         if (itemRaw instanceof ItemPSDAPGBase item) {
             ItemPSDAPGBaseAccessor accessor = (ItemPSDAPGBaseAccessor) item;
             var psdItem = accessor.item_();
@@ -197,14 +197,14 @@ public class MTRIntegration {
     }
 
     public static boolean isValidRailType(ResourceLocation railType) {
-        var itemRaw = BuiltInRegistries.ITEM.getValue(railType);
+        var itemRaw = BuiltInRegistries.ITEM.get(railType);
         return itemRaw instanceof ItemRailModifier;
     }
     
     public static Rail connectRailNodes(
             UUID uuid, ServerLevel world, BlockPos a, BlockPos b, ResourceLocation railType
     ) {
-        var itemRaw = BuiltInRegistries.ITEM.getValue(railType);
+        var itemRaw = BuiltInRegistries.ITEM.get(railType);
         if (itemRaw instanceof ItemRailModifier modifier) {
             return connectRailNodes(uuid, world, a, b, modifier);
         } else {
@@ -336,7 +336,7 @@ public class MTRIntegration {
     }
 
     private static void drawLine(ServerLevel world, BlockPos a, BlockPos b, ResourceLocation lineBlock) {
-        var state = BuiltInRegistries.BLOCK.getValue(lineBlock).defaultBlockState();
+        var state = BuiltInRegistries.BLOCK.get(lineBlock).defaultBlockState();
         int x1 = a.getX(), y1 = a.getY(), z1 = a.getZ();
         int x2 = b.getX(), y2 = b.getY(), z2 = b.getZ();
 
@@ -372,7 +372,7 @@ public class MTRIntegration {
     }
 
     private static void buildPillarDown(ServerLevel world, BlockPos topPos, ResourceLocation pillarBlock) {
-        var state = BuiltInRegistries.BLOCK.getValue(pillarBlock).defaultBlockState();
+        var state = BuiltInRegistries.BLOCK.get(pillarBlock).defaultBlockState();
         BlockPos pos = topPos;
         while(!world.isOutsideBuildHeight(pos) && StationBuilder.isSoftTransparent(world.getBlockState(pos))) {
             world.setBlock(pos, state, 3);
@@ -498,7 +498,7 @@ public class MTRIntegration {
                     isRightest? halfWidth: halfTopWidth);
             for(var block: blockXZs) {
                 var pos = new BlockPos(block.x(), blockY, block.z());
-                world.setBlock(pos, BuiltInRegistries.BLOCK.getValue(config.ballastBlock).defaultBlockState(), 3);
+                world.setBlock(pos, BuiltInRegistries.BLOCK.get(config.ballastBlock).defaultBlockState(), 3);
             }
         }
     }
@@ -519,7 +519,7 @@ public class MTRIntegration {
             for (int i = 0; i < bridgeXZs.size(); i++) {
                 var block = bridgeXZs.get(i);
                 int x = block.x(), z = block.z();
-                var bridgeBlockState = BuiltInRegistries.BLOCK.getValue(config.bridgeBlock).defaultBlockState();
+                var bridgeBlockState = BuiltInRegistries.BLOCK.get(config.bridgeBlock).defaultBlockState();
                 if ((isLeftest && i == 0) || (isRightest && i == bridgeXZs.size() - 1)) {
                     var pos = new BlockPos(x, blockY - 1, z);
                     if (!isRailNode(world, pos)) {
@@ -527,14 +527,14 @@ public class MTRIntegration {
                     }
                     var posU = new BlockPos(x, blockY, z);
                     if (!isRailNode(world, posU)) {
-                        world.setBlock(posU, BuiltInRegistries.BLOCK.getValue(config.bridgeGuardRailBlock).defaultBlockState(), 3);
+                        world.setBlock(posU, BuiltInRegistries.BLOCK.get(config.bridgeGuardRailBlock).defaultBlockState(), 3);
                         overpass_walls.add(posU);
                     }
                 } else {
                     var posD = new BlockPos(x, blockY - 2, z);
                     world.setBlock(posD, bridgeBlockState, 3);
                     var pos = new BlockPos(x, blockY - 1, z);
-                    world.setBlock(pos, BuiltInRegistries.BLOCK.getValue(config.ballastBlock).defaultBlockState(), 3);
+                    world.setBlock(pos, BuiltInRegistries.BLOCK.get(config.ballastBlock).defaultBlockState(), 3);
                     var posU = new BlockPos(x, blockY, z);
                     if (!isRailNode(world, posU)) {
                         clearBlock(world, posU, clearCatenary);
@@ -548,7 +548,7 @@ public class MTRIntegration {
                         int solidCount = 0;
                         while(solidCount < 3 && !world.isOutsideBuildHeight(pos)) {
                             if (StationBuilder.isSoftTransparent(world.getBlockState(pos))) {
-                                world.setBlock(pos, BuiltInRegistries.BLOCK.getValue(config.bridgePillarBlock).defaultBlockState(), 3);
+                                world.setBlock(pos, BuiltInRegistries.BLOCK.get(config.bridgePillarBlock).defaultBlockState(), 3);
                                 solidCount = 0;
                             } else {
                                 solidCount++;
@@ -567,16 +567,16 @@ public class MTRIntegration {
                 int x = block.x(), z = block.z();
                 var posTop = new BlockPos(x, blockY + config.tunnelHeight, z);
                 if (!isRailNode(world, posTop)) {
-                    world.setBlock(posTop, BuiltInRegistries.BLOCK.getValue(config.tunnelWallBlock).defaultBlockState(), 3);
+                    world.setBlock(posTop, BuiltInRegistries.BLOCK.get(config.tunnelWallBlock).defaultBlockState(), 3);
                 }
                 var posBottom = new BlockPos(x, blockY - 1, z);
                 if (!isRailNode(world, posBottom)) {
-                    world.setBlock(posBottom, BuiltInRegistries.BLOCK.getValue(config.ballastBlock).defaultBlockState(), 3);
+                    world.setBlock(posBottom, BuiltInRegistries.BLOCK.get(config.ballastBlock).defaultBlockState(), 3);
                 }
                 if ((isLeftest && i == 0) || (isRightest && i == tunnelXZs.size() - 1)) {
                     for(int y = 0; y < config.tunnelHeight; y++) {
                         world.setBlock(new BlockPos(x, blockY + y, z),
-                                BuiltInRegistries.BLOCK.getValue(config.tunnelWallBlock).defaultBlockState(), 3);
+                                BuiltInRegistries.BLOCK.get(config.tunnelWallBlock).defaultBlockState(), 3);
                     }
                 } else {
                     for(int y = 0; y < config.tunnelHeight; y++) {
@@ -591,7 +591,7 @@ public class MTRIntegration {
                 int x = block.x(), z = block.z();
                 var pos = new BlockPos(x, blockY - 1, z);
                 if (!isRailNode(world, pos)) {
-                    world.setBlock(pos, BuiltInRegistries.BLOCK.getValue(config.ballastBlock).defaultBlockState(), 3);
+                    world.setBlock(pos, BuiltInRegistries.BLOCK.get(config.ballastBlock).defaultBlockState(), 3);
                 }
             }
         }

@@ -99,7 +99,7 @@ public class SchematicLoaderUtil {
         nbt.put("entities", new ListTag());
 
         StructureTemplate template = new StructureTemplate();
-        template.load(BuiltInRegistries.BLOCK, nbt);
+        template.load(BuiltInRegistries.BLOCK.asLookup(), nbt);
 
         return template;
     }
@@ -115,7 +115,7 @@ public class SchematicLoaderUtil {
         ResourceLocation id = ResourceLocation.tryParse(blockId);
         if (id == null) return Blocks.AIR.defaultBlockState();
 
-        var block = BuiltInRegistries.BLOCK.getValue(id);
+        var block = BuiltInRegistries.BLOCK.get(id);
 
         // 如果注册表中找不到这个方块 (比如旧版模组的方块)，则用空气替代
         if (block == null || (block == Blocks.AIR && !blockId.equals("minecraft:air"))) {

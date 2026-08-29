@@ -63,8 +63,8 @@ public class GhostSlot extends GuiControl implements GhostSlotLike {
             context.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, borderColor);
             context.fill(x + 1, y + 1, x + SLOT_SIZE - 1, y + SLOT_SIZE - 1, 0xFF222222);
             
-            var t = BuiltInRegistries.ITEM.getValue(blockId);
-            context.renderItem(new ItemStack(t == Items.AIR ? BuiltInRegistries.BLOCK.getValue(blockId): t), x + 1, y + 1);
+            var t = BuiltInRegistries.ITEM.get(blockId);
+            context.renderItem(new ItemStack(t == Items.AIR ? BuiltInRegistries.BLOCK.get(blockId): t), x + 1, y + 1);
             if (hovered) {
                 context.fill(x + 1, y + 1, x + SLOT_SIZE - 1, y + SLOT_SIZE - 1, 0x88FFFFFF); // 高亮
             }
