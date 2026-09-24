@@ -55,18 +55,11 @@ public class StationEditorScreen extends GuiScreen {
             getText("ballast"), INPUT_WIDTH, INPUT_HEIGHT,
             ResourceLocation.fromNamespaceAndPath("minecraft", "andesite"), false
     );
+    private final GuiLabelSlot trackBlockField = new GuiLabelSlot(
+            getText("track"), INPUT_WIDTH, INPUT_HEIGHT,
+            TrackElement.getDefaultTrack(), false
+    );
     private final GuiLabel autoRotate = new GuiLabel(getText("auto_rotate"));
-    private final GuiButton useMtrTrackButton = new GuiButton(getText("mtr_on"), b -> {
-        int index = canvas.getSelectedIndex();
-        if (index >= 0 && elements.get(index) instanceof TrackElement t) {
-            t.isMtrTrack = !t.isMtrTrack;
-            if (t.isMtrTrack) {
-                b.setMessage(getText("mtr_on"));
-            }else{
-                b.setMessage(getText("mtr_off"));
-            }
-        }
-    }, BTN_WIDTH_XL, BTN_HEIGHT);
     private final GuiLabelTextField platformLengthField = new GuiLabelTextField(getText("width"), INPUT_WIDTH_S,
             INPUT_HEIGHT, Component.literal("9"));
     private final GuiLabelSlot platformSafetyField = new GuiLabelSlot(
@@ -227,7 +220,7 @@ public class StationEditorScreen extends GuiScreen {
             if (e instanceof TrackElement t) {
                 trackProperties.setVisible(true);
                 trackBallastField.setBlockId(t.ballastBlock);
-                useMtrTrackButton.setMessage(t.isMtrTrack?getText("mtr_on"):getText("mtr_off"));
+                trackBlockField.setBlockId(t.track);
             } else if(e instanceof PlatformElement p) {
                 platformProperties.setVisible(true);
                 platformLengthField.setText(String.valueOf(p.width));
@@ -383,7 +376,15 @@ public class StationEditorScreen extends GuiScreen {
             }
         });
 
-        trackProperties.addControl(trackBallastField).addControl(useMtrTrackButton);
+        trackBlockField.slotChanged.clear();
+        trackBlockField.slotChanged.addHandler((sender, e) -> {
+            int index = canvas.getSelectedIndex();
+            if (index >= 0 && elements.get(index) instanceof TrackElement t) {
+                t.track = e.newId;
+            }
+        });
+
+        trackProperties.addControl(trackBallastField).addControl(trackBlockField);
         return trackProperties;
     }
 

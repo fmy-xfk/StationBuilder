@@ -456,18 +456,35 @@ public class StationGenerator {
               Direction facing, Direction right, int length, TrackElement t) {
         BlockState ballast = BuiltInRegistries.BLOCK.get(t.ballastBlock).defaultBlockState();
         boolean hasMTR = StationBuilder.isMtrLoaded();
+        boolean hasCreate = StationBuilder.isCreateLoaded();
+        
         RailShape shape = (facing.getAxis() == Direction.Axis.X)
                 ? RailShape.EAST_WEST
                 : RailShape.NORTH_SOUTH;
-
         BlockState railState = Blocks.RAIL.defaultBlockState().setValue(BlockStateProperties.RAIL_SHAPE, shape);
+        if (t.track.getNamespace().equals("mtr") && hasMTR) {
+            railState = null;
+        } else if (t.track.getNamespace().equals("create") && hasCreate) {
+            if (!t.track.getPath().equals("track")) {
+                player.sendSystemMessage(Component.translatable("gui.stationbuilder.bad_rail_msg", t.track.getPath()));
+            }else{
+                railState = CreateIntegration.getTrackBlockState(facing);
+            }
+        } else {
+            try {
+                railState = BuiltInRegistries.BLOCK.get(t.track).defaultBlockState().setValue(BlockStateProperties.RAIL_SHAPE, shape);
+            } catch (Exception e) {
+                player.sendSystemMessage(Component.translatable("gui.stationbuilder.bad_rail_msg", t.track.getPath()));
+            }
+        }
+        
         for (int l = 0; l < length; l++) {
             BlockPos L = start.relative(facing, l);
             BlockPos M = L.relative(right);
             BlockPos R = M.relative(right);
             world.setBlock(L, Blocks.AIR.defaultBlockState(), 3);
             world.setBlock(L.below(), ballast, 3);
-            if (!(t.isMtrTrack && hasMTR)) {
+            if (railState != null) {
                 world.setBlock(M, railState, 3);
             }
             world.setBlock(M.below(), ballast, 3);
@@ -475,7 +492,7 @@ public class StationGenerator {
             world.setBlock(R.below(), ballast, 3);
 
         }
-        if (t.isMtrTrack && hasMTR) {
+        if (railState == null && hasMTR) {
             BlockPos nodeStart = start.relative(right, 1);
             BlockPos nodeEnd = nodeStart.relative(facing, length - 1);
             var playerUuid = player.getUUID();
@@ -483,7 +500,7 @@ public class StationGenerator {
                 // 延迟一个tick，以确保其他方块onBreak能被正确执行
                 MTRIntegration.placeRailNode(world, nodeStart, facing);
                 MTRIntegration.placeRailNode(world, nodeEnd, facing);
-                MTRIntegration.connectRailNodes(playerUuid, world, nodeStart, nodeEnd, 0);
+                MTRIntegration.connectRailNodes(playerUuid, world, nodeStart, nodeEnd, t.track);
             });
         }
     }

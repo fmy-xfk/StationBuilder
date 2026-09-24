@@ -18,7 +18,7 @@ public abstract class StationElement {
                 TrackElement track = new TrackElement();
                 if (nbt.contains("ballast")) {
                     track.ballastBlock = ResourceLocation.parse(nbt.getString("ballast"));
-                    track.isMtrTrack = nbt.getBoolean("isMtrTrack");
+                    track.track= ResourceLocation.parse(nbt.getString("track"));
                 }
                 return track;
 
@@ -87,7 +87,7 @@ public abstract class StationElement {
             case TRACK -> {
                 TrackElement track = new TrackElement();
                 track.ballastBlock = buf.readResourceLocation();
-                track.isMtrTrack = buf.readBoolean();
+                track.track = buf.readResourceLocation();
                 yield track;
             }
             case PLATFORM -> {
