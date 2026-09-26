@@ -311,10 +311,6 @@ public class MTRIntegration {
         return null;
     }
 
-    private static void clearBlock(ServerLevel world, BlockPos pos, boolean includeCatenary) {
-        world.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
-    }
-
     private static Vec3 toVec3d(Vector v) {
         return new Vec3(v.x(), v.y(), v.z());
     }

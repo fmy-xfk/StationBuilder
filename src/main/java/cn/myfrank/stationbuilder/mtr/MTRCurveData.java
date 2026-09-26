@@ -5,7 +5,7 @@ import net.minecraft.world.phys.Vec3;
 import org.mtr.core.data.RailMath;
 
 public class MTRCurveData implements CurveData {
-    private RailMath math;
+    private final RailMath math;
     public MTRCurveData(RailMath math) {
         this.math = math;
     }
