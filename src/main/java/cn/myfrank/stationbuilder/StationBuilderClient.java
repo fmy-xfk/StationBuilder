@@ -1,10 +1,10 @@
 package cn.myfrank.stationbuilder;
 
+import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.generator.RailGenerator;
 import cn.myfrank.stationbuilder.items.*;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
-import cn.myfrank.stationbuilder.mtr.MTRRailMath;
 import cn.myfrank.stationbuilder.screens.BuildingPlacerScreen;
 import cn.myfrank.stationbuilder.screens.BuildingSelectorScreen;
 import cn.myfrank.stationbuilder.screens.RailBuilderScreen;
@@ -14,8 +14,8 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -29,10 +29,10 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
@@ -131,7 +131,7 @@ public class StationBuilderClient {
                 return;
             }
 
-            // 3. RailBuilder 渲染
+            // 3. RailBuilder 几何线条渲染
             if (stack.getItem() instanceof RailBuilderItem) {
                 if (bhr == null) return;
                 var state = client.level.getBlockState(bhr.getBlockPos());
@@ -139,7 +139,7 @@ public class StationBuilderClient {
                 if (!StationBuilder.isSoftTransparent(state)) pos = pos.relative(bhr.getDirection());
                 renderRailPreviewGeometry(event, client.player, pos, stack);
             }
-        } else { // AFTER_TRANSLUCENTS
+        } else { // AFTER_TRANSLUCENT_BLOCKS
             if (!(stack.getItem() instanceof RailBuilderItem)) return;
             if (bhr == null) return;
             var state = client.level.getBlockState(bhr.getBlockPos());
@@ -178,11 +178,11 @@ public class StationBuilderClient {
                     min.getX(), min.getY(), min.getZ(),
                     max.getX() + 1, max.getY() + 1, max.getZ() + 1
             ).move(-cam.x, -cam.y, -cam.z);
-            LevelRenderer.renderLineBox(poseStack, consumer, box, 0f, 1f, 0f, 0.4f); // 绿色高亮
+            LevelRenderer.renderLineBox(poseStack, consumer, box, 0f, 1f, 0f, 0.4f);
         } else {
             BlockPos setPos = p1 != null ? p1 : p2;
             AABB box = new AABB(setPos).move(-cam.x, -cam.y, -cam.z);
-            LevelRenderer.renderLineBox(poseStack, consumer, box, 0f, 1f, 1f, 0.4f); // 青色高亮单个方块
+            LevelRenderer.renderLineBox(poseStack, consumer, box, 0f, 1f, 1f, 0.4f);
         }
     }
 
@@ -219,8 +219,9 @@ public class StationBuilderClient {
     }
 
     private static void renderRailPreviewGeometry(RenderLevelStageEvent event, Player player, BlockPos targetPos, ItemStack stack) {
+        RailBuilderConfig config = RailBuilderConfig.fromItem(stack);
         ArrayList<BlockPos> nodes = RailGenerator.calcRailNodes(
-                targetPos, player.getYRot(), RailBuilderConfig.fromItem(stack)
+                targetPos, player.getYRot(), config
         );
         if (nodes == null) return;
 
@@ -243,8 +244,35 @@ public class StationBuilderClient {
             return;
         }
 
-        MTRRailMath.adjustPointSequence(lastNodes, nodes);
+        Minecraft client = Minecraft.getInstance();
+        boolean nodesAlive = true;
+        for (BlockPos lastNode : lastNodes) {
+            if (!RailGenerator.isRailNode(client.level, lastNode)) {
+                nodesAlive = false;
+                break;
+            }
+        }
+
+        if (!nodesAlive) {
+            // 1. 本地客户端立即清除组件状态，下一次 tick / 渲染不再进入连线逻辑
+            RailBuilderState.clear(stack);
+            // 2. 发包通知服务端同步清除玩家手持物品的 NBT / Component 状态
+            PacketDistributor.sendToServer(new StationBuilder.ClearRailStatePayload());
+
+            // 3. 回退到单点预览绘制
+            for (BlockPos node : nodes) {
+                drawBox(poseStack, consumer, node, cam, 0f, 1f, 1f, 0.6f);
+            }
+            return;
+        }
+        // ==================================================================
+
+        // 使用安全的非 MTR 依赖方法进行多线序列对齐
+        RailGenerator.adjustPointSequence(lastNodes, nodes);
         float angle = player.getYRot();
+
+        // 根据配置选中的铁轨物品类型判定属于哪个模组
+        RailGenerator.RailNodeType railType = RailGenerator.getRailNodeType(config);
 
         for (int i = 0; i < lastNodes.size(); ++i) {
             var node = nodes.get(i);
@@ -253,7 +281,8 @@ public class StationBuilderClient {
             drawBox(poseStack, consumer, lastNode, cam, 0f, 1f, 1f, 0.6f);
             drawBox(poseStack, consumer, node, cam, 0f, 1f, 1f, 0.6f);
 
-            if (StationBuilder.isMtrLoaded()) {
+            // 1. MTR 铁轨
+            if (railType == RailGenerator.RailNodeType.MTR && StationBuilder.isMtrLoaded()) {
                 var preview = previewCache.get(
                         lastNode, MTRIntegration.parseAngle(lastAngle),
                         node, MTRIntegration.parseAngle(angle)
@@ -266,7 +295,14 @@ public class StationBuilderClient {
                             preview
                     );
                 }
-                if (preview != null && preview.success()) {
+                if (preview.success()) {
+                    renderCurve(poseStack, Minecraft.getInstance().renderBuffers().bufferSource(), event.getCamera(), preview.positions());
+                }
+            }
+            // 2. Create 铁轨
+            else if (railType == RailGenerator.RailNodeType.CREATE && StationBuilder.isCreateLoaded()) {
+                var preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle);
+                if (preview.success()) {
                     renderCurve(poseStack, Minecraft.getInstance().renderBuffers().bufferSource(), event.getCamera(), preview.positions());
                 }
             }
@@ -274,8 +310,9 @@ public class StationBuilderClient {
     }
 
     private static void renderRailPreviewText(RenderLevelStageEvent event, Player player, BlockPos targetPos, ItemStack stack) {
+        RailBuilderConfig config = RailBuilderConfig.fromItem(stack);
         ArrayList<BlockPos> nodes = RailGenerator.calcRailNodes(
-                targetPos, player.getYRot(), RailBuilderConfig.fromItem(stack)
+                targetPos, player.getYRot(), config
         );
         if (nodes == null) return;
 
@@ -289,7 +326,7 @@ public class StationBuilderClient {
             return;
         }
 
-        MTRRailMath.adjustPointSequence(lastNodes, nodes);
+        RailGenerator.adjustPointSequence(lastNodes, nodes);
         float angle = player.getYRot();
 
         Vec3 textPos = getPreviewCenterPos(lastNodes, targetPos);
@@ -298,29 +335,43 @@ public class StationBuilderClient {
         double minRadius = 1e9, minLength = 1e9;
         int successCount = 0;
 
+        RailGenerator.RailNodeType railType = RailGenerator.getRailNodeType(config);
+
         for (int i = 0; i < lastNodes.size(); ++i) {
             var lastNode = lastNodes.get(i);
             var node = nodes.get(i);
 
-            if (!StationBuilder.isMtrLoaded()) continue;
-
-            var preview = previewCache.get(
-                    lastNode, MTRIntegration.parseAngle(lastAngle),
-                    node, MTRIntegration.parseAngle(angle)
-            );
-            if (preview == null) {
-                preview = MTRIntegration.testConnectRailNodes(lastAngle, angle, lastNode, node);
-                previewCache.put(
+            // MTR 模式收集曲线信息
+            if (railType == RailGenerator.RailNodeType.MTR && StationBuilder.isMtrLoaded()) {
+                var preview = previewCache.get(
                         lastNode, MTRIntegration.parseAngle(lastAngle),
-                        node, MTRIntegration.parseAngle(angle),
-                        preview
+                        node, MTRIntegration.parseAngle(angle)
                 );
-            }
+                if (preview == null) {
+                    preview = MTRIntegration.testConnectRailNodes(lastAngle, angle, lastNode, node);
+                    previewCache.put(
+                            lastNode, MTRIntegration.parseAngle(lastAngle),
+                            node, MTRIntegration.parseAngle(angle),
+                            preview
+                    );
+                }
 
-            if (preview != null && preview.success()) {
-                successCount += 1;
-                if (preview.radius() > 0) {
-                    minRadius = Math.min(minRadius, preview.radius());
+                if (preview.success()) {
+                    successCount += 1;
+                    if (preview.radius() > 0) {
+                        minRadius = Math.min(minRadius, preview.radius());
+                        minLength = Math.min(minLength, preview.length());
+                    }
+                }
+            }
+            // Create 模式收集曲线信息
+            else if (railType == RailGenerator.RailNodeType.CREATE && StationBuilder.isCreateLoaded()) {
+                var preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle);
+                if (preview.success()) {
+                    successCount += 1;
+                    if (preview.radius() > 0) {
+                        minRadius = Math.min(minRadius, preview.radius());
+                    }
                     minLength = Math.min(minLength, preview.length());
                 }
             }
@@ -336,7 +387,7 @@ public class StationBuilderClient {
         }
 
         if (successCount > 0) {
-            if (minRadius < 1e9) {
+            if (minRadius < 1e9 && minRadius > 0) {
                 extras += Component.translatable(
                         "message.stationbuilder.rail_builder.min_radius",
                         String.format("%.2f", minRadius),

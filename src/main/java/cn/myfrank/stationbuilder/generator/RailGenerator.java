@@ -1,6 +1,7 @@
 package cn.myfrank.stationbuilder.generator;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.UUID;
 
 import cn.myfrank.stationbuilder.utils.CurveData;
@@ -21,6 +22,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.WallBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -63,7 +65,7 @@ public class RailGenerator {
         }
     }
 
-    public static boolean isRailNode(ServerLevel world, BlockPos pos) {
+    public static boolean isRailNode(Level world, BlockPos pos) {
         if (StationBuilder.isMtrLoaded()) {
             if (MTRIntegration.isRailNode(world, pos)) return true;
         }
@@ -127,33 +129,45 @@ public class RailGenerator {
 
     public static ArrayList<BlockPos> calcRailNodes(BlockPos pos, float yaw, RailBuilderConfig config) {
         final ArrayList<BlockPos> placedPositions = new ArrayList<>();
-        if (StationBuilder.isMtrLoaded()){
-            Vec3 normal = MTRRailMath.normalFromYaw(yaw);
+        Vec3 normal = MTRRailMath.normalFromYaw(yaw);
 
-            int count = config.railCount;
-            double spacing = config.railSpacing;
+        int count = config.railCount;
+        double spacing = config.railSpacing;
 
-            for (int i = 0; i < count; i++) {
-                double offsetIndex = i - (count - 1) / 2.0;
-                double t = offsetIndex * spacing;
-                Vec3 offset = normal.multiply(t, t, t);
-                BlockPos s = MTRRailMath.offsetPos(pos, offset);
-                placedPositions.add(s);
-            }
-            return placedPositions;
+        for (int i = 0; i < count; i++) {
+            double offsetIndex = i - (count - 1) / 2.0;
+            double t = offsetIndex * spacing;
+            Vec3 offset = normal.multiply(t, t, t);
+            BlockPos s = MTRRailMath.offsetPos(pos, offset);
+            placedPositions.add(s);
         }
-        return null;
+        return placedPositions;
     }
 
     public static ArrayList<BlockPos> placeFirstRailNodes(ServerLevel world, BlockPos pos, Player player, RailBuilderConfig config) {
         ArrayList<BlockPos> nodes = calcRailNodes(pos, player.getYRot(), config);
         RailNodeType railNodeType = getRailNodeType(config);
-        if (nodes != null) {
-            for (BlockPos p : nodes) {
-                placeFirstRailNode(world, p, player, railNodeType);
-            }
+        for (BlockPos p : nodes) {
+            placeFirstRailNode(world, p, player, railNodeType);
         }
         return nodes;
+    }
+
+    public static boolean adjustPointSequence(ArrayList<BlockPos> fromNodes, ArrayList<BlockPos> toNodes) {
+        int count = fromNodes.size();
+        if (fromNodes.size() != toNodes.size()) {
+            throw new IllegalArgumentException("Lists must have same size");
+        }
+        if (count > 1) {
+            if (MTRRailMath.getSideRelation(
+                    fromNodes.getFirst(), toNodes.getFirst(),
+                    fromNodes.get(count - 1), toNodes.get(count - 1)
+            ) < 0) {
+                Collections.reverse(fromNodes);
+                return true;
+            }
+        }
+        return false;
     }
 
     @Nullable
@@ -187,7 +201,7 @@ public class RailGenerator {
         }
 
         // Adjust positions
-        MTRRailMath.adjustPointSequence(startPositions, endPositions);
+        adjustPointSequence(startPositions, endPositions);
 
         if (startPositions.size() != endPositions.size()) {
             // 清除该玩家的轨道建造状态（服务端清除）
@@ -202,10 +216,9 @@ public class RailGenerator {
             BlockPos s = startPositions.get(i);
             BlockPos e = endPositions.get(i);
             if(isRailNode(world, s, railNodeType)) {
-                boolean success = true;
                 if (s.equals(e)) continue;
                 placeRailNode(world, e, player, railNodeType, false);
-                anySuccess |= success;
+                anySuccess = true;
             } else {
                 System.out.println("Start position is not a valid rail node: " + s);
             }
@@ -608,7 +621,7 @@ public class RailGenerator {
             if (nodeType == RailNodeType.MTR) {
                 rails[i] = MTRIntegration.connectRailNodes(uuid, world, pos1, pos2, config.railType);
             } else if (nodeType == RailNodeType.CREATE) {
-                rails[i] = CreateIntegration.connectRailNodesLongDistance(player, world, pos1, pos2);
+                rails[i] = CreateIntegration.connectRailNodes(player, world, pos1, pos2);
             } else {
                 rails[i] = null;
             }

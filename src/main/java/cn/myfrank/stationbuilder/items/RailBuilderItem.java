@@ -2,7 +2,6 @@ package cn.myfrank.stationbuilder.items;
 
 import cn.myfrank.stationbuilder.*;
 import cn.myfrank.stationbuilder.generator.RailGenerator;
-import cn.myfrank.stationbuilder.mtr.MTRIntegration;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
@@ -68,7 +67,7 @@ public class RailBuilderItem extends Item {
             BlockPos pos = context.getClickedPos();
             var serverWorld = ((ServerPlayer) player).serverLevel();
 
-            if (!MTRIntegration.isRailNode(serverWorld, pos) && !level.getBlockState(pos).canBeReplaced()) {
+            if (!RailGenerator.isRailNode(serverWorld, pos) && !level.getBlockState(pos).canBeReplaced()) {
                 pos = pos.relative(context.getClickedFace());
             }
 

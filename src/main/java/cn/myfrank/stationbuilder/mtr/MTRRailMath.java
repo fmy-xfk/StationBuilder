@@ -55,7 +55,7 @@ public class MTRRailMath {
         ArrayList<PairXZ> left = new ArrayList<>(), right = new ArrayList<>();
         double EPS = 1e-4, step = 0.5, dx = normal.x, dz = normal.z;
         for (double s = 0; s <= leftWidth; s += step) {
-            double actualS = Math.min(s, Math.max(0, leftWidth - EPS));
+            double actualS = Math.clamp(leftWidth - EPS, 0, s);
             var xzL = new PairXZ((int)Math.floor(center.x - actualS * dx), (int)Math.floor(center.z - actualS * dz));
             int leftSize = left.size();
             if (leftSize == 0 || !Objects.equals(left.get(leftSize - 1), xzL)) {
@@ -63,7 +63,7 @@ public class MTRRailMath {
             }
         }
         for (double s = 0; s <= rightWidth; s += step) {
-            double actualS = Math.min(s, Math.max(0, rightWidth - EPS));
+            double actualS = Math.clamp(rightWidth - EPS, 0, s);
             var xzR = new PairXZ((int)Math.floor(center.x + actualS * dx), (int)Math.floor(center.z + actualS * dz));
             int rightSize = right.size();
             if (rightSize == 0 || !Objects.equals(right.get(rightSize - 1), xzR)) {
@@ -109,22 +109,5 @@ public class MTRRailMath {
         } else {
             return -1; // 异侧
         }
-    }
-
-    public static boolean adjustPointSequence(ArrayList<BlockPos> fromNodes, ArrayList<BlockPos> toNodes) {
-        int count = fromNodes.size();
-        if (fromNodes.size() != toNodes.size()) {
-            throw new IllegalArgumentException("Lists must have same size");
-        }
-        if (count > 1) {
-            if (MTRRailMath.getSideRelation(
-                    fromNodes.get(0), toNodes.get(0),
-                    fromNodes.get(count - 1), toNodes.get(count - 1)
-            ) < 0) {
-                Collections.reverse(fromNodes);
-                return true;
-            }
-        }
-        return false;
     }
 }

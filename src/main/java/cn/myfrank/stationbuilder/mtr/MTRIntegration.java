@@ -7,6 +7,7 @@ import cn.myfrank.stationbuilder.mixin.mtr.ItemPSDAPGBaseAccessor;
 import cn.myfrank.stationbuilder.mixin.mtr.ItemRailModifierAccessor;
 import cn.myfrank.stationbuilder.utils.TestConnectResult;
 import it.unimi.dsi.fastutil.Pair;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -47,7 +48,7 @@ public class MTRIntegration {
         return ResourceLocation.fromNamespaceAndPath("mtr", "rail_connector_160");
     }
 
-    public static boolean isRailNode(ServerLevel world, BlockPos pos) {
+    public static boolean isRailNode(Level world, BlockPos pos) {
         var block = world.getBlockState(pos).getBlock();
         return block == Blocks.RAIL_NODE.get();
     }
