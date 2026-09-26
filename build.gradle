@@ -37,6 +37,14 @@ repositories {
             includeGroup "curse.maven"
         }
     }
+    maven {
+        name = "Create Mod Maven"
+        url = "https://maven.createmod.net/"
+    }
+    maven {
+        name = "Flywheel Maven"
+        url = "https://maven.tterrag.com"
+    }
 }
 
 base {
@@ -82,7 +90,7 @@ neoForge {
         }
 
         data {
-            clientData()
+            data()
             // example of overriding the workingDirectory set in configureEach above, uncomment if you want to use it
             // gameDirectory = project.file('run-data')
 
@@ -152,6 +160,9 @@ dependencies {
 
     // Create
     implementation "maven.modrinth:create:${project.create_version}+mc${project.minecraft_version}"
+    compileOnly "net.createmod.ponder:ponder-neoforge:1.0.82+mc${project.minecraft_version}"
+    compileOnly "dev.engine-room.flywheel:flywheel-neoforge-api-${project.minecraft_version}:1.0.6"
+    compileOnly "net.createmod.catnip:Catnip-NeoForge-${project.minecraft_version}:0.8.54"
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.

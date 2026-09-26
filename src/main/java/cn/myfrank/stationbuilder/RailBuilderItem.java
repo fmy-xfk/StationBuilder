@@ -19,8 +19,6 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.List;
 
-import static cn.myfrank.stationbuilder.StationBuilder.isMtrLoaded;
-
 public class RailBuilderItem extends Item {
     public RailBuilderItem(Item.Properties properties) {
         super(properties);
@@ -52,13 +50,6 @@ public class RailBuilderItem extends Item {
         Level level = context.getLevel();
         Player player = context.getPlayer();
         if (player == null) return InteractionResult.PASS;
-
-        if (!isMtrLoaded()) {
-            if (level.isClientSide) {
-                player.displayClientMessage(Component.translatable("message.stationbuilder.rail_builder.no_mtr"), true);
-            }
-            return InteractionResult.FAIL;
-        }
 
         ItemStack stack = context.getItemInHand();
         RailBuilderConfig cfg = RailBuilderConfig.fromItem(stack);
