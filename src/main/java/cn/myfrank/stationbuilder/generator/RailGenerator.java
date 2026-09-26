@@ -10,7 +10,7 @@ import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.items.RailBuilderConfig;
 import cn.myfrank.stationbuilder.items.RailBuilderState;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
-import cn.myfrank.stationbuilder.mtr.MTRRailMath;
+import cn.myfrank.stationbuilder.utils.RailMath;
 import cn.myfrank.stationbuilder.utils.BuildingMode;
 import cn.myfrank.stationbuilder.utils.PointProvider;
 import cn.myfrank.stationbuilder.utils.TickScheduler;
@@ -129,7 +129,7 @@ public class RailGenerator {
 
     public static ArrayList<BlockPos> calcRailNodes(BlockPos pos, float yaw, RailBuilderConfig config) {
         final ArrayList<BlockPos> placedPositions = new ArrayList<>();
-        Vec3 normal = MTRRailMath.normalFromYaw(yaw);
+        Vec3 normal = RailMath.normalFromYaw(yaw);
 
         int count = config.railCount;
         double spacing = config.railSpacing;
@@ -138,7 +138,7 @@ public class RailGenerator {
             double offsetIndex = i - (count - 1) / 2.0;
             double t = offsetIndex * spacing;
             Vec3 offset = normal.multiply(t, t, t);
-            BlockPos s = MTRRailMath.offsetPos(pos, offset);
+            BlockPos s = RailMath.offsetPos(pos, offset);
             placedPositions.add(s);
         }
         return placedPositions;
@@ -159,7 +159,7 @@ public class RailGenerator {
             throw new IllegalArgumentException("Lists must have same size");
         }
         if (count > 1) {
-            if (MTRRailMath.getSideRelation(
+            if (RailMath.getSideRelation(
                     fromNodes.getFirst(), toNodes.getFirst(),
                     fromNodes.get(count - 1), toNodes.get(count - 1)
             ) < 0) {
@@ -186,7 +186,7 @@ public class RailGenerator {
         }
 
         float yaw = player.getYRot();
-        Vec3 normal = MTRRailMath.normalFromYaw(yaw); // 右侧法向量
+        Vec3 normal = RailMath.normalFromYaw(yaw); // 右侧法向量
         int count = config.railCount;
         double spacing = config.railSpacing;
 
@@ -196,7 +196,7 @@ public class RailGenerator {
             double offsetIndex = i - (count - 1) / 2.0;
             double t = offsetIndex * spacing;
             Vec3 offset = normal.multiply(t, t, t);
-            BlockPos e = MTRRailMath.offsetPos(endPos, offset);
+            BlockPos e = RailMath.offsetPos(endPos, offset);
             endPositions.add(e);
         }
 
@@ -359,7 +359,7 @@ public class RailGenerator {
 
             // Stretch left and right from the center point, and get a bundle of BlockPos
             int blockY = (int) Math.floor(center.y);
-            var blockXZs = MTRRailMath.getPositions(center, normal, Math.max(halfTunnelWidth, halfBridgeWidth));
+            var blockXZs = RailMath.getPositions(center, normal, Math.max(halfTunnelWidth, halfBridgeWidth));
 
             // Determine building modes
             BuildingMode.Up ubm = BuildingMode.Up.Clear;
@@ -416,7 +416,7 @@ public class RailGenerator {
         double halfWidth = config.ballastTopWidth / 2.0 + EPS;
         int baseY = (int) Math.floor(center.y);
         if (config.clearFullHeight) {
-            var XZs = MTRRailMath.getPositions(center, normal, config.tunnelHeight + 3);
+            var XZs = RailMath.getPositions(center, normal, config.tunnelHeight + 3);
             int height = 0;
             for (var xz : XZs) {
                 BlockPos topPos = world.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING,
@@ -429,7 +429,7 @@ public class RailGenerator {
                 Vec3 layerCenter = center.add(0, y, 0);
                 double halfWidth2 = halfWidth + y / k;
                 int blockY = (int) Math.floor(layerCenter.y);
-                var blockXZs = MTRRailMath.getPositions(center, normal,
+                var blockXZs = RailMath.getPositions(center, normal,
                         isLeftest ? halfWidth2 : halfWidth,
                         isRightest ? halfWidth2 : halfWidth);
                 for (var block : blockXZs) {
@@ -444,7 +444,7 @@ public class RailGenerator {
             for (int y = 0; y <= config.tunnelHeight; ++y) {
                 Vec3 layerCenter = center.add(0, y, 0);
                 int blockY = (int) Math.floor(layerCenter.y);
-                var blockXZs = MTRRailMath.getPositions(center, normal,
+                var blockXZs = RailMath.getPositions(center, normal,
                         isLeftest ? clearHalfWidth : halfWidth,
                         isRightest ? clearHalfWidth : halfWidth);
                 for(var block: blockXZs) {
@@ -468,7 +468,7 @@ public class RailGenerator {
             double halfWidth = lerp(halfTopWidth, halfBottomWidth, (double) y / ballastHeight);
             Vec3 layerCenter = center.add(0, -y - 1, 0);
             int blockY = (int) Math.floor(layerCenter.y);
-            var blockXZs = MTRRailMath.getPositions(center, normal,
+            var blockXZs = RailMath.getPositions(center, normal,
                     isLeftest? halfWidth: halfTopWidth,
                     isRightest? halfWidth: halfTopWidth);
             for(var block: blockXZs) {
@@ -490,7 +490,7 @@ public class RailGenerator {
         int blockY = (int) Math.floor(center.y);
         ArrayList<BlockPos> overpass_walls = new ArrayList<>();
         if (dbm == BuildingMode.Down.Bridge) {
-            var bridgeXZs = MTRRailMath.getPositions(center, normal, halfBridgeWidth);
+            var bridgeXZs = RailMath.getPositions(center, normal, halfBridgeWidth);
             for (int i = 0; i < bridgeXZs.size(); i++) {
                 var block = bridgeXZs.get(i);
                 int x = block.x(), z = block.z();
@@ -536,7 +536,7 @@ public class RailGenerator {
         }
 
         if (ubm == BuildingMode.Up.Tunnel) {
-            var tunnelXZs = MTRRailMath.getPositions(center, normal, halfTunnelWidth);
+            var tunnelXZs = RailMath.getPositions(center, normal, halfTunnelWidth);
             for (int i = 0; i < tunnelXZs.size(); i++) {
                 var block = tunnelXZs.get(i);
                 int x = block.x(), z = block.z();
@@ -564,7 +564,7 @@ public class RailGenerator {
             }
         }
         if (ubm != BuildingMode.Up.Tunnel && dbm == BuildingMode.Down.Ballast) {
-            var ballastXZs = MTRRailMath.getPositions(center, normal, halfBallastWidth);
+            var ballastXZs = RailMath.getPositions(center, normal, halfBallastWidth);
             for (var block : ballastXZs) {
                 int x = block.x(), z = block.z();
                 var pos = new BlockPos(x, blockY - 1, z);

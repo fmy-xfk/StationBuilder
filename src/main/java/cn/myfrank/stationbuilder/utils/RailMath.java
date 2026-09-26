@@ -1,4 +1,4 @@
-package cn.myfrank.stationbuilder.mtr;
+package cn.myfrank.stationbuilder.utils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -7,7 +7,7 @@ import java.util.Objects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 
-public class MTRRailMath {
+public class RailMath {
 
     /**
      * 轨道前进方向（备用，后面做自动 yaw 会用到）
