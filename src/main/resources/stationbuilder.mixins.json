@@ -7,7 +7,8 @@
     "mtr.EnumPSDAPGItemAccessor",
     "mtr.EnumPSDAPGTypeAccessor",
     "mtr.ItemPSDAPGBaseAccessor",
-    "mtr.ItemRailModifierAccessor"
+    "mtr.ItemRailModifierAccessor",
+    "create.PlacementInfoAccessor"
   ],
   "client": [
     "client.mtr.RenderRailsMixin"

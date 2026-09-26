@@ -542,7 +542,10 @@ public class RailGenerator {
                     }
                 } else {
                     for(int y = 0; y < config.tunnelHeight; y++) {
-                        clearBlock(world, new BlockPos(x, blockY + y, z), clearCatenary);
+                        BlockPos airPos = new BlockPos(x, blockY + y, z);
+                        if (!isRailNode(world, airPos)) {
+                            clearBlock(world, airPos, clearCatenary);
+                        }
                     }
                 }
             }

@@ -19,9 +19,7 @@ public class RenderRailsMixin {
             LocalPlayer clientPlayerEntity,
             CallbackInfoReturnable<Boolean> cir
     ) {
-        cir.setReturnValue(
-                cir.getReturnValue() || isHoldingMyCustomRailThing(clientPlayerEntity)
-        );
+        cir.setReturnValue(cir.getReturnValue() || isHoldingMyCustomRailThing(clientPlayerEntity));
     }
 
     @Unique

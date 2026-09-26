@@ -1,18 +1,17 @@
 package cn.myfrank.stationbuilder.create;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import cn.myfrank.stationbuilder.items.RailBuilderConfig;
+import cn.myfrank.stationbuilder.mixin.create.PlacementInfoAccessor;
 import cn.myfrank.stationbuilder.utils.CurveData;
 import cn.myfrank.stationbuilder.utils.PointProvider;
 import com.simibubi.create.content.trains.track.BezierConnection;
 import com.simibubi.create.content.trains.track.TrackBlock;
 import com.simibubi.create.content.trains.track.TrackBlockEntity;
+import com.simibubi.create.content.trains.track.TrackPlacement;
 import com.simibubi.create.content.trains.track.TrackShape;
 
 import net.minecraft.core.BlockPos;
@@ -48,8 +47,7 @@ public class CreateIntegration {
     }
 
     public static boolean isRailNode(ServerLevel world, BlockPos pos) {
-        BlockState state = world.getBlockState(pos);
-        return state.is(TRACK_BLOCK);
+        return world.getBlockState(pos).getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock;
     }
 
     public static BlockState getTrackBlockState(float angle) {
@@ -190,7 +188,66 @@ public class CreateIntegration {
         return curveData;
     }
 
+    /**
+     * 【沿轨道推进开凿隧道与架设桥梁】
+     * 沿着 PointProvider 提供的真实中心线、切线与法线，精准挖掘隧道并铺设桥梁基石。
+     *
+     * @param tunnelRadius 隧道清理半宽（默认 1，即清理宽 3 格、高 3 格的行车断面）
+     */
+    public static void carveTunnelAndBuildBridge(ServerLevel world, CurveData curveData, BlockPos startPos, BlockPos endPos, int tunnelRadius) {
+        int segments = Math.max(10, (int) Math.ceil(curveData.getLength() * 5)); // 每 0.2 格推进一次
+        PointProvider provider = new PointProvider(curveData, segments, false);
+
+        Set<BlockPos> modified = new HashSet<>();
+
+        while (provider.notExhausted()) {
+            List<Vec3> frame = provider.get();
+            Vec3 center = frame.get(0);
+            Vec3 normal = frame.get(2); // 与前进方向垂直的水平法线向量
+
+            // 沿着截面法线与垂直方向进行切片清理与桥梁铺设
+            for (int w = -tunnelRadius; w <= tunnelRadius; w++) {
+                Vec3 slicePos = center.add(normal.scale(w));
+                BlockPos columnBase = BlockPos.containing(slicePos.x, slicePos.y, slicePos.z);
+
+                // 1. 穿山：开辟行车净空（高度 0, +1, +2）
+                for (int dy = 0; dy <= 2; dy++) {
+                    BlockPos airPos = columnBase.above(dy);
+                    if (airPos.equals(startPos) || airPos.equals(endPos)) continue;
+
+                    if (modified.add(airPos)) {
+                        BlockState state = world.getBlockState(airPos);
+                        if (!state.isAir() && !state.is(TRACK_BLOCK)) {
+                            world.setBlock(airPos, Blocks.AIR.defaultBlockState(), 3);
+                        }
+                    }
+                }
+
+                // 2. 跨海/过虚空：在轨道下方一格（dy = -1）铺设桥面地基，排干水体
+                BlockPos floorPos = columnBase.below();
+                if (modified.add(floorPos)) {
+                    BlockState floorState = world.getBlockState(floorPos);
+                    if (floorState.isAir() || !floorState.getFluidState().isEmpty()) {
+                        world.setBlock(floorPos, Blocks.STONE.defaultBlockState(), 3);
+                    }
+                }
+            }
+
+            provider.next();
+        }
+    }
+
     public static CurveData connectRailNodes(Player player, ServerLevel world, BlockPos s, BlockPos e) {
+        // 0. 防御性检查 1：检查起点与终点方块是否存在且确实属于 Create 的轨道
+        BlockState state1 = world.getBlockState(s);
+        BlockState state2 = world.getBlockState(e);
+
+        if (!(state1.getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock) ||
+                !(state2.getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock)) {
+            // 如果某一边是 MTR Node、原版普通铁轨或其他方块，直接拒绝执行 Create 的连接
+            return null;
+        }
+
         ItemStack trackStack = new ItemStack(TRACK_BLOCK.asItem());
 
         // 1. 点击起点
@@ -206,7 +263,57 @@ public class CreateIntegration {
             return null;
         }
 
-        // 2. 点击终点
+        // 防御性检查 2：确保第一次右键确实把起点信息成功写入了 trackStack 的组件中
+        if (!trackStack.has(com.simibubi.create.AllDataComponents.TRACK_CONNECTING_FROM)) {
+            return null;
+        }
+
+        // 再次确认起点方块在右键后没有被替换或损坏，且仍然是 Create 铁轨
+        if (!world.getBlockState(s).is(state1.getBlock())) {
+            return null;
+        }
+
+        // 2. 调用 tryConnect 提取原生推导好的几何模型（包裹 try-catch，防止跨模组方块或非法角度引发 ClassCastException / NPE）
+        TrackPlacement.PlacementInfo info;
+        try {
+            info = TrackPlacement.tryConnect(
+                    world, player, e, state2, trackStack, false, false
+            );
+        } catch (Throwable t) {
+            // 捕获任何第三方轨道碰撞或 Create 内部未能预料的异常
+            return null;
+        }
+
+        if (info == null) {
+            return null;
+        }
+
+        PlacementInfoAccessor accessor = (PlacementInfoAccessor) (Object) info;
+        if (!accessor.isValid()) {
+            return null;
+        }
+
+        // 3. 将计算完毕的延伸直线方块与贝塞尔曲线组合为完整的沿轨中心线
+        CreateCurveData curveData = new CreateCurveData();
+        Vec3 startCenter = getRailCenter(s);
+        Vec3 endCenter = getRailCenter(e);
+
+        BezierConnection curve = accessor.getCurve();
+        if (curve != null) {
+            Vec3 curveStart = curve.getPosition(0.0);
+            Vec3 curveEnd = curve.getPosition(1.0);
+
+            curveData.addLine(startCenter, curveStart);
+            curveData.addBezier(curve);
+            curveData.addLine(curveEnd, endCenter);
+        } else {
+            curveData.addLine(startCenter, endCenter);
+        }
+
+        // 4. 严格沿着推导出的轨道中心线开凿隧道与铺设桥面地基（穿山跨海）
+        carveTunnelAndBuildBridge(world, curveData, s, e, 1);
+
+        // 5. 地形已沿轨道打通/垫平，执行第二次右键完成真正的铁轨放置
         BlockHitResult hitEnd = new BlockHitResult(
                 Vec3.atCenterOf(e),
                 Direction.UP,
@@ -217,9 +324,13 @@ public class CreateIntegration {
         InteractionResult secondResult = trackStack.useOn(endContext);
 
         if (secondResult == InteractionResult.SUCCESS || secondResult == InteractionResult.CONSUME) {
-            // 3. 获取复合曲线数学模型 CurveData
-            return getCenterLine(world, s, e);
+            // 防御性检查 3：放置后再次验证终点与起点方块仍然完好，防止并发破坏
+            if (world.getBlockState(s).getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock &&
+                    world.getBlockState(e).getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock) {
+                return curveData;
+            }
         }
+
         return null;
     }
 }
