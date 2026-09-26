@@ -153,4 +153,10 @@ public class CreateCurveData implements CurveData {
 
         return segments.get(segments.size() - 1).getPoint(0.0);
     }
+
+    public void append(CreateCurveData other) {
+        for (SubSegment seg : other.segments) {
+            this.addSegment(seg);
+        }
+    }
 }

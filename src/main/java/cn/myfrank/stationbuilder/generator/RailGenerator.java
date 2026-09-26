@@ -608,7 +608,7 @@ public class RailGenerator {
             if (nodeType == RailNodeType.MTR) {
                 rails[i] = MTRIntegration.connectRailNodes(uuid, world, pos1, pos2, config.railType);
             } else if (nodeType == RailNodeType.CREATE) {
-                rails[i] = CreateIntegration.connectRailNodes(player, world, pos1, pos2);
+                rails[i] = CreateIntegration.connectRailNodesLongDistance(player, world, pos1, pos2);
             } else {
                 rails[i] = null;
             }

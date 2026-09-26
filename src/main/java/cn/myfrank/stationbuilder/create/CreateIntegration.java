@@ -1,9 +1,6 @@
 package cn.myfrank.stationbuilder.create;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import cn.myfrank.stationbuilder.mixin.create.PlacementInfoAccessor;
 import cn.myfrank.stationbuilder.utils.CurveData;
@@ -14,6 +11,7 @@ import com.simibubi.create.content.trains.track.TrackBlockEntity;
 import com.simibubi.create.content.trains.track.TrackPlacement;
 import com.simibubi.create.content.trains.track.TrackShape;
 
+import com.simibubi.create.infrastructure.config.AllConfigs;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
@@ -80,120 +78,6 @@ public class CreateIntegration {
         return Vec3.atBottomCenterOf(pos).add(0, 0.125, 0);
     }
 
-    /**
-     * 构建并返回起点 start 到终点 end 的复合曲线数学模型 CurveData
-     */
-    public static CreateCurveData getCenterLine(ServerLevel world, BlockPos start, BlockPos end) {
-        CreateCurveData curveData = new CreateCurveData();
-        Set<BlockPos> visited = new HashSet<>();
-
-        BlockPos current = start;
-        visited.add(current);
-
-        int safetyLimit = 500;
-
-        while (!current.equals(end) && safetyLimit-- > 0) {
-            Vec3 currentCenter = getRailCenter(current);
-
-            // 1. 检查是否有 BezierConnection
-            BlockEntity be = world.getBlockEntity(current);
-            boolean jumpedViaBezier = false;
-
-            if (be instanceof TrackBlockEntity trackBE) {
-                Map<BlockPos, BezierConnection> connections = trackBE.getConnections();
-                if (connections != null && !connections.isEmpty()) {
-                    for (Map.Entry<BlockPos, BezierConnection> entry : connections.entrySet()) {
-                        BlockPos targetNode = entry.getKey();
-                        BezierConnection bc = entry.getValue();
-
-                        if (!visited.contains(targetNode)) {
-                            Vec3 curveStart = bc.getPosition(0.0);
-                            Vec3 curveEnd = bc.getPosition(1.0);
-                            Vec3 targetCenter = getRailCenter(targetNode);
-
-                            // (1) 当前方块中心 -> 曲线起点切点
-                            curveData.addLine(currentCenter, curveStart);
-                            // (2) 贝塞尔曲线自身
-                            curveData.addBezier(bc);
-                            // (3) 曲线终点切点 -> 目标方块中心
-                            curveData.addLine(curveEnd, targetCenter);
-
-                            visited.add(targetNode);
-                            current = targetNode;
-                            jumpedViaBezier = true;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if (jumpedViaBezier) {
-                continue;
-            }
-
-            // 2. 直线/45°对角线延伸：寻找邻接的独立普通铁轨方块
-            BlockPos nextPos = null;
-            double minDistanceToEnd = Double.MAX_VALUE;
-
-            for (int dx = -1; dx <= 1; dx++) {
-                for (int dy = -1; dy <= 1; dy++) {
-                    for (int dz = -1; dz <= 1; dz++) {
-                        if (dx == 0 && dy == 0 && dz == 0) continue;
-                        BlockPos neighbor = current.offset(dx, dy, dz);
-                        if (!visited.contains(neighbor) && isRailNode(world, neighbor)) {
-                            double dist = neighbor.distSqr(end);
-                            if (dist < minDistanceToEnd) {
-                                minDistanceToEnd = dist;
-                                nextPos = neighbor;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (nextPos != null) {
-                Vec3 nextCenter = getRailCenter(nextPos);
-                curveData.addLine(currentCenter, nextCenter);
-                visited.add(nextPos);
-                current = nextPos;
-            } else {
-                // 斜向 2 格跨度跃迁检测（针对部分 45° 跨步情况）
-                for (int dx = -2; dx <= 2; dx++) {
-                    for (int dz = -2; dz <= 2; dz++) {
-                        if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1) continue;
-                        for (int dy = -1; dy <= 1; dy++) {
-                            BlockPos jumpNeighbor = current.offset(dx, dy, dz);
-                            if (!visited.contains(jumpNeighbor) && isRailNode(world, jumpNeighbor)) {
-                                double dist = jumpNeighbor.distSqr(end);
-                                if (dist < minDistanceToEnd) {
-                                    minDistanceToEnd = dist;
-                                    nextPos = jumpNeighbor;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (nextPos != null) {
-                    Vec3 nextCenter = getRailCenter(nextPos);
-                    curveData.addLine(currentCenter, nextCenter);
-                    visited.add(nextPos);
-                    current = nextPos;
-                } else {
-                    break;
-                }
-            }
-        }
-
-        return curveData;
-    }
-
-    /**
-     * 【沿轨道推进开凿隧道与架设桥梁】
-     * 沿着 PointProvider 提供的真实中心线、切线与法线，精准挖掘隧道并铺设桥梁基石。
-     *
-     * @param tunnelRadius 隧道清理半宽（默认 1，即清理宽 3 格、高 3 格的行车断面）
-     */
     public static void carveTunnelAndBuildBridge(ServerLevel world, CurveData curveData, BlockPos startPos, BlockPos endPos, int tunnelRadius) {
         int segments = Math.max(10, (int) Math.ceil(curveData.getLength() * 5)); // 每 0.2 格推进一次
         PointProvider provider = new PointProvider(curveData, segments, false);
@@ -332,5 +216,63 @@ public class CreateIntegration {
         }
 
         return null;
+    }
+
+    private static final double MAX_DISTANCE = AllConfigs.server().trains.maxTrackPlacementLength.get();
+    private static final double MAX_SAFE_DISTANCE = MAX_DISTANCE * 0.8;
+    /**
+     * 具有超长连接能力的高级铺轨入口
+     * 如果 s 和 e 距离超过限制，会自动插桩铺设中间节点并连续分段连接
+     */
+    public static CurveData connectRailNodesLongDistance(Player player, ServerLevel world, BlockPos s, BlockPos e) {
+        double dist = Math.sqrt(s.distSqr(e));
+
+        // 1. 如果在安全距离内，直接走单段连接
+        if (dist <= MAX_SAFE_DISTANCE) {
+            return connectRailNodes(player, world, s, e);
+        }
+
+        // 2. 超出上限，计算需要拆分成多少个子区间
+        int cuts = (int) Math.ceil(dist / MAX_SAFE_DISTANCE);
+        Vec3 startVec = Vec3.atBottomCenterOf(s);
+        Vec3 endVec = Vec3.atBottomCenterOf(e);
+
+        List<BlockPos> waypoints = new ArrayList<>();
+        waypoints.add(s);
+
+        // 3. 计算并放置中间节点
+        for (int i = 1; i < cuts; i++) {
+            double t = (double) i / cuts;
+            // 沿两点间插值（如果是纯平地/斜坡，可线性插值）
+            Vec3 intermediateVec = startVec.lerp(endVec, t);
+            BlockPos midPos = BlockPos.containing(intermediateVec);
+
+            // 计算该段的前进朝向角度（偏航角）
+            Vec3 dir = endVec.subtract(startVec).normalize();
+            float angle = (float) Math.toDegrees(Math.atan2(dir.x, dir.z));
+
+            // 在中间位置放置正确的倾斜/直线节点
+            placeRailNode(world, midPos, angle);
+            waypoints.add(midPos);
+        }
+        waypoints.add(e);
+
+        // 4. 顺次分段连接并融合成整条 CurveData
+        CreateCurveData fullCurveData = new CreateCurveData();
+
+        for (int i = 0; i < waypoints.size() - 1; i++) {
+            BlockPos segStart = waypoints.get(i);
+            BlockPos segEnd = waypoints.get(i + 1);
+
+            CurveData segCurve = connectRailNodes(player, world, segStart, segEnd);
+            if (segCurve instanceof CreateCurveData ccd) {
+                fullCurveData.append(ccd);
+            } else {
+                // 若某一段放置失败，返回已完成的部分或 null
+                return fullCurveData.getLength() > 0 ? fullCurveData : null;
+            }
+        }
+
+        return fullCurveData;
     }
 }
