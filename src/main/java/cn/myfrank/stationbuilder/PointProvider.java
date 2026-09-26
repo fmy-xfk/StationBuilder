@@ -1,22 +1,17 @@
 package cn.myfrank.stationbuilder;
 
 import net.minecraft.world.phys.Vec3;
-import org.mtr.core.tool.Vector;
-import org.mtr.core.data.RailMath;
 
 import java.util.List;
 
-public class MTRPointProvider {
-    private static Vec3 toVec3d(Vector v) {
-        return new Vec3(v.x(), v.y(), v.z());
-    }
+public class PointProvider {
     private static final double EPS = 0.001;
-    private final RailMath math;
+    private final CurveData math;
     private final int segment;
     private final double step;
     private final boolean reversed;
     private int i;
-    public MTRPointProvider(RailMath math, int segment, boolean reversed) {
+    public PointProvider(CurveData math, int segment, boolean reversed) {
         this.math = math;
         this.segment = segment;
         this.step = math.getLength() / segment;
@@ -45,22 +40,22 @@ public class MTRPointProvider {
         final double length = math.getLength();
         double s = i * step;
         if (s > length) s = length;
-        Vec3 center = toVec3d(math.getPosition(s, false));
+        Vec3 center = math.getPosition(s);
         Vec3 pNext, tangent;
         if (reversed) {
             if (s - EPS < 0) {
-                pNext = toVec3d(math.getPosition(Math.max(s + EPS, 0), false));
+                pNext = math.getPosition(Math.max(s + EPS, 0));
                 tangent = center.subtract(pNext).normalize();
             } else {
-                pNext = toVec3d(math.getPosition(Math.max(s - EPS, 0), false));
+                pNext = math.getPosition(Math.max(s - EPS, 0));
                 tangent = pNext.subtract(center).normalize();
             }
         } else {
             if (s + EPS > length) {
-                pNext = toVec3d(math.getPosition(Math.min(s - EPS, length), false));
+                pNext = math.getPosition(Math.min(s - EPS, length));
                 tangent = center.subtract(pNext).normalize();
             } else {
-                pNext = toVec3d(math.getPosition(Math.min(s + EPS, length), false));
+                pNext = math.getPosition(Math.min(s + EPS, length));
                 tangent = pNext.subtract(center).normalize();
             }
         }
