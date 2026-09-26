@@ -234,7 +234,7 @@ public class StationBuilderClient {
             return;
         }
 
-        RailMath.adjustPointSequence(lastNodes, nodes);
+        MTRRailMath.adjustPointSequence(lastNodes, nodes);
         float angle = player.getYRot();
 
         for (int i = 0; i < lastNodes.size(); ++i) {
@@ -280,7 +280,7 @@ public class StationBuilderClient {
             return;
         }
 
-        RailMath.adjustPointSequence(lastNodes, nodes);
+        MTRRailMath.adjustPointSequence(lastNodes, nodes);
         float angle = player.getYRot();
 
         Vec3 textPos = getPreviewCenterPos(lastNodes, targetPos);

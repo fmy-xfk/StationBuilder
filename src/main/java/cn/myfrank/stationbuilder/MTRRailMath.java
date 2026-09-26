@@ -7,7 +7,7 @@ import java.util.Objects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 
-public class RailMath {
+public class MTRRailMath {
 
     /**
      * 轨道前进方向（备用，后面做自动 yaw 会用到）
@@ -117,7 +117,7 @@ public class RailMath {
             throw new IllegalArgumentException("Lists must have same size");
         }
         if (count > 1) {
-            if (RailMath.getSideRelation(
+            if (MTRRailMath.getSideRelation(
                     fromNodes.get(0), toNodes.get(0),
                     fromNodes.get(count - 1), toNodes.get(count - 1)
             ) < 0) {

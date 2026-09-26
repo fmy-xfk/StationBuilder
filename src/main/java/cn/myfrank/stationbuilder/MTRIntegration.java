@@ -441,7 +441,7 @@ public class MTRIntegration {
         double halfWidth = config.ballastTopWidth / 2.0 + EPS;
         int baseY = (int) Math.floor(center.y);
         if (config.clearFullHeight) {
-            var XZs = RailMath.getPositions(center, normal, config.tunnelHeight + 3);
+            var XZs = MTRRailMath.getPositions(center, normal, config.tunnelHeight + 3);
             int height = 0;
             for (var xz : XZs) {
                 BlockPos topPos = world.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING,
@@ -454,7 +454,7 @@ public class MTRIntegration {
                 Vec3 layerCenter = center.add(0, y, 0);
                 double halfWidth2 = halfWidth + y / k;
                 int blockY = (int) Math.floor(layerCenter.y);
-                var blockXZs = RailMath.getPositions(center, normal,
+                var blockXZs = MTRRailMath.getPositions(center, normal,
                         isLeftest ? halfWidth2 : halfWidth,
                         isRightest ? halfWidth2 : halfWidth);
                 for (var block : blockXZs) {
@@ -469,7 +469,7 @@ public class MTRIntegration {
             for (int y = 0; y <= config.tunnelHeight; ++y) {
                 Vec3 layerCenter = center.add(0, y, 0);
                 int blockY = (int) Math.floor(layerCenter.y);
-                var blockXZs = RailMath.getPositions(center, normal,
+                var blockXZs = MTRRailMath.getPositions(center, normal,
                         isLeftest ? clearHalfWidth : halfWidth,
                         isRightest ? clearHalfWidth : halfWidth);
                 for(var block: blockXZs) {
@@ -493,7 +493,7 @@ public class MTRIntegration {
             double halfWidth = lerp(halfTopWidth, halfBottomWidth, (double) y / ballastHeight);
             Vec3 layerCenter = center.add(0, -y - 1, 0);
             int blockY = (int) Math.floor(layerCenter.y);
-            var blockXZs = RailMath.getPositions(center, normal,
+            var blockXZs = MTRRailMath.getPositions(center, normal,
                     isLeftest? halfWidth: halfTopWidth,
                     isRightest? halfWidth: halfTopWidth);
             for(var block: blockXZs) {
@@ -515,7 +515,7 @@ public class MTRIntegration {
         int blockY = (int) Math.floor(center.y);
         ArrayList<BlockPos> overpass_walls = new ArrayList<>();
         if (dbm == BuildingMode.Down.Bridge) {
-            var bridgeXZs = RailMath.getPositions(center, normal, halfBridgeWidth);
+            var bridgeXZs = MTRRailMath.getPositions(center, normal, halfBridgeWidth);
             for (int i = 0; i < bridgeXZs.size(); i++) {
                 var block = bridgeXZs.get(i);
                 int x = block.x(), z = block.z();
@@ -561,7 +561,7 @@ public class MTRIntegration {
         }
 
         if (ubm == BuildingMode.Up.Tunnel) {
-            var tunnelXZs = RailMath.getPositions(center, normal, halfTunnelWidth);
+            var tunnelXZs = MTRRailMath.getPositions(center, normal, halfTunnelWidth);
             for (int i = 0; i < tunnelXZs.size(); i++) {
                 var block = tunnelXZs.get(i);
                 int x = block.x(), z = block.z();
@@ -586,7 +586,7 @@ public class MTRIntegration {
             }
         }
         if (ubm != BuildingMode.Up.Tunnel && dbm == BuildingMode.Down.Ballast) {
-            var ballastXZs = RailMath.getPositions(center, normal, halfBallastWidth);
+            var ballastXZs = MTRRailMath.getPositions(center, normal, halfBallastWidth);
             for (var block : ballastXZs) {
                 int x = block.x(), z = block.z();
                 var pos = new BlockPos(x, blockY - 1, z);
@@ -791,7 +791,7 @@ public class MTRIntegration {
 
             // Stretch left and right from the center point, and get a bundle of BlockPos
             int blockY = (int) Math.floor(center.y);
-            var blockXZs = RailMath.getPositions(center, normal, Math.max(halfTunnelWidth, halfBridgeWidth));
+            var blockXZs = MTRRailMath.getPositions(center, normal, Math.max(halfTunnelWidth, halfBridgeWidth));
 
             // Determine building modes
             BuildingMode.Up ubm = BuildingMode.Up.Clear;

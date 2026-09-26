@@ -2,6 +2,7 @@ package cn.myfrank.stationbuilder;
 
 import net.minecraft.world.phys.Vec3;
 import org.mtr.core.tool.Vector;
+import org.mtr.core.data.RailMath;
 
 import java.util.List;
 
@@ -10,12 +11,12 @@ public class MTRPointProvider {
         return new Vec3(v.x(), v.y(), v.z());
     }
     private static final double EPS = 0.001;
-    private final org.mtr.core.data.RailMath math;
+    private final RailMath math;
     private final int segment;
     private final double step;
     private final boolean reversed;
     private int i;
-    public MTRPointProvider(org.mtr.core.data.RailMath math, int segment, boolean reversed) {
+    public MTRPointProvider(RailMath math, int segment, boolean reversed) {
         this.math = math;
         this.segment = segment;
         this.step = math.getLength() / segment;

@@ -89,7 +89,7 @@ public class RailGenerator {
     public static ArrayList<BlockPos> calcRailNodes(BlockPos pos, float yaw, RailBuilderConfig config) {
         final ArrayList<BlockPos> placedPositions = new ArrayList<>();
         if (StationBuilder.isMtrLoaded()){
-            Vec3 normal = RailMath.normalFromYaw(yaw);
+            Vec3 normal = MTRRailMath.normalFromYaw(yaw);
 
             int count = config.railCount;
             double spacing = config.railSpacing;
@@ -98,7 +98,7 @@ public class RailGenerator {
                 double offsetIndex = i - (count - 1) / 2.0;
                 double t = offsetIndex * spacing;
                 Vec3 offset = normal.multiply(t, t, t);
-                BlockPos s = RailMath.offsetPos(pos, offset);
+                BlockPos s = MTRRailMath.offsetPos(pos, offset);
                 placedPositions.add(s);
             }
             return placedPositions;
@@ -133,7 +133,7 @@ public class RailGenerator {
         }
 
         float yaw = player.getYRot();
-        Vec3 normal = RailMath.normalFromYaw(yaw); // 右侧法向量
+        Vec3 normal = MTRRailMath.normalFromYaw(yaw); // 右侧法向量
         int count = config.railCount;
         double spacing = config.railSpacing;
 
@@ -143,12 +143,12 @@ public class RailGenerator {
             double offsetIndex = i - (count - 1) / 2.0;
             double t = offsetIndex * spacing;
             Vec3 offset = normal.multiply(t, t, t);
-            BlockPos e = RailMath.offsetPos(endPos, offset);
+            BlockPos e = MTRRailMath.offsetPos(endPos, offset);
             endPositions.add(e);
         }
 
         // Adjust positions
-        RailMath.adjustPointSequence(startPositions, endPositions);
+        MTRRailMath.adjustPointSequence(startPositions, endPositions);
 
         if (startPositions.size() != endPositions.size()) {
             // 清除该玩家的轨道建造状态（服务端清除）
