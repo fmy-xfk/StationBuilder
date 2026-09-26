@@ -1,6 +1,6 @@
 package cn.myfrank.stationbuilder.elements;
 
-import cn.myfrank.stationbuilder.BuildingTemplateManager;
+import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
