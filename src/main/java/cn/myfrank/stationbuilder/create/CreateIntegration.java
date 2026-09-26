@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 
 import cn.myfrank.stationbuilder.items.RailBuilderConfig;
+import cn.myfrank.stationbuilder.utils.CurveData;
 import cn.myfrank.stationbuilder.utils.PointProvider;
 import com.simibubi.create.content.trains.track.BezierConnection;
 import com.simibubi.create.content.trains.track.TrackBlock;
@@ -189,72 +190,36 @@ public class CreateIntegration {
         return curveData;
     }
 
-    public static boolean buildRails(
-            ArrayList<BlockPos> startPositions, ArrayList<BlockPos> endPositions,
-            Player player, ServerLevel world, RailBuilderConfig config) {
+    public static CurveData connectRailNodes(Player player, ServerLevel world, BlockPos s, BlockPos e) {
+        ItemStack trackStack = new ItemStack(TRACK_BLOCK.asItem());
 
-        int n = startPositions.size();
-        if (n != endPositions.size()) {
-            return false;
+        // 1. 点击起点
+        BlockHitResult hitStart = new BlockHitResult(
+                Vec3.atCenterOf(s),
+                Direction.UP,
+                s,
+                false
+        );
+        UseOnContext startContext = new UseOnContext(world, player, InteractionHand.MAIN_HAND, trackStack, hitStart);
+        InteractionResult firstResult = trackStack.useOn(startContext);
+        if (firstResult != InteractionResult.SUCCESS && firstResult != InteractionResult.CONSUME) {
+            return null;
         }
 
-        boolean anySuccess = false;
+        // 2. 点击终点
+        BlockHitResult hitEnd = new BlockHitResult(
+                Vec3.atCenterOf(e),
+                Direction.UP,
+                e,
+                false
+        );
+        UseOnContext endContext = new UseOnContext(world, player, InteractionHand.MAIN_HAND, trackStack, hitEnd);
+        InteractionResult secondResult = trackStack.useOn(endContext);
 
-        for (int i = 0; i < n; i++) {
-            BlockPos s = startPositions.get(i);
-            BlockPos e = endPositions.get(i);
-
-            ItemStack trackStack = new ItemStack(TRACK_BLOCK.asItem());
-
-            // 1. 点击起点
-            BlockHitResult hitStart = new BlockHitResult(
-                    Vec3.atCenterOf(s),
-                    Direction.UP,
-                    s,
-                    false
-            );
-            UseOnContext startContext = new UseOnContext(world, player, InteractionHand.MAIN_HAND, trackStack, hitStart);
-            InteractionResult firstResult = trackStack.useOn(startContext);
-            if (firstResult != InteractionResult.SUCCESS && firstResult != InteractionResult.CONSUME) {
-                continue;
-            }
-
-            // 2. 点击终点
-            BlockHitResult hitEnd = new BlockHitResult(
-                    Vec3.atCenterOf(e),
-                    Direction.UP,
-                    e,
-                    false
-            );
-            UseOnContext endContext = new UseOnContext(world, player, InteractionHand.MAIN_HAND, trackStack, hitEnd);
-            InteractionResult secondResult = trackStack.useOn(endContext);
-
-            if (secondResult == InteractionResult.SUCCESS || secondResult == InteractionResult.CONSUME) {
-                anySuccess = true;
-
-                // 3. 获取复合曲线数学模型 CurveData
-                CreateCurveData curveData = getCenterLine(world, s, e);
-
-                // 4. 交给 PointProvider 采样：分段数按每米 10 段（步长 ~0.1 格），确保方块连续且不漏块
-                int segments = Math.max(10, (int) Math.ceil(curveData.getLength() * 10));
-                PointProvider provider = new PointProvider(curveData, segments, false);
-
-                Set<BlockPos> placed = new LinkedHashSet<>();
-                while (provider.notExhausted()) {
-                    List<Vec3> data = provider.get();
-                    Vec3 center = data.get(0);
-
-                    // 放置在铁轨下方一格（y - 1.0）
-                    BlockPos redstonePos = BlockPos.containing(center.x, center.y - 1.0, center.z);
-                    if (placed.add(redstonePos)) {
-                        world.setBlock(redstonePos, Blocks.REDSTONE_BLOCK.defaultBlockState(), 3);
-                    }
-
-                    provider.next();
-                }
-            }
+        if (secondResult == InteractionResult.SUCCESS || secondResult == InteractionResult.CONSUME) {
+            // 3. 获取复合曲线数学模型 CurveData
+            return getCenterLine(world, s, e);
         }
-
-        return anySuccess;
+        return null;
     }
 }

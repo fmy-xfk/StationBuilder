@@ -214,14 +214,7 @@ public class RailGenerator {
         // Build rails
         TickScheduler.schedule(1, () -> {
             var failToPlaceCatenaryNode = false;
-            if (railNodeType == RailNodeType.MTR) {
-                failToPlaceCatenaryNode = buildRails(startPositions, endPositions, player.getUUID(), world, config);
-            } else if (railNodeType == RailNodeType.CREATE) {
-                failToPlaceCatenaryNode = CreateIntegration.buildRails(startPositions, endPositions, player, world, config);
-            } else if (railNodeType == RailNodeType.VANILLA) {
-                // Build rails for Vanilla
-                // failToPlaceCatenaryNode = VanillaIntegration.buildRails(startPositions, endPositions, player.getUUID(), world, config);
-            }
+            failToPlaceCatenaryNode = buildRails(startPositions, endPositions, player, world, config);
             if (failToPlaceCatenaryNode) {
                 player.displayClientMessage(Component.translatable("message.stationbuilder.rail_builder.catenary_node_failed"), true);
             }
@@ -592,8 +585,10 @@ public class RailGenerator {
 
     public static boolean buildRails(
             ArrayList<BlockPos> startPositions, ArrayList<BlockPos> endPositions,
-            UUID uuid, ServerLevel world, RailBuilderConfig config) {
+            Player player, ServerLevel world, RailBuilderConfig config) {
         int count = startPositions.size();
+        UUID uuid = player.getUUID();
+        RailNodeType nodeType = getRailNodeType(config);
         assert endPositions.size() == count;
 
         // Connect rails
@@ -607,7 +602,13 @@ public class RailGenerator {
                 pos1 = pos2;
                 pos2 = temp;
             }
-            rails[i] = MTRIntegration.connectRailNodes(uuid, world, pos1, pos2, config.railType);
+            if (nodeType == RailNodeType.MTR) {
+                rails[i] = MTRIntegration.connectRailNodes(uuid, world, pos1, pos2, config.railType);
+            } else if (nodeType == RailNodeType.CREATE) {
+                rails[i] = CreateIntegration.connectRailNodes(player, world, pos1, pos2);
+            } else {
+                rails[i] = null;
+            }
             if (rails[i] != null) {
                 maxLength = Math.max(maxLength, rails[i].getLength());
             }
