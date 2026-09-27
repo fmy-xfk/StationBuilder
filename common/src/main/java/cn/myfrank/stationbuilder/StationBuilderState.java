@@ -37,7 +37,7 @@ public final class StationBuilderState {
         CustomData component = stack.get(ModComponents.STATION_BUILDER_DATA.get());
         if (component == null) return;
 
-        be.loadData(component.getUnsafe(), registries);
+        component.loadInto(be, registries);
     }
 
     public static void clear(ItemStack stack) {

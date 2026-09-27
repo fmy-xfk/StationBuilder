@@ -75,7 +75,7 @@ public class StationBuilderBlock extends HorizontalDirectionalBlock implements E
         if (be instanceof StationBuilderBlockEntity builderBe) {
             net.minecraft.world.item.component.CustomData component = stack.get(ModComponents.STATION_BUILDER_DATA.get());
             if (component != null) {
-                builderBe.loadData(component.getUnsafe(), level.registryAccess());
+                component.loadInto(builderBe, level.registryAccess());
                 builderBe.setChanged();
             }
         }
