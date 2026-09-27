@@ -70,7 +70,7 @@ neoForge {
         }
 
         data {
-            data()
+            clientData()
             programArguments.addAll(
                     '--mod', project.mod_id,
                     '--all',

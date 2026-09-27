@@ -24,7 +24,6 @@ import net.minecraft.core.Vec3i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -195,10 +194,6 @@ public class StationBuilderClient {
             StructureTemplate template = templateOpt.get();
             Vec3i rawSize = template.getSize();
             BlockPos sizePos = new BlockPos(rawSize.getX(), rawSize.getY(), rawSize.getZ());
-
-            StructurePlaceSettings placementData = new StructurePlaceSettings()
-                    .setRotation(cfg.rotation)
-                    .setMirror(net.minecraft.world.level.block.Mirror.NONE);
 
             BlockPos rotatedSize = StructureTemplate.transform(sizePos, net.minecraft.world.level.block.Mirror.NONE, cfg.rotation, BlockPos.ZERO);
 
