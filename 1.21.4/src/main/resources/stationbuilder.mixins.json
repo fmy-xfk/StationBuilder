@@ -1,0 +1,21 @@
+{
+  "required": true,
+  "package": "cn.myfrank.stationbuilder.mixin",
+  "plugin": "cn.myfrank.stationbuilder.mixin.StationBuilderMixinPlugin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "mtr.EnumPSDAPGItemAccessor",
+    "mtr.EnumPSDAPGTypeAccessor",
+    "mtr.ItemPSDAPGBaseAccessor",
+    "mtr.ItemRailModifierAccessor"
+  ],
+  "client": [
+    "client.mtr.RenderRailsMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}
