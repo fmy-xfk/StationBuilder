@@ -1,5 +1,6 @@
 package cn.myfrank.stationbuilder;
 
+import cn.myfrank.stationbuilder.blocks.StationBuilderBlockEntity;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;

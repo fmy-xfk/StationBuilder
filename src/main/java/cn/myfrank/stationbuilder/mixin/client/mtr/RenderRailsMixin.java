@@ -1,7 +1,7 @@
 package cn.myfrank.stationbuilder.mixin.client.mtr;
 
-import cn.myfrank.stationbuilder.RailBuilderItem;
-import cn.myfrank.stationbuilder.StationBuilderBlock;
+import cn.myfrank.stationbuilder.items.RailBuilderItem;
+import cn.myfrank.stationbuilder.blocks.StationBuilderBlock;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.item.Item;
 import org.mtr.render.RenderRails;

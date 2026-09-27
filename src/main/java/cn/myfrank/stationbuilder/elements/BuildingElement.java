@@ -1,6 +1,6 @@
 package cn.myfrank.stationbuilder.elements;
 
-import cn.myfrank.stationbuilder.BuildingTemplateManager;
+import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.BlockRotation;
