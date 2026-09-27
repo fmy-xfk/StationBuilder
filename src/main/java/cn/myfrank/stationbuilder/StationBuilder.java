@@ -232,6 +232,10 @@ public class StationBuilder {
         return net.neoforged.fml.ModList.get().isLoaded("mtr");
     }
 
+    public static boolean isCreateLoaded() {
+        return net.neoforged.fml.ModList.get().isLoaded("create");
+    }
+
     public static boolean isMsdLoaded() {
         return net.neoforged.fml.ModList.get().isLoaded("msd");
     }
