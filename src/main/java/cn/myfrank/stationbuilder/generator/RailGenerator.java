@@ -12,11 +12,11 @@ import cn.myfrank.stationbuilder.items.RailBuilderState;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
 import cn.myfrank.stationbuilder.utils.RailMath;
 import cn.myfrank.stationbuilder.utils.BuildingMode;
+import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.PointProvider;
 import cn.myfrank.stationbuilder.utils.TickScheduler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -247,7 +247,7 @@ public class RailGenerator {
     }
 
     private static void drawLine(ServerLevel world, BlockPos a, BlockPos b, ResourceLocation lineBlock) {
-        var state = BuiltInRegistries.BLOCK.get(lineBlock).defaultBlockState();
+        var state = CommonUtil.getBlockState(lineBlock);
         int x1 = a.getX(), y1 = a.getY(), z1 = a.getZ();
         int x2 = b.getX(), y2 = b.getY(), z2 = b.getZ();
 
@@ -283,7 +283,7 @@ public class RailGenerator {
     }
 
     private static void buildPillarDown(ServerLevel world, BlockPos topPos, ResourceLocation pillarBlock) {
-        var state = BuiltInRegistries.BLOCK.get(pillarBlock).defaultBlockState();
+        var state = CommonUtil.getBlockState(pillarBlock);
         BlockPos pos = topPos;
         while(!world.isOutsideBuildHeight(pos) && StationBuilder.isSoftTransparent(world.getBlockState(pos))) {
             world.setBlock(pos, state, 3);
@@ -408,7 +408,7 @@ public class RailGenerator {
     }
 
     private static void clearBlock(ServerLevel world, BlockPos pos, boolean includeCatenary) {
-        world.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+        world.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
     }
 
     private static void clearHeights(Vec3 center, Vec3 normal, ServerLevel world, RailBuilderConfig config,
@@ -473,7 +473,7 @@ public class RailGenerator {
                     isRightest? halfWidth: halfTopWidth);
             for(var block: blockXZs) {
                 var pos = new BlockPos(block.x(), blockY, block.z());
-                world.setBlock(pos, BuiltInRegistries.BLOCK.get(config.ballastBlock).defaultBlockState(), 3);
+                world.setBlock(pos, CommonUtil.getBlockState(config.ballastBlock), 3);
             }
         }
     }
@@ -494,7 +494,7 @@ public class RailGenerator {
             for (int i = 0; i < bridgeXZs.size(); i++) {
                 var block = bridgeXZs.get(i);
                 int x = block.x(), z = block.z();
-                var bridgeBlockState = BuiltInRegistries.BLOCK.get(config.bridgeBlock).defaultBlockState();
+                var bridgeBlockState = CommonUtil.getBlockState(config.bridgeBlock);
                 if ((isLeftest && i == 0) || (isRightest && i == bridgeXZs.size() - 1)) {
                     var pos = new BlockPos(x, blockY - 1, z);
                     if (!isRailNode(world, pos)) {
@@ -502,14 +502,14 @@ public class RailGenerator {
                     }
                     var posU = new BlockPos(x, blockY, z);
                     if (!isRailNode(world, posU)) {
-                        world.setBlock(posU, BuiltInRegistries.BLOCK.get(config.bridgeGuardRailBlock).defaultBlockState(), 3);
+                        world.setBlock(posU, CommonUtil.getBlockState(config.bridgeGuardRailBlock), 3);
                         overpass_walls.add(posU);
                     }
                 } else {
                     var posD = new BlockPos(x, blockY - 2, z);
                     world.setBlock(posD, bridgeBlockState, 3);
                     var pos = new BlockPos(x, blockY - 1, z);
-                    world.setBlock(pos, BuiltInRegistries.BLOCK.get(config.ballastBlock).defaultBlockState(), 3);
+                    world.setBlock(pos, CommonUtil.getBlockState(config.ballastBlock), 3);
                     var posU = new BlockPos(x, blockY, z);
                     if (!isRailNode(world, posU)) {
                         clearBlock(world, posU, clearCatenary);
@@ -523,7 +523,7 @@ public class RailGenerator {
                         int solidCount = 0;
                         while(solidCount < 3 && !world.isOutsideBuildHeight(pos)) {
                             if (StationBuilder.isSoftTransparent(world.getBlockState(pos))) {
-                                world.setBlock(pos, BuiltInRegistries.BLOCK.get(config.bridgePillarBlock).defaultBlockState(), 3);
+                                world.setBlock(pos, CommonUtil.getBlockState(config.bridgePillarBlock), 3);
                                 solidCount = 0;
                             } else {
                                 solidCount++;
@@ -542,16 +542,16 @@ public class RailGenerator {
                 int x = block.x(), z = block.z();
                 var posTop = new BlockPos(x, blockY + config.tunnelHeight, z);
                 if (!isRailNode(world, posTop)) {
-                    world.setBlock(posTop, BuiltInRegistries.BLOCK.get(config.tunnelWallBlock).defaultBlockState(), 3);
+                    world.setBlock(posTop, CommonUtil.getBlockState(config.tunnelWallBlock), 3);
                 }
                 var posBottom = new BlockPos(x, blockY - 1, z);
                 if (!isRailNode(world, posBottom)) {
-                    world.setBlock(posBottom, BuiltInRegistries.BLOCK.get(config.ballastBlock).defaultBlockState(), 3);
+                    world.setBlock(posBottom, CommonUtil.getBlockState(config.ballastBlock), 3);
                 }
                 if ((isLeftest && i == 0) || (isRightest && i == tunnelXZs.size() - 1)) {
                     for(int y = 0; y < config.tunnelHeight; y++) {
                         world.setBlock(new BlockPos(x, blockY + y, z),
-                                BuiltInRegistries.BLOCK.get(config.tunnelWallBlock).defaultBlockState(), 3);
+                                CommonUtil.getBlockState(config.tunnelWallBlock), 3);
                     }
                 } else {
                     for(int y = 0; y < config.tunnelHeight; y++) {
@@ -569,7 +569,7 @@ public class RailGenerator {
                 int x = block.x(), z = block.z();
                 var pos = new BlockPos(x, blockY - 1, z);
                 if (!isRailNode(world, pos)) {
-                    world.setBlock(pos, BuiltInRegistries.BLOCK.get(config.ballastBlock).defaultBlockState(), 3);
+                    world.setBlock(pos, CommonUtil.getBlockState(config.ballastBlock), 3);
                 }
             }
         }

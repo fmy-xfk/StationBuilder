@@ -1,5 +1,6 @@
 package cn.myfrank.stationbuilder.mtr;
 
+import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.CurveData;
 import cn.myfrank.stationbuilder.mixin.mtr.EnumPSDAPGItemAccessor;
 import cn.myfrank.stationbuilder.mixin.mtr.EnumPSDAPGTypeAccessor;
@@ -42,8 +43,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 
 public class MTRIntegration {
-    private static final double EPS = 1e-6;
-
     public static ResourceLocation getDefaultRailType() {
         return ResourceLocation.fromNamespaceAndPath("mtr", "rail_connector_160");
     }
@@ -76,38 +75,26 @@ public class MTRIntegration {
         world.setBlock(pos, mtrNodeState, 3);
     }
 
-    public static float getRailNodeAngle(ServerLevel world, BlockPos pos) {
-        var state = world.getBlockState(pos);
-        return BlockNode.getAngle(state);
-    }
-
-    public static double getAngleFromVec3d(Vec3 v) {
-        if (Math.abs(v.x) < 1e-8 && Math.abs(v.z) < 1e-8) {
-            return 0.0; // 无水平方向，返回默认值
-        }
-        return Math.toDegrees(Math.atan2(-v.x, v.z));
-    }
-
     public static void placePIDSPole(ServerLevel world, BlockPos pos, Direction facing, ResourceLocation poleId) {
-        var state = BuiltInRegistries.BLOCK.get(poleId).defaultBlockState();
-        if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING)) {
-                state = state.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING, facing);
-            } else if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING)) {
-                state = state.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING, facing);
+        var state = CommonUtil.getBlockState(poleId);
+        if (state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
+                state = state.setValue(BlockStateProperties.HORIZONTAL_FACING, facing);
+            } else if (state.hasProperty(BlockStateProperties.FACING)) {
+                state = state.setValue(BlockStateProperties.FACING, facing);
             }
         world.setBlock(pos, state, 3);
     }
 
     public static boolean placePIDS(ServerLevel world, BlockPos pos, Direction facing, ResourceLocation blockId) {
-        var pids = BuiltInRegistries.BLOCK.get(blockId);
+        var pids = CommonUtil.getBlockState(blockId);
         world.setBlock(
                 pos,
-                pids.defaultBlockState().setValue(HorizontalDirectionalBlock.FACING, facing),
+                pids.setValue(HorizontalDirectionalBlock.FACING, facing),
                 3
         );
         world.setBlock(
                 pos.relative(facing),
-                pids.defaultBlockState().setValue(HorizontalDirectionalBlock.FACING, facing.getOpposite()),
+                pids.setValue(HorizontalDirectionalBlock.FACING, facing.getOpposite()),
                 3
         );
         world.updateNeighborsAt(pos, net.minecraft.world.level.block.Blocks.AIR);
@@ -115,7 +102,7 @@ public class MTRIntegration {
     }
 
     public static boolean placePsdItem(ServerLevel world, BlockPos pos, Direction facing, ResourceLocation blockId) {
-        var itemRaw = BuiltInRegistries.ITEM.get(blockId);
+        var itemRaw = CommonUtil.getItem(blockId);
         if (itemRaw instanceof ItemPSDAPGBase item) {
             ItemPSDAPGBaseAccessor accessor = (ItemPSDAPGBaseAccessor) item;
             var psdItem = accessor.item_();
@@ -197,14 +184,14 @@ public class MTRIntegration {
     }
 
     public static boolean isValidRailType(ResourceLocation railType) {
-        var itemRaw = BuiltInRegistries.ITEM.get(railType);
+        var itemRaw = CommonUtil.getItem(railType);
         return itemRaw instanceof ItemRailModifier;
     }
     
     public static CurveData connectRailNodes(
             UUID uuid, ServerLevel world, BlockPos a, BlockPos b, ResourceLocation railType
     ) {
-        var itemRaw = BuiltInRegistries.ITEM.get(railType);
+        var itemRaw = CommonUtil.getItem(railType);
         if (itemRaw instanceof ItemRailModifier modifier) {
             var ret = connectRailNodes(uuid, world, a, b, modifier);
             if (ret == null) return null;
@@ -314,10 +301,6 @@ public class MTRIntegration {
 
     private static Vec3 toVec3d(Vector v) {
         return new Vec3(v.x(), v.y(), v.z());
-    }
-
-    private static Vector toVector(BlockPos v) {
-        return new Vector(v.getX(), v.getY(), v.getZ());
     }
 
     public static Direction horizontalDirectionFromVec(Vec3 v) {

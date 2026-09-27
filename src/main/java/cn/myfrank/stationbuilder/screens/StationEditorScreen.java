@@ -1,6 +1,7 @@
 package cn.myfrank.stationbuilder.screens;
 
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
+import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.SchematicLoaderUtil;
 import cn.myfrank.stationbuilder.StationBuilder;
 import cn.myfrank.stationbuilder.elements.BuildingElement;
@@ -21,6 +22,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -489,8 +492,8 @@ public class StationEditorScreen extends GuiScreen {
             int index = canvas.getSelectedIndex();
             if (index >= 0 && elements.get(index) instanceof PlatformElement p) {
                 p.safetyBlock = e.newId;
-                autoRotate.setVisible(net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(p.safetyBlock).
-                        defaultBlockState().hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING));
+                autoRotate.setVisible(CommonUtil.getBlockState(p.safetyBlock).
+                        hasProperty(BlockStateProperties.HORIZONTAL_FACING));
             }
         });
 
