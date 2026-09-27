@@ -1,25 +1,35 @@
-# eclipse
-bin
-*.launch
-.settings
-.metadata
-.classpath
-.project
+### Gradle ###
+**/.gradle/
+**/build/
+!**/src/**/build/
 
-# idea
-out
-*.ipr
+### IntelliJ IDEA ###
+.idea/
 *.iws
 *.iml
-.idea
+*.ipr
+out/
+**/out/
 
-# gradle
-build
-.gradle
+.run/
 
-# other
-eclipse
-run
+### Eclipse ###
+.apt_generated
+.classpath
+.eclipse
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
 
-# Files from Forge MDK
-forge*changelog.txt
+### VS Code ###
+.vscode/
+.idea/
+.eclipse/
+
+### Minecraft Modding ###
+**/run/
+**/repo/
+**/src/generated/**/.cache/

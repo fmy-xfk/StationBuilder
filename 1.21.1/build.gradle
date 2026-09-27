@@ -1,0 +1,47 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.144'
+    id 'idea'
+}
+
+apply from: rootProject.file('../gradle/neoforge-base.gradle')
+
+repositories {
+    maven {
+        name = "Create Mod Maven"
+        url = uri("https://maven.createmod.net/")
+    }
+    maven {
+        name = "Flywheel Maven"
+        url = uri("https://maven.tterrag.com")
+    }
+}
+
+tasks.named('wrapper', Wrapper).configure {
+    distributionType = Wrapper.DistributionType.BIN
+}
+
+dependencies {
+    implementation "maven.modrinth:minecraft-transit-railway:NEOFORGE-${project.mtr_version}+${project.minecraft_version}"
+
+    // Create is a 1.21.1-only integration. Keep every Create API reference
+    // in create/CreateIntegration.java (plus its mixin/accessor files).
+    implementation "maven.modrinth:create:${project.create_version}+mc${project.minecraft_version}"
+    compileOnly "net.createmod.ponder:ponder-neoforge:1.0.82+mc${project.minecraft_version}"
+    compileOnly "dev.engine-room.flywheel:flywheel-neoforge-api-${project.minecraft_version}:1.0.6"
+    compileOnly "net.createmod.catnip:Catnip-NeoForge-${project.minecraft_version}:0.8.54"
+}
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            url = uri("repo")
+        }
+    }
+}
