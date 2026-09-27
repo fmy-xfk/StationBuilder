@@ -1,5 +1,6 @@
 package cn.myfrank.stationbuilder;
 
+import cn.myfrank.stationbuilder.utils.TestConnectResult;
 import net.minecraft.core.BlockPos;
 import java.util.LinkedHashMap;
 import java.util.Map;

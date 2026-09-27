@@ -1,11 +1,19 @@
 package cn.myfrank.stationbuilder;
 
+import cn.myfrank.stationbuilder.generator.RailGenerator;
+import cn.myfrank.stationbuilder.items.*;
+import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
+import cn.myfrank.stationbuilder.mtr.MTRIntegration;
+import cn.myfrank.stationbuilder.screens.BuildingPlacerScreen;
+import cn.myfrank.stationbuilder.screens.BuildingSelectorScreen;
+import cn.myfrank.stationbuilder.screens.RailBuilderScreen;
+import cn.myfrank.stationbuilder.screens.StationEditorScreen;
+import cn.myfrank.stationbuilder.utils.RailMath;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.ShapeRenderer;
 import net.minecraft.client.renderer.RenderType;
@@ -13,7 +21,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
@@ -32,7 +39,6 @@ import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
-import net.neoforged.neoforge.network.handling.IPayloadHandler;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import org.joml.Matrix4f;
 
@@ -266,7 +272,7 @@ public class StationBuilderClient {
                             preview
                     );
                 }
-                if (preview != null && preview.success()) {
+                if (preview.success()) {
                     renderCurve(poseStack, Minecraft.getInstance().renderBuffers().bufferSource(), event.getCamera(), preview.positions());
                 }
             }
@@ -317,7 +323,7 @@ public class StationBuilderClient {
                 );
             }
 
-            if (preview != null && preview.success()) {
+            if (preview.success()) {
                 successCount += 1;
                 if (preview.radius() > 0) {
                     minRadius = Math.min(minRadius, preview.radius());
