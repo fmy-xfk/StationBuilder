@@ -1,7 +1,6 @@
 package cn.myfrank.stationbuilder.items;
 
 import cn.myfrank.stationbuilder.ModComponents;
-import cn.myfrank.stationbuilder.StationBuilder;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.item.ItemStack;

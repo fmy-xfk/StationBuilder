@@ -1,6 +1,5 @@
 package cn.myfrank.stationbuilder.generator;
 
-import cn.myfrank.stationbuilder.*;
 import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.elements.*;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
