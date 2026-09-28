@@ -18,7 +18,7 @@ public abstract class StationElement {
                 TrackElement track = new TrackElement();
                 if (nbt.contains("ballast")) {
                     track.ballastBlock = Identifier.of(nbt.getString("ballast"));
-                    track.isMtrTrack = nbt.getBoolean("isMtrTrack");
+                    track.track = Identifier.of(nbt.getString("track"));
                 }
                 return track;
 
@@ -89,7 +89,7 @@ public abstract class StationElement {
             case TRACK -> {
                 TrackElement track = new TrackElement();
                 track.ballastBlock = buf.readIdentifier(); // 读取路基方块ID
-                track.isMtrTrack = buf.readBoolean();
+                track.track = buf.readIdentifier();
                 yield track;
             }
             case PLATFORM -> {

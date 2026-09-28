@@ -1,6 +1,13 @@
 package cn.myfrank.stationbuilder;
 
+import cn.myfrank.stationbuilder.blocks.ModBlocks;
+import cn.myfrank.stationbuilder.blocks.StationBuilderBlockEntity;
 import cn.myfrank.stationbuilder.elements.StationElement;
+import cn.myfrank.stationbuilder.generator.StationGenerator;
+import cn.myfrank.stationbuilder.items.*;
+import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
+import cn.myfrank.stationbuilder.manager.PlacerHistoryManager;
+import cn.myfrank.stationbuilder.utils.TickScheduler;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -359,12 +366,6 @@ public class StationBuilder implements ModInitializer {
 			return ID;
 		}
 	}
-	
-	private static final boolean hasMTR = FabricLoader.getInstance().isModLoaded("mtr");
-	public static boolean isMtrLoaded() { return hasMTR; }
-
-	private static final boolean hasMSD = FabricLoader.getInstance().isModLoaded("msd");
-	public static boolean isMsdLoaded() { return hasMSD; }
 
 	public static boolean isSoftTransparent(BlockState state) {
 		return state.isAir() || state.isReplaceable()
