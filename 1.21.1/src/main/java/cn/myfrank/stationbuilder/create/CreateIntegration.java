@@ -1,6 +1,5 @@
 package cn.myfrank.stationbuilder.create;
 
-import cn.myfrank.stationbuilder.utils.CommonUtil;
 import java.util.*;
 
 import cn.myfrank.stationbuilder.mixin.create.PlacementInfoAccessor;
@@ -25,11 +24,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
 public class CreateIntegration {
-
-    /** Returns whether this target can actually use Create integration. */
-    public static boolean isAvailable() {
-        return CommonUtil.isModLoaded("create");
-    }
     public record CreatePreviewResult(boolean success, double radius, double length, List<Vec3> positions) {}
     private static final TrackBlock TRACK_BLOCK = (TrackBlock) net.minecraft.core.registries.BuiltInRegistries.BLOCK
             .get(ResourceLocation.fromNamespaceAndPath("create", "track"));

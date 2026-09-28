@@ -42,7 +42,7 @@ public class RailBuilderScreen extends GuiScreen {
         syncClearMode();
     }, BUTTON_WIDTH_S, INPUT_HEIGHT, getText("clear_mode"));
     private final GuiButton catenaryStateButton = new GuiButton(getText("catenary_vanilla"), (button) -> {
-        catenaryState = (catenaryState + 1) % (CommonUtil.isModLoaded("msd") ? 3 : 2);
+        catenaryState = (catenaryState + 1) % (CommonUtil.isMsdLoaded() ? 3 : 2);
         syncCatenaryState();
     }, BUTTON_WIDTH, INPUT_HEIGHT);
     private final GuiLabelSlot catenaryLineBlockInput = new GuiLabelSlot(getText("catenary_line_block"), INPUT_WIDTH_S, INPUT_HEIGHT, ResourceLocation.fromNamespaceAndPath("minecraft", "cobweb"), false);
@@ -53,8 +53,8 @@ public class RailBuilderScreen extends GuiScreen {
         syncCatenaryMode(button);
         syncCatenaryState();
     }, BUTTON_WIDTH, INPUT_HEIGHT);
-    private final GuiLabelSlot catenaryBridgePillarInput = new GuiLabelSlot(getText("catenary_bridge_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, CommonUtil.isModLoaded("msd") ? ResourceLocation.fromNamespaceAndPath("msd", "catenary_with_long") : ResourceLocation.fromNamespaceAndPath("minecraft", "stone_brick_wall"), false);
-    private final GuiLabelSlot catenaryTunnelPillarInput = new GuiLabelSlot(getText("catenary_tunnel_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, CommonUtil.isModLoaded("msd") ? ResourceLocation.fromNamespaceAndPath("msd", "catenary_with_long_top") : ResourceLocation.fromNamespaceAndPath("minecraft", "stone_brick_wall"), false);
+    private final GuiLabelSlot catenaryBridgePillarInput = new GuiLabelSlot(getText("catenary_bridge_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, CommonUtil.isMsdLoaded() ? ResourceLocation.fromNamespaceAndPath("msd", "catenary_with_long") : ResourceLocation.fromNamespaceAndPath("minecraft", "stone_brick_wall"), false);
+    private final GuiLabelSlot catenaryTunnelPillarInput = new GuiLabelSlot(getText("catenary_tunnel_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, CommonUtil.isMsdLoaded() ? ResourceLocation.fromNamespaceAndPath("msd", "catenary_with_long_top") : ResourceLocation.fromNamespaceAndPath("minecraft", "stone_brick_wall"), false);
     private final GhostInventory ghostInventory = new GhostInventory();
 
     private void syncCatenaryMode(GuiButton button) {
@@ -166,13 +166,13 @@ public class RailBuilderScreen extends GuiScreen {
         syncClearMode();
 
         boolean useCat = !nbt.contains("useCatenary") || nbt.getBoolean("useCatenary");
-        boolean isVan = nbt.contains("isVanillaCatenary") ? nbt.getBoolean("isVanillaCatenary") : !CommonUtil.isModLoaded("msd");
+        boolean isVan = nbt.contains("isVanillaCatenary") ? nbt.getBoolean("isVanillaCatenary") : !CommonUtil.isMsdLoaded();
         if (!useCat) {
             this.catenaryState = 0;
         } else if (isVan) {
             this.catenaryState = 1;
         } else {
-            this.catenaryState = CommonUtil.isModLoaded("msd") ? 2 : 1;
+            this.catenaryState = CommonUtil.isMsdLoaded() ? 2 : 1;
         }
         if (nbt.contains("catenaryModeIndex", Tag.TAG_INT)) {
             this.catenaryModeIndex = nbt.getInt("catenaryModeIndex");

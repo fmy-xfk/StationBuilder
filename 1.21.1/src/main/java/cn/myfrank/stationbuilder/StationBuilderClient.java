@@ -283,7 +283,7 @@ public class StationBuilderClient {
             drawBox(poseStack, consumer, node, cam, 0f, 1f, 1f, 0.6f);
 
             // 1. MTR 铁轨
-            if (railType == RailGenerator.RailNodeType.MTR && CommonUtil.isModLoaded("mtr")) {
+            if (railType == RailGenerator.RailNodeType.MTR && CommonUtil.isMtrLoaded()) {
                 var preview = previewCache.get(
                         lastNode, MTRIntegration.parseAngle(lastAngle),
                         node, MTRIntegration.parseAngle(angle)
@@ -301,7 +301,7 @@ public class StationBuilderClient {
                 }
             }
             // 2. Create 铁轨
-            else if (railType == RailGenerator.RailNodeType.CREATE && CreateIntegration.isAvailable()) {
+            else if (railType == RailGenerator.RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
                 var preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle);
                 if (preview.success()) {
                     renderCurve(poseStack, Minecraft.getInstance().renderBuffers().bufferSource(), event.getCamera(), preview.positions());
@@ -343,7 +343,7 @@ public class StationBuilderClient {
             var node = nodes.get(i);
 
             // MTR 模式收集曲线信息
-            if (railType == RailGenerator.RailNodeType.MTR && CommonUtil.isModLoaded("mtr")) {
+            if (railType == RailGenerator.RailNodeType.MTR && CommonUtil.isMtrLoaded()) {
                 var preview = previewCache.get(
                         lastNode, MTRIntegration.parseAngle(lastAngle),
                         node, MTRIntegration.parseAngle(angle)
@@ -366,7 +366,7 @@ public class StationBuilderClient {
                 }
             }
             // Create 模式收集曲线信息
-            else if (railType == RailGenerator.RailNodeType.CREATE && CreateIntegration.isAvailable()) {
+            else if (railType == RailGenerator.RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
                 var preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle);
                 if (preview.success()) {
                     successCount += 1;

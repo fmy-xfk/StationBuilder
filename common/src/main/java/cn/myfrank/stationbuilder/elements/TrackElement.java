@@ -1,6 +1,5 @@
 package cn.myfrank.stationbuilder.elements;
 
-import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
@@ -9,9 +8,9 @@ import net.minecraft.resources.ResourceLocation;
 // 股道：固定3格宽
 public class TrackElement extends StationElement {
     public static ResourceLocation getDefaultTrack() {
-        if (CreateIntegration.isAvailable()) {
+        if (CommonUtil.isCreateLoaded()) {
             return ResourceLocation.fromNamespaceAndPath("create", "track");
-        } else if (CommonUtil.isModLoaded("mtr")) {
+        } else if (CommonUtil.isMtrLoaded()) {
             return ResourceLocation.fromNamespaceAndPath("mtr", "rail_connector_platform");
         } else {
             return ResourceLocation.fromNamespaceAndPath("minecraft", "rail");

@@ -13,11 +13,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
 public class CreateIntegration {
-
-    /** Returns whether this target can actually use Create integration. */
-    public static boolean isAvailable() {
-        return false;
-    }
     public record CreatePreviewResult(boolean success, double radius, double length, List<Vec3> positions) {}
 
     public static Vec3 getTrackDirectionFromAngle(float angle) {

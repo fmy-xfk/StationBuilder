@@ -15,7 +15,7 @@ public class RailBuilderConfig {
     public double ballastBottomWidth = 11.0;
     public int ballastMaxThickness = 4;
     public ResourceLocation ballastBlock = ResourceLocation.fromNamespaceAndPath("minecraft", "andesite");
-    public ResourceLocation railType = CommonUtil.isModLoaded("mtr") ?
+    public ResourceLocation railType = CommonUtil.isMtrLoaded() ?
             ResourceLocation.fromNamespaceAndPath("mtr", "rail_connector_160") :
             ResourceLocation.fromNamespaceAndPath("minecraft", "rail");
 
@@ -33,16 +33,16 @@ public class RailBuilderConfig {
     public boolean clearFullHeight = false;
 
     public boolean useCatenary = true;
-    public boolean isVanillaCatenary = !CommonUtil.isModLoaded("msd");
+    public boolean isVanillaCatenary = !CommonUtil.isMtrLoaded();
     public int catenaryModeIndex = 0;
     public int catenarySpacing = 50;
-    public ResourceLocation catenaryBlock = CommonUtil.isModLoaded("msd") ?
+    public ResourceLocation catenaryBlock = CommonUtil.isMsdLoaded() ?
             ResourceLocation.fromNamespaceAndPath("msd", "catenary_connector") :
             ResourceLocation.fromNamespaceAndPath("minecraft", "cobweb");
-    public ResourceLocation catenaryBridgePillar = CommonUtil.isModLoaded("msd") ?
+    public ResourceLocation catenaryBridgePillar = CommonUtil.isMsdLoaded() ?
             ResourceLocation.fromNamespaceAndPath("msd", "catenary_with_long") :
             ResourceLocation.fromNamespaceAndPath("minecraft", "stone_brick_wall");
-    public ResourceLocation catenaryTunnelPillar = CommonUtil.isModLoaded("msd") ?
+    public ResourceLocation catenaryTunnelPillar = CommonUtil.isMsdLoaded() ?
             ResourceLocation.fromNamespaceAndPath("msd", "catenary_with_long_top") :
             ResourceLocation.fromNamespaceAndPath("minecraft", "stone_brick_wall");
 

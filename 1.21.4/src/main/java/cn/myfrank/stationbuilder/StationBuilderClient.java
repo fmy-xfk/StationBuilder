@@ -255,7 +255,7 @@ public class StationBuilderClient {
             drawBox(poseStack, consumer, lastNode, cam, 0f, 1f, 1f, 0.6f);
             drawBox(poseStack, consumer, node, cam, 0f, 1f, 1f, 0.6f);
 
-            if (CommonUtil.isModLoaded("mtr")) {
+            if (CommonUtil.isMtrLoaded()) {
                 var preview = previewCache.get(
                         lastNode, MTRIntegration.parseAngle(lastAngle),
                         node, MTRIntegration.parseAngle(angle)
@@ -304,7 +304,7 @@ public class StationBuilderClient {
             var lastNode = lastNodes.get(i);
             var node = nodes.get(i);
 
-            if (!CommonUtil.isModLoaded("mtr")) continue;
+            if (!CommonUtil.isMtrLoaded()) continue;
 
             var preview = previewCache.get(
                     lastNode, MTRIntegration.parseAngle(lastAngle),

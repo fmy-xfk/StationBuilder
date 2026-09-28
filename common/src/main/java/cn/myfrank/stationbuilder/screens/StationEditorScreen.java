@@ -399,7 +399,7 @@ public class StationEditorScreen extends GuiScreen {
         p.addTab(getText("platform"), getPlatformBase(w0, h0));
         p.addTab(getText("canopy"), getPlatformCanopy(w0, h0));
         p.addTab(getText("pillar"), getPlatformPillar(w0, h0));
-        if (CommonUtil.isModLoaded("mtr")) {
+        if (CommonUtil.isMtrLoaded()) {
             p.addTab(Component.literal("MTR"), getPlatformMtr(w0, h0));
         }
         p.setVisible(false);

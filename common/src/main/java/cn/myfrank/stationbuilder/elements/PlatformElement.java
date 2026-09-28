@@ -9,7 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 public class PlatformElement extends StationElement {
     public static final int MAX_BLOCK_COUNT = 5;
     public int width = 9;
-    public ResourceLocation safetyBlock = CommonUtil.isModLoaded("mtr") ?
+    public ResourceLocation safetyBlock = CommonUtil.isMtrLoaded() ?
             ResourceLocation.fromNamespaceAndPath("mtr", "platform") :
             ResourceLocation.fromNamespaceAndPath("minecraft", "yellow_concrete");
 

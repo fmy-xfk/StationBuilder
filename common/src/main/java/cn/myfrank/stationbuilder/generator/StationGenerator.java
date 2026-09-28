@@ -305,7 +305,7 @@ public class StationGenerator {
                 } else {
                     world.setBlock(pos, getRandomMixBlock(p), 3);
                 }
-                if (CommonUtil.isModLoaded("mtr") && p.hasShieldDoors) {
+                if (CommonUtil.isMtrLoaded() && p.hasShieldDoors) {
                     // 检查是否在起止偏移范围内
                     int mod = (l - p.doorStartOffset) % (p.doorSpacing + 2);
                     if (mod == 0 || mod == 1) {
@@ -349,7 +349,7 @@ public class StationGenerator {
                     }
                 }
                 //放置PIDS
-                if (p.hasPids && l > 0 && l < length - 1 && pillarHere && CommonUtil.isModLoaded("mtr")) {
+                if (p.hasPids && l > 0 && l < length - 1 && pillarHere && CommonUtil.isMtrLoaded()) {
                     var basePos = start.relative(facing, l).relative(Direction.UP, 4);
                     if (leftN instanceof TrackElement) {
                         var pos = basePos.relative(right, 1);
@@ -460,8 +460,8 @@ public class StationGenerator {
     private static void generateTrack(ServerPlayer player, ServerLevel world, BlockPos start,
               Direction facing, Direction right, int length, TrackElement t) {
         BlockState ballast = CommonUtil.getBlockState(t.ballastBlock);
-        boolean hasMTR = CommonUtil.isModLoaded("mtr");
-        boolean hasCreate = CreateIntegration.isAvailable();
+        boolean hasMTR = CommonUtil.isMtrLoaded();
+        boolean hasCreate = CommonUtil.isCreateLoaded();
         
         RailShape shape = (facing.getAxis() == Direction.Axis.X)
                 ? RailShape.EAST_WEST

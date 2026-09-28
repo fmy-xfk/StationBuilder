@@ -1,7 +1,6 @@
 package cn.myfrank.stationbuilder;
 
 import cn.myfrank.stationbuilder.blocks.ModBlocks;
-import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.blocks.StationBuilderBlockEntity;
 import cn.myfrank.stationbuilder.elements.StationElement;
 import cn.myfrank.stationbuilder.generator.StationGenerator;
@@ -228,18 +227,6 @@ public class StationBuilder {
     }
 
     // ============ Compatibility facade ============
-    public static boolean isCreateLoaded() {
-        return CreateIntegration.isAvailable();
-    }
-
-    public static boolean isMtrLoaded() {
-        return CommonUtil.isModLoaded("mtr");
-    }
-
-    public static boolean isMsdLoaded() {
-        return CommonUtil.isModLoaded("msd");
-    }
-
     public static boolean isSoftTransparent(BlockState state) {
         return CommonUtil.isSoftTransparent(state);
     }

@@ -39,7 +39,7 @@ public class BlockRotationUtil {
                     }
                 }
 
-                else if (CommonUtil.isModLoaded("mtr") && property instanceof BooleanProperty boolProp) {
+                else if (CommonUtil.isMtrLoaded() && property instanceof BooleanProperty boolProp) {
                     if (property.getName().equals("facing") &&
                             (rotation == Rotation.CLOCKWISE_90 || rotation == Rotation.COUNTERCLOCKWISE_90)) {
                         rotated = rotated.setValue(boolProp, !state.getValue(boolProp));

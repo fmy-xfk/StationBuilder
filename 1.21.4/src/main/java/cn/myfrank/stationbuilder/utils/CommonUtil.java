@@ -22,9 +22,6 @@ import net.neoforged.fml.ModList;
  * throughout gameplay, GUI and generator code.
  */
 public final class CommonUtil {
-    private CommonUtil() {
-    }
-
     public static BlockState getBlockState(ResourceLocation id) {
         return getBlock(id).defaultBlockState();
     }
@@ -74,8 +71,19 @@ public final class CommonUtil {
         return loadStructureTemplate(new StructureTemplate(), nbt);
     }
 
-    public static boolean isModLoaded(String modId) {
-        return ModList.get().isLoaded(modId);
+    private static final boolean isCreateLoaded = ModList.get().isLoaded("create");
+    public static boolean isCreateLoaded() {
+        return isCreateLoaded;
+    }
+
+    private static final boolean isMTRLoaded = ModList.get().isLoaded("mtr");
+    public static boolean isMtrLoaded() {
+        return isMTRLoaded;
+    }
+
+    private static final boolean isMsdLoaded = ModList.get().isLoaded("msd");
+    public static boolean isMsdLoaded() {
+        return isMsdLoaded;
     }
 
     public static boolean isSoftTransparent(BlockState state) {
