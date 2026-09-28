@@ -1,6 +1,5 @@
 package cn.myfrank.stationbuilder.utils;
 
-import cn.myfrank.stationbuilder.StationBuilder;
 import net.minecraft.block.BlockState;
 import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.state.property.EnumProperty;
@@ -47,7 +46,7 @@ public class BlockRotationUtil {
                 }
 
                 // 情况 B：有 MTR - 特殊校正 MTR 轨边节点（BlockNode）特有的布尔类型 "facing"
-                else if (StationBuilder.isMtrLoaded() && property instanceof BooleanProperty boolProp) {
+                else if (CommonUtil.isMTRLoaded() && property instanceof BooleanProperty boolProp) {
                     if (property.getName().equals("facing") &&
                             (rotation == BlockRotation.CLOCKWISE_90 || rotation == BlockRotation.COUNTERCLOCKWISE_90)) {
                         rotated = rotated.with(boolProp, !state.get(boolProp));

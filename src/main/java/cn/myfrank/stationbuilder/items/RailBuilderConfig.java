@@ -1,7 +1,7 @@
 package cn.myfrank.stationbuilder.items;
 
 import cn.myfrank.stationbuilder.ModComponents;
-import cn.myfrank.stationbuilder.StationBuilder;
+import cn.myfrank.stationbuilder.utils.CommonUtil;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
@@ -15,7 +15,7 @@ public class RailBuilderConfig {
     public double ballastBottomWidth = 11.0;
     public int ballastMaxThickness = 4;
     public Identifier ballastBlock = Identifier.of("minecraft", "andesite");
-    public Identifier railType = StationBuilder.isMtrLoaded() ?
+    public Identifier railType = CommonUtil.isMTRLoaded() ?
             Identifier.of("mtr", "rail_connector_160") :
             Identifier.of("minecraft", "rail");
 
@@ -33,16 +33,16 @@ public class RailBuilderConfig {
     public boolean clearFullHeight = false;
 
     public boolean useCatenary = true;
-    public boolean isVanillaCatenary = !StationBuilder.isMsdLoaded();
+    public boolean isVanillaCatenary = !CommonUtil.isMsdLoaded();
     public int catenaryModeIndex = 0;
     public int catenarySpacing = 50;
-    public Identifier catenaryBlock = StationBuilder.isMsdLoaded() ?
+    public Identifier catenaryBlock = CommonUtil.isMsdLoaded() ?
             Identifier.of("msd", "catenary_connector") :
             Identifier.of("minecraft", "cobweb");
-    public Identifier catenaryBridgePillar = StationBuilder.isMsdLoaded() ?
+    public Identifier catenaryBridgePillar = CommonUtil.isMsdLoaded() ?
             Identifier.of("msd", "catenary_with_long") :
             Identifier.of("minecraft", "stone_brick_wall");
-    public Identifier catenaryTunnelPillar = StationBuilder.isMsdLoaded() ?
+    public Identifier catenaryTunnelPillar = CommonUtil.isMsdLoaded() ?
             Identifier.of("msd", "catenary_with_long_top") :
             Identifier.of("minecraft", "stone_brick_wall");
 

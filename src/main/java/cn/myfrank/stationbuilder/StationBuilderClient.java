@@ -11,6 +11,7 @@ import cn.myfrank.stationbuilder.screens.BuildingPlacerScreen;
 import cn.myfrank.stationbuilder.screens.BuildingSelectorScreen;
 import cn.myfrank.stationbuilder.screens.RailBuilderScreen;
 import cn.myfrank.stationbuilder.screens.StationEditorScreen;
+import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.RailMath;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -245,7 +246,7 @@ public class StationBuilderClient implements ClientModInitializer {
 			drawBox(matrices, consumer, lastNode, cam, 0f, 1f, 1f, 0.6f);
 			drawBox(matrices, consumer, node, cam, 0f, 1f, 1f, 0.6f);
 
-			if (StationBuilder.isMtrLoaded()) {
+			if (CommonUtil.isMTRLoaded()) {
 				var preview = previewCache.get(
 						lastNode, MTRIntegration.parseAngle(lastAngle),
 						node, MTRIntegration.parseAngle(angle)
@@ -299,7 +300,7 @@ public class StationBuilderClient implements ClientModInitializer {
 			var lastNode = lastNodes.get(i);
 			var node = nodes.get(i);
 
-			if (!StationBuilder.isMtrLoaded()) continue;
+			if (!CommonUtil.isMTRLoaded()) continue;
 
 			var preview = previewCache.get(
 					lastNode, MTRIntegration.parseAngle(lastAngle),

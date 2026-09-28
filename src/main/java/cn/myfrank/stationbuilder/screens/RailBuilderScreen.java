@@ -1,6 +1,7 @@
 package cn.myfrank.stationbuilder.screens;
 
 import cn.myfrank.stationbuilder.utils.CatenaryTypeMapping;
+import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.StationBuilder;
 import cn.myfrank.stationbuilder.gui.*;
 import cn.myfrank.stationbuilder.gui.GuiPanel.CrossAlignMode;
@@ -42,7 +43,7 @@ public class RailBuilderScreen extends GuiScreen {
         syncClearMode();
     }, BUTTON_WIDTH_S, INPUT_HEIGHT, getText("clear_mode"));
     private final GuiButton catenaryStateButton = new GuiButton(getText("catenary_vanilla"), (button) -> {
-        catenaryState = (catenaryState + 1) % (StationBuilder.isMsdLoaded() ? 3 : 2);
+        catenaryState = (catenaryState + 1) % (CommonUtil.isMsdLoaded() ? 3 : 2);
         syncCatenaryState();
     }, BUTTON_WIDTH, INPUT_HEIGHT);
     private final GuiLabelSlot catenaryLineBlockInput = new GuiLabelSlot(getText("catenary_line_block"), INPUT_WIDTH_S, INPUT_HEIGHT, Identifier.of("minecraft", "cobweb"), false);
@@ -53,8 +54,8 @@ public class RailBuilderScreen extends GuiScreen {
         syncCatenaryMode(button);
         syncCatenaryState();
     }, BUTTON_WIDTH, INPUT_HEIGHT);
-    private final GuiLabelSlot catenaryBridgePillarInput = new GuiLabelSlot(getText("catenary_bridge_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, StationBuilder.isMsdLoaded() ? Identifier.of("msd", "catenary_with_long") : Identifier.of("minecraft", "stone_brick_wall"), false);
-    private final GuiLabelSlot catenaryTunnelPillarInput = new GuiLabelSlot(getText("catenary_tunnel_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, StationBuilder.isMsdLoaded() ? Identifier.of("msd", "catenary_with_long_top") : Identifier.of("minecraft", "stone_brick_wall"), false);
+    private final GuiLabelSlot catenaryBridgePillarInput = new GuiLabelSlot(getText("catenary_bridge_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, CommonUtil.isMsdLoaded() ? Identifier.of("msd", "catenary_with_long") : Identifier.of("minecraft", "stone_brick_wall"), false);
+    private final GuiLabelSlot catenaryTunnelPillarInput = new GuiLabelSlot(getText("catenary_tunnel_pillar"), INPUT_WIDTH_S, INPUT_HEIGHT, CommonUtil.isMsdLoaded() ? Identifier.of("msd", "catenary_with_long_top") : Identifier.of("minecraft", "stone_brick_wall"), false);
     private final GhostInventory ghostInventory = new GhostInventory();
 
     private void syncCatenaryMode(GuiButton button) {
@@ -166,13 +167,13 @@ public class RailBuilderScreen extends GuiScreen {
         syncClearMode();
 
         boolean useCat = !nbt.contains("useCatenary") || nbt.getBoolean("useCatenary");
-        boolean isVan = nbt.contains("isVanillaCatenary") ? nbt.getBoolean("isVanillaCatenary") : !StationBuilder.isMsdLoaded();
+        boolean isVan = nbt.contains("isVanillaCatenary") ? nbt.getBoolean("isVanillaCatenary") : !CommonUtil.isMsdLoaded();
         if (!useCat) {
             this.catenaryState = 0;
         } else if (isVan) {
             this.catenaryState = 1;
         } else {
-            this.catenaryState = StationBuilder.isMsdLoaded() ? 2 : 1;
+            this.catenaryState = CommonUtil.isMsdLoaded() ? 2 : 1;
         }
         if (nbt.contains("catenaryModeIndex", NbtElement.INT_TYPE)) {
             this.catenaryModeIndex = nbt.getInt("catenaryModeIndex");

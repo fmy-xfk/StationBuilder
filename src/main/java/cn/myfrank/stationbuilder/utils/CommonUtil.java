@@ -19,9 +19,6 @@ import net.minecraft.util.Identifier;
  * Cross-version compatibility helpers for Fabric (1.21.1 / Yarn).
  */
 public final class CommonUtil {
-    private CommonUtil() {
-    }
-
     public static BlockState getBlockState(Identifier id) {
         return getBlock(id).getDefaultState();
     }
@@ -71,9 +68,18 @@ public final class CommonUtil {
         return loadStructureTemplate(new StructureTemplate(), nbt);
     }
 
-    public static boolean isModLoaded(String modId) {
-        return FabricLoader.getInstance().isModLoaded(modId);
+    private static final boolean hasMTR = FabricLoader.getInstance().isModLoaded("mtr");
+    public static boolean isMTRLoaded() {
+        return hasMTR;
     }
+
+    private static final boolean hasCreate = FabricLoader.getInstance().isModLoaded("create");
+    public static boolean isCreateLoaded() {
+        return hasCreate;
+    }
+
+    private static final boolean hasMSD = FabricLoader.getInstance().isModLoaded("msd");
+    public static boolean isMsdLoaded() { return hasMSD; }
 
     public static boolean isSoftTransparent(BlockState state) {
         return state.isAir()

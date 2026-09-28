@@ -12,7 +12,6 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.block.BlockState;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.ItemGroup;
@@ -366,12 +365,6 @@ public class StationBuilder implements ModInitializer {
 			return ID;
 		}
 	}
-	
-	private static final boolean hasMTR = FabricLoader.getInstance().isModLoaded("mtr");
-	public static boolean isMtrLoaded() { return hasMTR; }
-
-	private static final boolean hasMSD = FabricLoader.getInstance().isModLoaded("msd");
-	public static boolean isMsdLoaded() { return hasMSD; }
 
 	public static boolean isSoftTransparent(BlockState state) {
 		return state.isAir() || state.isReplaceable()

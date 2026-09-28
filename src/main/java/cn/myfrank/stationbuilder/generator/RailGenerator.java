@@ -45,9 +45,9 @@ public class RailGenerator {
     }
 
     public static boolean isRailNode(ServerWorld world, BlockPos pos, RailNodeType railNodeType) {
-        if (railNodeType == RailNodeType.MTR && CommonUtil.isModLoaded("mtr")) {
+        if (railNodeType == RailNodeType.MTR && CommonUtil.isMTRLoaded()) {
             return MTRIntegration.isRailNode(world, pos);
-        } else if (railNodeType == RailNodeType.CREATE && CreateIntegration.isAvailable()) {
+        } else if (railNodeType == RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
             return CreateIntegration.isRailNode(world, pos);
         } else if (railNodeType == RailNodeType.VANILLA) {
             BlockState state = world.getBlockState(pos);
@@ -58,10 +58,10 @@ public class RailGenerator {
     }
 
     public static boolean isRailNode(ServerWorld world, BlockPos pos) {
-        if (CommonUtil.isModLoaded("mtr")) {
+        if (CommonUtil.isMTRLoaded()) {
             if (MTRIntegration.isRailNode(world, pos)) return true;
         }
-        if (CreateIntegration.isAvailable()) {
+        if (CommonUtil.isCreateLoaded()) {
             if (CreateIntegration.isRailNode(world, pos)) return true;
         }
         BlockState state = world.getBlockState(pos);
@@ -71,7 +71,7 @@ public class RailGenerator {
     public static RailNodeType getRailNodeType(RailBuilderConfig config) {
         switch (config.railType.getNamespace()) {
             case "mtr" -> {
-                if (CommonUtil.isModLoaded("mtr")) {
+                if (CommonUtil.isMTRLoaded()) {
                     if (MTRIntegration.isValidRailType(config.railType)) {
                         return RailNodeType.MTR;
                     } else {
@@ -99,13 +99,13 @@ public class RailGenerator {
     }
 
     public static void placeRailNode(ServerWorld world, BlockPos pos, PlayerEntity player, RailNodeType railNodeType, boolean showInfo) {
-        if (railNodeType == RailNodeType.MTR && CommonUtil.isModLoaded("mtr")){
+        if (railNodeType == RailNodeType.MTR && CommonUtil.isMTRLoaded()){
             if (!MTRIntegration.isRailNode(world, pos)) {
                 MTRIntegration.placeRailNode(world, pos, player.getYaw());
             } else {
                 if(showInfo) System.out.println("Position is already a rail node: " + pos);
             }
-        } else if (railNodeType == RailNodeType.CREATE && CreateIntegration.isAvailable()) {
+        } else if (railNodeType == RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
             CreateIntegration.placeRailNode(world, pos, player.getYaw());
         } else if (railNodeType == RailNodeType.VANILLA) {
             BlockState state = Blocks.RAIL.getDefaultState();

@@ -1,6 +1,5 @@
 package cn.myfrank.stationbuilder.generator;
 
-import cn.myfrank.stationbuilder.*;
 import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.elements.*;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
@@ -284,7 +283,7 @@ public class StationGenerator {
                 } else {
                     world.setBlockState(pos, getRandomMixBlock(p));
                 }
-                if (StationBuilder.isMtrLoaded() && p.hasShieldDoors) {
+                if (CommonUtil.isMTRLoaded() && p.hasShieldDoors) {
                     // 检查是否在起止偏移范围内
                     int mod = (l - p.doorStartOffset) % (p.doorSpacing + 2);
                     if (mod == 0 || mod == 1) {
@@ -328,7 +327,7 @@ public class StationGenerator {
                     }
                 }
                 //放置PIDS
-                if (p.hasPids && l > 0 && l < length - 1 && pillarHere && StationBuilder.isMtrLoaded()) {
+                if (p.hasPids && l > 0 && l < length - 1 && pillarHere && CommonUtil.isMTRLoaded()) {
                     var basePos = start.offset(facing, l).offset(Direction.UP, 4);
                     if (leftN instanceof TrackElement) {
                         var pos = basePos.offset(right, 1);
@@ -448,8 +447,8 @@ public class StationGenerator {
     private static void generateTrack(ServerPlayerEntity player, ServerWorld world, BlockPos start,
               Direction facing, Direction right, int length, TrackElement t) {
         BlockState ballast = net.minecraft.registry.Registries.BLOCK.get(t.ballastBlock).getDefaultState();
-        boolean hasMTR = CommonUtil.isModLoaded("mtr");
-        boolean hasCreate = CommonUtil.isModLoaded("create");
+        boolean hasMTR = CommonUtil.isMTRLoaded();
+        boolean hasCreate = CommonUtil.isCreateLoaded();
         RailShape shape = (facing.getAxis() == Direction.Axis.X)
                 ? RailShape.EAST_WEST
                 : RailShape.NORTH_SOUTH;

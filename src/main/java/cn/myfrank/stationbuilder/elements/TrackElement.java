@@ -1,7 +1,5 @@
 package cn.myfrank.stationbuilder.elements;
 
-import cn.myfrank.stationbuilder.StationBuilder;
-import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.PacketByteBuf;
@@ -11,9 +9,9 @@ import net.minecraft.util.Identifier;
 // --- TrackElement 类内部 ---
 public class TrackElement extends StationElement {
     public static Identifier getDefaultTrack() {
-        if (CreateIntegration.isAvailable()) {
+        if (CommonUtil.isCreateLoaded()) {
             return Identifier.of("create", "track");
-        } else if (CommonUtil.isModLoaded("mtr")) {
+        } else if (CommonUtil.isMTRLoaded()) {
             return Identifier.of("mtr", "rail_connector_platform");
         } else {
             return Identifier.of("minecraft", "rail");

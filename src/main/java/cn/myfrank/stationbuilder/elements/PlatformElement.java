@@ -1,6 +1,6 @@
 package cn.myfrank.stationbuilder.elements;
 
-import cn.myfrank.stationbuilder.StationBuilder;
+import cn.myfrank.stationbuilder.utils.CommonUtil;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.network.PacketByteBuf;
@@ -9,7 +9,7 @@ import net.minecraft.util.Identifier;
 public class PlatformElement extends StationElement {
     public static final int MAX_BLOCK_COUNT = 5;
     public int width = 9;
-    public Identifier safetyBlock = StationBuilder.isMtrLoaded() ?
+    public Identifier safetyBlock = CommonUtil.isMTRLoaded() ?
             Identifier.of("mtr", "platform") :
             Identifier.of("minecraft", "yellow_concrete");
 

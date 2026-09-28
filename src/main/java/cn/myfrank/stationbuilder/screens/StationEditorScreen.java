@@ -2,6 +2,7 @@ package cn.myfrank.stationbuilder.screens;
 
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.manager.PresetManager;
+import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.SchematicLoaderUtil;
 import cn.myfrank.stationbuilder.StationBuilder;
 import cn.myfrank.stationbuilder.elements.BuildingElement;
@@ -398,7 +399,7 @@ public class StationEditorScreen extends GuiScreen {
         p.addTab(getText("platform"), getPlatformBase(w0, h0));
         p.addTab(getText("canopy"), getPlatformCanopy(w0, h0));
         p.addTab(getText("pillar"), getPlatformPillar(w0, h0));
-        if (StationBuilder.isMtrLoaded()) {
+        if (CommonUtil.isMTRLoaded()) {
             p.addTab(Text.literal("MTR"), getPlatformMtr(w0, h0));
         }
         p.setVisible(false);

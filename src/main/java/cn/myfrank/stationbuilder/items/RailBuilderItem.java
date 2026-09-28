@@ -1,6 +1,7 @@
 package cn.myfrank.stationbuilder.items;
 
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
+import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.generator.RailGenerator;
 import cn.myfrank.stationbuilder.StationBuilder;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -18,8 +19,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import java.util.List;
-
-import static cn.myfrank.stationbuilder.StationBuilder.isMtrLoaded;
 
 public class RailBuilderItem extends Item {
     public RailBuilderItem(Settings settings) {
@@ -53,7 +52,7 @@ public class RailBuilderItem extends Item {
         PlayerEntity player = context.getPlayer();
         if (player == null) return ActionResult.PASS;
 
-        if (!isMtrLoaded()) {
+        if (!CommonUtil.isMTRLoaded()) {
             if (world.isClient) {
                 player.sendMessage(Text.translatable("message.stationbuilder.rail_builder.no_mtr"), true);
             }

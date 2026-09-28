@@ -12,11 +12,6 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 public class CreateIntegration {
-
-    /** Returns whether this target can actually use Create integration. */
-    public static boolean isAvailable() {
-        return false;
-    }
     public record CreatePreviewResult(boolean success, double radius, double length, List<Vec3d> positions) {}
 
     public static Vec3d getTrackDirectionFromAngle(float angle) {
