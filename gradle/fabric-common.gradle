@@ -1,0 +1,74 @@
+// Shared configuration for the Fabric targets.
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    mavenCentral()
+    maven { url = "https://api.modrinth.com/maven" }
+    maven {
+        url = "https://cursemaven.com"
+        content { includeGroup "curse.maven" }
+    }
+    maven {
+        name = "essentialMavenPublic"
+        url = uri("https://repo.essential.gg/public")
+    }
+}
+
+sourceSets {
+    main {
+        java.srcDir(project.file("../common/src/main/java"))
+        resources.srcDir(project.file("../common/src/main/resources"))
+    }
+}
+
+processResources {
+    inputs.property "version", project.version
+    inputs.property "minecraft_version", project.minecraft_version
+    inputs.property "loader_version", project.loader_version
+
+    filesMatching("fabric.mod.json") {
+        expand "version": inputs.properties.version,
+               "minecraft_version": inputs.properties.minecraft_version,
+               "loader_version": inputs.properties.loader_version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 17
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+jar {
+    inputs.property "archivesName", project.base.archivesName
+    from("../LICENSE") {
+        rename { "${it}_${inputs.properties.archivesName}" }
+    }
+}
+
+publishing {
+    publications {
+        create("mavenJava", MavenPublication) {
+            artifactId = project.archives_base_name
+            from components.java
+        }
+    }
+    repositories {}
+}
+
+remapJar {
+    archiveFileName = "${project.archives_base_name}-FABRIC-${project.mod_version}+${project.minecraft_version}.jar"
+}
+
+remapSourcesJar {
+    archiveFileName = "${project.archives_base_name}-FABRIC-${project.mod_version}-sources+${project.minecraft_version}.jar"
+}

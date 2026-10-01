@@ -1,40 +1,26 @@
-# Station Builder
+# StationBuilder Fabric multi-version
 
-> Create decorated railways and stations with few clicks!
+This repository keeps Minecraft/Fabric targets separate while sharing the actual mod source.
 
-+ Curseforge: https://www.curseforge.com/minecraft/mc-mods/station-builder
-+ Modrinth: https://modrinth.com/mod/station-builder
-+ mcmod.cn (Chinese): https://www.mcmod.cn/class/24815.html
+## Layout
 
-Station Builder provides 2 tools for convenient construction of continuous rails and train stations.
+- `common/` — shared Java/resources.
+- `1.21.1/` — Fabric 1.21.1 target and its tiny compatibility layer.
+- `1.21.4/` — Fabric 1.21.4 target and its tiny compatibility layer.
+- `gradle/fabric-common.gradle` — Gradle configuration shared by both targets.
 
-+ Station Builder: A block to create train station with multiple platforms and tracks. Pillars, canopys, saftey lines/doors, passenger information display system (PIDS), and ballasts are created automatically in one click.
-  - Right click to open GUI and construct.
-  - Use WorldEdit to save buildings as .schem files (//schem save building_name), and load them in Station builder block's GUI.
-  - **NOTE:** Saftey lines/doors and PIDS needs Minecraft Transit Railway 4.0.0+ to work.
+## Build
 
-+ Rail Builder: An item for continuous parallel rails' construction. It could create tunnels, bridges, piers, catenary and ballasts for the rail automatically. 
-  - Right click to build continuous parallel rails. Shift + Right click to open GUI for configuration. Press V to stop continuous building.
-  - **NOTE:** This tool needs [Minecraft Transit Railway](https://modrinth.com/mod/minecraft-transit-railway) to work, and the catenary needs [Station Decoration (MSD)](https://modrinth.com/mod/station-decoration) to work.
+```bat
+cd 1.21.1
+gradlew build
 
-This mod is developed using Fabric, and is in its very early preview (may be many bugs). Forge versions may be released in the future.
+cd ..\1.21.4
+gradlew build
+```
 
-## Images
+### Version-specific compatibility
 
-+ Build a station
-![station_builder](imgs/station_builder.png)
+`CommonUtil` contains registry/direction/structure-template/custom-model-data differences. `ClientUtil` contains client-only renderer differences. The three item classes keep only the `Item#use` return-type difference in each target; their actual logic lives in `common/*Base.java`.
 
-+ Build a rail
-![rail_builder](imgs/rail_builder.png)
-
-+ Tunnel
-![tunnel](imgs/tunnel.png)
-
-+ Bridge
-![bridge](imgs/bridge.png)
-
-+ Station Builder GUI
-![station_builder_gui](imgs/station_builder_gui.png)
-
-+ Rail Builder GUI
-![rail_builder_gui](imgs/rail_builder_gui.png)
+Create remains a target-specific facade. Fabric currently has no Create implementation bundled here, so both facades are empty shells; do not add Create dependencies to 1.21.4.
