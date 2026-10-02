@@ -1,0 +1,98 @@
+// Shared Gradle configuration for the Forge 1.20.x targets.
+// Keep Minecraft/Forge-specific API configuration in each target's build.gradle.
+
+def commonJavaDir = project.file('../common/src/main/java')
+def commonResourcesDir = project.file('../common/src/main/resources')
+
+group = mod_group_id
+version = mod_version
+
+base {
+    archivesName = mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://api.modrinth.com/maven' }
+    maven {
+        url = 'https://cursemaven.com'
+        content {
+            includeGroup 'curse.maven'
+        }
+    }
+}
+
+sourceSets.main.java.srcDir(commonJavaDir)
+sourceSets.main.resources.srcDir(commonResourcesDir)
+sourceSets.main.resources.srcDir(project.file('src/generated/resources'))
+
+mixin {
+    add sourceSets.main, 'stationbuilder.refmap.json'
+    config 'mixins.stationbuilder.json'
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    def replaceProperties = [
+        minecraft_version      : minecraft_version,
+        minecraft_version_range: minecraft_version_range,
+        forge_version          : forge_version,
+        forge_version_range    : forge_version_range,
+        loader_version_range   : loader_version_range,
+        mod_id                 : mod_id,
+        mod_name               : mod_name,
+        mod_license            : mod_license,
+        mod_version            : mod_version,
+        mod_authors            : mod_authors,
+        mod_description        : mod_description,
+    ]
+    inputs.properties(replaceProperties)
+
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+        expand(replaceProperties + [project: project])
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    archiveFileName = "${mod_id}-FORGE-${mod_version}+${minecraft_version}.jar"
+
+    manifest {
+        attributes([
+            'Specification-Title'    : mod_id,
+            'Specification-Vendor'   : mod_authors,
+            'Specification-Version'  : '1',
+            'Implementation-Title'   : project.name,
+            'Implementation-Version' : project.jar.archiveVersion,
+            'Implementation-Vendor'  : mod_authors,
+        ])
+    }
+
+    finalizedBy('reobfJar')
+}
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            artifact(jar)
+        }
+    }
+    repositories {
+        maven {
+            url = uri(project.file('mcmodsrepo'))
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+eclipse {
+    synchronizationTasks 'genEclipseRuns'
+}
+
+idea.module {
+    downloadJavadoc = true
+    downloadSources = true
+}
