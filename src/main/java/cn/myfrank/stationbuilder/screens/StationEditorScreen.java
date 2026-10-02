@@ -1,20 +1,22 @@
 package cn.myfrank.stationbuilder.screens;
 
-import cn.myfrank.stationbuilder.*;
+import cn.myfrank.stationbuilder.PlatformServices;
+import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
+import cn.myfrank.stationbuilder.utils.CommonUtil;
+import cn.myfrank.stationbuilder.utils.SchematicLoaderUtil;
+import cn.myfrank.stationbuilder.StationBuilder;
 import cn.myfrank.stationbuilder.elements.BuildingElement;
 import cn.myfrank.stationbuilder.elements.PlatformElement;
 import cn.myfrank.stationbuilder.elements.StationElement;
 import cn.myfrank.stationbuilder.elements.TrackElement;
 import cn.myfrank.stationbuilder.gui.*;
-import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.manager.PresetManager;
-import cn.myfrank.stationbuilder.utils.SchematicLoaderUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtAccounter;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -59,18 +61,11 @@ public class StationEditorScreen extends GuiScreen {
             getText("ballast"), INPUT_WIDTH, INPUT_HEIGHT,
             ResourceLocation.fromNamespaceAndPath("minecraft", "andesite"), false
     );
+    private final GuiLabelSlot trackBlockField = new GuiLabelSlot(
+            getText("track"), INPUT_WIDTH, INPUT_HEIGHT,
+            TrackElement.getDefaultTrack(), false
+    );
     private final GuiLabel autoRotate = new GuiLabel(getText("auto_rotate"));
-    private final GuiButton useMtrTrackButton = new GuiButton(getText("mtr_on"), b -> {
-        int index = canvas.getSelectedIndex();
-        if (index >= 0 && elements.get(index) instanceof TrackElement t) {
-            t.isMtrTrack = !t.isMtrTrack;
-            if (t.isMtrTrack) {
-                b.setMessage(getText("mtr_on"));
-            }else{
-                b.setMessage(getText("mtr_off"));
-            }
-        }
-    }, BTN_WIDTH_XL, BTN_HEIGHT);
     private final GuiLabelTextField platformLengthField = new GuiLabelTextField(getText("width"), INPUT_WIDTH_S,
             INPUT_HEIGHT, Component.literal("9"));
     private final GuiLabelSlot platformSafetyField = new GuiLabelSlot(
@@ -173,12 +168,12 @@ public class StationEditorScreen extends GuiScreen {
         }
     }, BTN_WIDTH_XL, BTN_HEIGHT, getText("pids"));
 
-    private final GuiButton buildingRotBtn = new GuiButton(Component.translatable("gui.stationbuilder.building_rotation", StationBuilder.getRotName(Rotation.NONE)), b -> {
+    private final GuiButton buildingRotBtn = new GuiButton(Component.translatable("gui.stationbuilder.building_rotation", CommonUtil.getRotName(Rotation.NONE)), b -> {
         int index = canvas.getSelectedIndex();
         if (index >= 0 && elements.get(index) instanceof BuildingElement be) {
             Rotation[] rots = Rotation.values();
             be.rotation = rots[(be.rotation.ordinal() + 1) % rots.length];
-            b.setMessage(Component.translatable("gui.stationbuilder.building_rotation", StationBuilder.getRotName(be.rotation)));
+            b.setMessage(Component.translatable("gui.stationbuilder.building_rotation", CommonUtil.getRotName(be.rotation)));
             SyncCanvasWithElements(); // 触发画布横向块数重绘
         }
     }, 120, BTN_HEIGHT);
@@ -231,7 +226,7 @@ public class StationEditorScreen extends GuiScreen {
             if (e instanceof TrackElement t) {
                 trackProperties.setVisible(true);
                 trackBallastField.setBlockId(t.ballastBlock);
-                useMtrTrackButton.setMessage(t.isMtrTrack?getText("mtr_on"):getText("mtr_off"));
+                trackBlockField.setBlockId(t.track);
             } else if(e instanceof PlatformElement p) {
                 platformProperties.setVisible(true);
                 platformLengthField.setText(String.valueOf(p.width));
@@ -264,7 +259,7 @@ public class StationEditorScreen extends GuiScreen {
             } else if(e instanceof BuildingElement b) {
                 buildingProperties.setVisible(true);
                 buildingPresetField.setText(b.presetName);
-                buildingRotBtn.setMessage(Component.translatable("gui.stationbuilder.building_rotation", StationBuilder.getRotName(b.rotation)));
+                buildingRotBtn.setMessage(Component.translatable("gui.stationbuilder.building_rotation", CommonUtil.getRotName(b.rotation)));
                 buildingAirBtn.setMessage(Component.translatable("gui.stationbuilder.building_air_" + (b.placeAir ? "on" : "off")));
             } else {
                 emptyProperties.setVisible(true);
@@ -278,11 +273,11 @@ public class StationEditorScreen extends GuiScreen {
         rootPanel.setGap(2);
         int width = this.width - (
                 rootPanel.getMarginLeft() + rootPanel.getPaddingLeft() +
-                rootPanel.getMarginRight() + rootPanel.getPaddingRight()
+                        rootPanel.getMarginRight() + rootPanel.getPaddingRight()
         );
         int height = this.height - (
                 rootPanel.getMarginTop() + rootPanel.getMarginBottom() +
-                rootPanel.getPaddingTop() + rootPanel.getPaddingBottom()
+                        rootPanel.getPaddingTop() + rootPanel.getPaddingBottom()
         );
 
         int topPanelHeight = 24;
@@ -304,21 +299,21 @@ public class StationEditorScreen extends GuiScreen {
 
         int elemOpPanelHeight = 24;
         GuiPanel elemOpPanel = new GuiPanel(width, elemOpPanelHeight)
-        .addControl(new GuiButton(getText("add_track"), b -> {
-            var e = new TrackElement(); elements.add(e);
-            canvas.addRect(Math.min(e.getWidth(), 20) * 3, "T");
-            refreshPropertyArea();
-        }, BTN_WIDTH, BTN_HEIGHT))
-        .addControl(new GuiButton(getText("add_platform"), b -> {
-            var e = new PlatformElement(); elements.add(e);
-            canvas.addRect(Math.min(e.getWidth(), 20) * 3, "P");
-            refreshPropertyArea();
-        }, BTN_WIDTH, BTN_HEIGHT))
-        .addControl(new GuiButton(getText("add_building"), b -> {
-            var e = new BuildingElement("matchbox"); elements.add(e);
-            canvas.addRect(Math.min(e.getWidth(), 20) * 3, "B");
-            refreshPropertyArea();
-        }, BTN_WIDTH, BTN_HEIGHT));
+                .addControl(new GuiButton(getText("add_track"), b -> {
+                    var e = new TrackElement(); elements.add(e);
+                    canvas.addRect(Math.min(e.getWidth(), 20) * 3, "T");
+                    refreshPropertyArea();
+                }, BTN_WIDTH, BTN_HEIGHT))
+                .addControl(new GuiButton(getText("add_platform"), b -> {
+                    var e = new PlatformElement(); elements.add(e);
+                    canvas.addRect(Math.min(e.getWidth(), 20) * 3, "P");
+                    refreshPropertyArea();
+                }, BTN_WIDTH, BTN_HEIGHT))
+                .addControl(new GuiButton(getText("add_building"), b -> {
+                    var e = new BuildingElement("matchbox"); elements.add(e);
+                    canvas.addRect(Math.min(e.getWidth(), 20) * 3, "B");
+                    refreshPropertyArea();
+                }, BTN_WIDTH, BTN_HEIGHT));
 
         delButton.setActive(false);
         moveLeftButton.setActive(false);
@@ -353,12 +348,12 @@ public class StationEditorScreen extends GuiScreen {
         addControl(middlePanel);
 
         GuiPanel bottomPanel = new GuiPanel(width, topPanelHeight)
-        .addControl(new GuiButton(getText("save_preset"), b -> {
-            Minecraft.getInstance().setScreen(new PresetSaveScreen(this));
-        }, BTN_WIDTH_L, BTN_HEIGHT))
-        .addControl(new GuiButton(getText("construct"), b -> {
-            sendBuildPacket(); this.onClose();
-        }, BTN_WIDTH_L, BTN_HEIGHT));
+                .addControl(new GuiButton(getText("save_preset"), b -> {
+                    Minecraft.getInstance().setScreen(new PresetSaveScreen(this));
+                }, BTN_WIDTH_L, BTN_HEIGHT))
+                .addControl(new GuiButton(getText("construct"), b -> {
+                    sendBuildPacket(); this.onClose();
+                }, BTN_WIDTH_L, BTN_HEIGHT));
 
         bottomPanel.setMajorAlign(GuiPanel.MajorAlignMode.END);
         addControl(bottomPanel);
@@ -387,7 +382,15 @@ public class StationEditorScreen extends GuiScreen {
             }
         });
 
-        trackProperties.addControl(trackBallastField).addControl(useMtrTrackButton);
+        trackBlockField.slotChanged.clear();
+        trackBlockField.slotChanged.addHandler((sender, e) -> {
+            int index = canvas.getSelectedIndex();
+            if (index >= 0 && elements.get(index) instanceof TrackElement t) {
+                t.track = e.newId;
+            }
+        });
+
+        trackProperties.addControl(trackBallastField).addControl(trackBlockField);
         return trackProperties;
     }
 
@@ -397,7 +400,7 @@ public class StationEditorScreen extends GuiScreen {
         p.addTab(getText("platform"), getPlatformBase(w0, h0));
         p.addTab(getText("canopy"), getPlatformCanopy(w0, h0));
         p.addTab(getText("pillar"), getPlatformPillar(w0, h0));
-        if (StationBuilder.isMtrLoaded()) {
+        if (CommonUtil.isMtrLoaded()) {
             p.addTab(Component.literal("MTR"), getPlatformMtr(w0, h0));
         }
         p.setVisible(false);
@@ -488,8 +491,8 @@ public class StationEditorScreen extends GuiScreen {
             int index = canvas.getSelectedIndex();
             if (index >= 0 && elements.get(index) instanceof PlatformElement p) {
                 p.safetyBlock = e.newId;
-                autoRotate.setVisible(net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(p.safetyBlock).
-                        defaultBlockState().hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING));
+                autoRotate.setVisible(CommonUtil.getBlockState(p.safetyBlock).
+                        hasProperty(BlockStateProperties.HORIZONTAL_FACING));
             }
         });
 
@@ -699,7 +702,7 @@ public class StationEditorScreen extends GuiScreen {
             if (name.endsWith(".nbt")) {
                 CompoundTag nbt = NbtIo.readCompressed(file.toPath(), NbtAccounter.unlimitedHeap());
                 StructureTemplate template = new StructureTemplate();
-                template.load(BuiltInRegistries.BLOCK.asLookup(), nbt);
+                CommonUtil.loadStructureTemplate(template, nbt);
                 return template;
             } else if (name.endsWith(".schem") || name.endsWith(".schematic")) {
                 return SchematicLoaderUtil.loadSchematic(file.toPath());
@@ -751,12 +754,12 @@ public class StationEditorScreen extends GuiScreen {
         SyncCanvasWithElements();
         refreshPropertyArea();
     }
-    
+
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         int oldIndex = canvas.getSelectedIndex();
         boolean ret = super.mouseClicked(mouseX, mouseY, button);
-        
+
         // 当发生点击并在 Canvas 内选中新块或空白时，更新右侧的属性区域即可
         if (oldIndex != canvas.getSelectedIndex()) {
             refreshPropertyArea();

@@ -1,28 +1,35 @@
 package cn.myfrank.stationbuilder.generator;
 
-import cn.myfrank.stationbuilder.StationBuilder;
+import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.elements.*;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
 import cn.myfrank.stationbuilder.utils.BlockRotationUtil;
+import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.TickScheduler;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.SlabBlock;
-import net.minecraft.world.level.block.state.properties.SlabType;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.level.block.Rotation;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.SlabBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.RailShape;
+import net.minecraft.world.level.block.state.properties.SlabType;
+import net.minecraft.world.level.levelgen.structure.templatesystem.BlockIgnoreProcessor;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessor;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessorType;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -55,10 +62,11 @@ public class StationGenerator {
                     BlockState state = world.getBlockState(p);
                     if (state.isAir()) continue;
 
-                    ResourceLocation id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock());
+                    ResourceLocation id = CommonUtil.getBlockId(state.getBlock());
                     if (id.getNamespace().equals("mtr") && id.getPath().contains("rail")) {
                         mtrRails.add(p);
                     } else {
+                        // 使用 flag 2 (UPDATE_CLIENTS) 且不包含 flag 1 (UPDATE_NEIGHBORS) 抑制更新，再加 FORCE_STATE 强制覆盖
                         world.setBlock(p, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
                     }
                 }
@@ -67,7 +75,7 @@ public class StationGenerator {
 
         for (BlockPos p : mtrRails) {
             BlockState state = world.getBlockState(p);
-            ResourceLocation id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock());
+            ResourceLocation id = CommonUtil.getBlockId(state.getBlock());
             if (id.getNamespace().equals("mtr") && id.getPath().contains("rail")) {
                 state.getBlock().playerWillDestroy(world, p, state, player);
                 world.setBlock(p, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
@@ -96,7 +104,7 @@ public class StationGenerator {
     }
 
     private static void fillTrackGap(ServerLevel world, BlockPos start, Direction facing, Direction right, int length, TrackElement t) {
-        BlockState ballast = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(t.ballastBlock).defaultBlockState();
+        BlockState ballast = CommonUtil.getBlockState(t.ballastBlock);
         for (int l = 0; l < length; l++) {
             BlockPos P = start.relative(facing, l);
             world.setBlock(P, Blocks.AIR.defaultBlockState(), 3);
@@ -133,27 +141,26 @@ public class StationGenerator {
                     .setMirror(net.minecraft.world.level.block.Mirror.NONE);
 
             if (!element.placeAir) {
-                data.addProcessor(net.minecraft.world.level.levelgen.structure.templatesystem.BlockIgnoreProcessor.AIR);
+                data.addProcessor(BlockIgnoreProcessor.AIR);
             }
 
             // 注册强行旋转处理器（提供零 MTR 依赖的完美朝向偏转）
-            data.addProcessor(new net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessor() {
-                @javax.annotation.Nullable
+            data.addProcessor(new StructureProcessor() {
                 @Override
-                public net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo processBlock(
-                        net.minecraft.world.level.LevelReader world,
+                public StructureTemplate.StructureBlockInfo processBlock(
+                        LevelReader world,
                         BlockPos pos,
                         BlockPos pivot,
-                        net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo original,
-                        net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo current,
+                        StructureTemplate.StructureBlockInfo original,
+                        StructureTemplate.StructureBlockInfo current,
                         StructurePlaceSettings placementData
                 ) {
                     BlockState rotatedState = BlockRotationUtil.forceRotateState(current.state(), placementData.getRotation());
-                    return new net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo(current.pos(), rotatedState, current.nbt());
+                    return new StructureTemplate.StructureBlockInfo(current.pos(), rotatedState, current.nbt());
                 }
 
                 @Override
-                protected net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessorType<?> getType() {
+                protected StructureProcessorType<?> getType() {
                     return null;
                 }
             });
@@ -208,11 +215,11 @@ public class StationGenerator {
 
             BlockPos placePos = BlockPos.containing(placeX, pos.getY(), placeZ);
 
-            // 4. 放置结构：传入 BlockPos.ORIGIN 作为 pivot，让游戏底层乖乖绕 (0,0,0) 旋转，我们外部在坐标上完全补偿它
+            // 4. 放置结构：传入 BlockPos.ZERO 作为 pivot，让游戏底层乖乖绕 (0,0,0) 旋转，我们外部在坐标上完全补偿它
             template.placeInWorld(world, placePos, BlockPos.ZERO, data, world.random, 2);
         } else {
             // == 找不到模板时的回退火柴盒 ==
-            world.players().forEach(p -> p.sendSystemMessage(net.minecraft.network.chat.Component.translatable("message.stationbuilder.template_not_found", element.presetName).withStyle(net.minecraft.ChatFormatting.RED)));
+            world.players().forEach(p -> p.displayClientMessage(Component.translatable("message.stationbuilder.template_not_found", element.presetName).withStyle(ChatFormatting.RED), false));
 
             int buildingWidth = 8; // 沿 right 方向
             int buildingDepth = 12; // 沿 facing 方向
@@ -251,7 +258,7 @@ public class StationGenerator {
                     }
                 }
             }
-            BlockPos lightPos = centeredPos.relative(right, buildingWidth / 2).relative(facing, buildingDepth / 2).above( buildingHeight - 2);
+            BlockPos lightPos = centeredPos.relative(right, buildingWidth / 2).relative(facing, buildingDepth / 2).above(buildingHeight - 2);
             world.setBlock(lightPos, Blocks.LANTERN.defaultBlockState(), 3);
         }
     }
@@ -270,7 +277,7 @@ public class StationGenerator {
     }
 
     private static void generatePlatform(ServerPlayer player, ServerLevel world, BlockPos start, Direction facing,
-             Direction right, int length, PlatformElement p, StationElement leftN, StationElement rightN) {
+                                         Direction right, int length, PlatformElement p, StationElement leftN, StationElement rightN) {
         boolean pidsFail = false, psdFail = false;
         int minW = 0;
         int maxW = p.width - 1;
@@ -292,13 +299,13 @@ public class StationGenerator {
                 else if (isRightEdge && rightN instanceof TrackElement) trackDirection = right;
 
                 if (trackDirection != null) {
-                    BlockState safetyState = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(p.safetyBlock).defaultBlockState();
+                    BlockState safetyState = CommonUtil.getBlockState(p.safetyBlock);
                     safetyState = applySmartFacing(safetyState, trackDirection);
                     world.setBlock(pos, safetyState, 3);
                 } else {
                     world.setBlock(pos, getRandomMixBlock(p), 3);
                 }
-                if (StationBuilder.isMtrLoaded() && p.hasShieldDoors) {
+                if (CommonUtil.isMtrLoaded() && p.hasShieldDoors) {
                     // 检查是否在起止偏移范围内
                     int mod = (l - p.doorStartOffset) % (p.doorSpacing + 2);
                     if (mod == 0 || mod == 1) {
@@ -338,11 +345,11 @@ public class StationGenerator {
                     // 3. 生成支柱：传递 totalHalfY 以便支柱自动对齐高度
                     if (pillarHere) {
                         generatePillars(world, facing, basePos, w, p, leftN, rightN, totalHalfY,
-                        p.hasLighting && l < length - 1, p.hasLighting && l > 0);
+                                p.hasLighting && l < length - 1, p.hasLighting && l > 0);
                     }
                 }
                 //放置PIDS
-                if (p.hasPids && l > 0 && l < length - 1 && pillarHere && StationBuilder.isMtrLoaded()) {
+                if (p.hasPids && l > 0 && l < length - 1 && pillarHere && CommonUtil.isMtrLoaded()) {
                     var basePos = start.relative(facing, l).relative(Direction.UP, 4);
                     if (leftN instanceof TrackElement) {
                         var pos = basePos.relative(right, 1);
@@ -436,44 +443,61 @@ public class StationGenerator {
     }
 
     private static BlockState getSlabState(ResourceLocation slabId, int halfY) {
-        BlockState state = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(slabId).defaultBlockState();
-        if (!state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.SLAB_TYPE)) {
+        BlockState state = CommonUtil.getBlockState(slabId);
+        if (!state.hasProperty(BlockStateProperties.SLAB_TYPE)) {
             return state; // 如果不是半砖，原样返回
         }
 
         // 如果 halfY 是偶数（如 10），对应整格高度 (5.0)，方块在 Y=5，属性为 BOTTOM
         // 如果 halfY 是奇数（如 11），对应高度 (5.5)，方块在 Y=5，属性为 TOP
         if (halfY % 2 == 0) {
-            return state.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.SLAB_TYPE, net.minecraft.world.level.block.state.properties.SlabType.BOTTOM);
+            return state.setValue(BlockStateProperties.SLAB_TYPE, SlabType.BOTTOM);
         } else {
-            return state.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.SLAB_TYPE, net.minecraft.world.level.block.state.properties.SlabType.TOP);
+            return state.setValue(BlockStateProperties.SLAB_TYPE, SlabType.TOP);
         }
     }
 
     private static void generateTrack(ServerPlayer player, ServerLevel world, BlockPos start,
-              Direction facing, Direction right, int length, TrackElement t) {
-        BlockState ballast = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(t.ballastBlock).defaultBlockState();
-        boolean hasMTR = StationBuilder.isMtrLoaded();
-        net.minecraft.world.level.block.state.properties.RailShape shape = (facing.getAxis() == Direction.Axis.X)
-                ? net.minecraft.world.level.block.state.properties.RailShape.EAST_WEST
-                : net.minecraft.world.level.block.state.properties.RailShape.NORTH_SOUTH;
+                                      Direction facing, Direction right, int length, TrackElement t) {
+        BlockState ballast = CommonUtil.getBlockState(t.ballastBlock);
+        boolean hasMTR = CommonUtil.isMtrLoaded();
+        boolean hasCreate = CommonUtil.isCreateLoaded();
 
-        BlockState railState = Blocks.RAIL.defaultBlockState().setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.RAIL_SHAPE, shape);
+        RailShape shape = (facing.getAxis() == Direction.Axis.X)
+                ? RailShape.EAST_WEST
+                : RailShape.NORTH_SOUTH;
+        BlockState railState = Blocks.RAIL.defaultBlockState().setValue(BlockStateProperties.RAIL_SHAPE, shape);
+        if (t.track.getNamespace().equals("mtr") && hasMTR) {
+            railState = null;
+        } else if (t.track.getNamespace().equals("create") && hasCreate) {
+            if (!t.track.getPath().equals("track")) {
+                player.sendSystemMessage(Component.translatable("gui.stationbuilder.bad_rail_msg", t.track.getPath()));
+            }else{
+                railState = CreateIntegration.getTrackBlockState(facing);
+            }
+        } else {
+            try {
+                railState = CommonUtil.getBlockState(t.track).setValue(BlockStateProperties.RAIL_SHAPE, shape);
+            } catch (Exception e) {
+                player.sendSystemMessage(Component.translatable("gui.stationbuilder.bad_rail_msg", t.track.getPath()));
+            }
+        }
+
         for (int l = 0; l < length; l++) {
             BlockPos L = start.relative(facing, l);
             BlockPos M = L.relative(right);
             BlockPos R = M.relative(right);
             world.setBlock(L, Blocks.AIR.defaultBlockState(), 3);
             world.setBlock(L.below(), ballast, 3);
-            if (!(t.isMtrTrack && hasMTR)) {
+            if (railState != null) {
                 world.setBlock(M, railState, 3);
             }
             world.setBlock(M.below(), ballast, 3);
-            world.setBlock(R, Blocks.AIR.defaultBlockState(),3);
-            world.setBlock(R.below(), ballast,3);
+            world.setBlock(R, Blocks.AIR.defaultBlockState(), 3);
+            world.setBlock(R.below(), ballast, 3);
 
         }
-        if (t.isMtrTrack && hasMTR) {
+        if (railState == null && hasMTR) {
             BlockPos nodeStart = start.relative(right, 1);
             BlockPos nodeEnd = nodeStart.relative(facing, length - 1);
             var playerUuid = player.getUUID();
@@ -481,7 +505,7 @@ public class StationGenerator {
                 // 延迟一个tick，以确保其他方块onBreak能被正确执行
                 MTRIntegration.placeRailNode(world, nodeStart, facing);
                 MTRIntegration.placeRailNode(world, nodeEnd, facing);
-                MTRIntegration.connectRailNodes(playerUuid, world, nodeStart, nodeEnd,0);
+                MTRIntegration.connectRailNodes(playerUuid, world, nodeStart, nodeEnd, t.track);
             });
         }
     }
@@ -495,7 +519,7 @@ public class StationGenerator {
         double current = 0;
         for (var slot : p.mixSlots) {
             current += slot.weight;
-            if (current >= r) return net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(slot.blockId).defaultBlockState();
+            if (current >= r) return CommonUtil.getBlockState(slot.blockId);
         }
         return Blocks.SMOOTH_STONE.defaultBlockState();
     }
@@ -510,8 +534,8 @@ public class StationGenerator {
     }
 
     private static void generatePillars(ServerLevel world, Direction facing, BlockPos pos, int w,
-            PlatformElement p, StationElement leftN, StationElement rightN, int totalHalfY, boolean frontLight, boolean backLight) {
-        BlockState pillarState = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(p.pillarBlockId).defaultBlockState();
+                                        PlatformElement p, StationElement leftN, StationElement rightN, int totalHalfY, boolean frontLight, boolean backLight) {
+        BlockState pillarState = CommonUtil.getBlockState(p.pillarBlockId);
 
         // 计算支柱顶部的 Y 偏移量（相对于站台表面）
         // 逻辑：如果 totalHalfY 是 10 (5.0格, 下半砖)，支柱应到 4格处；
@@ -546,7 +570,7 @@ public class StationGenerator {
             }
         }
         if (buildHere) {
-            BlockState lightState = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(p.lightBlockId).defaultBlockState();
+            BlockState lightState = CommonUtil.getBlockState(p.lightBlockId);
             if (frontLight) world.setBlock(pos.above(pillarTopRelY).relative(facing), lightState, 3);
             if (backLight) world.setBlock(pos.above(pillarTopRelY).relative(facing.getOpposite()), lightState, 3);
         }

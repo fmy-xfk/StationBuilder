@@ -15,14 +15,18 @@ public class BuildingElement extends StationElement {
     @Override
     public CompoundTag toNbt() {
         CompoundTag nbt = new CompoundTag();
-        nbt.putString("type", narrationPriority().name()); // BUILDING
+        nbt.putString("type", getType().name()); // BUILDING
         nbt.putString("preset", presetName);
         nbt.putString("rotation", rotation.name());
         nbt.putBoolean("placeAir", placeAir);
         return nbt;
     }
 
-    @Override public Type narrationPriority() { return Type.BUILDING; }
+    @Override
+    public Type getType() {
+        return Type.BUILDING;
+    }
+
     @Override public int getWidth() {
         return BuildingTemplateManager.getTemplate(presetName)
                 .map(t -> {
@@ -36,7 +40,7 @@ public class BuildingElement extends StationElement {
                 .orElse(8); // 如果没找到模板，默认8宽
     }
     @Override public void write(FriendlyByteBuf buf) {
-        buf.writeEnum(narrationPriority());
+        buf.writeEnum(getType());
         buf.writeUtf(presetName);
         buf.writeEnum(rotation);
         buf.writeBoolean(placeAir);
