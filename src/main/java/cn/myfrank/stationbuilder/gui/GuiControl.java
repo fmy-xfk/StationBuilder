@@ -1,6 +1,7 @@
 package cn.myfrank.stationbuilder.gui;
 
 import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.gui.narration.NarratableEntry.NarrationPriority;
 import org.jetbrains.annotations.Nullable;
 
 public abstract class GuiControl implements GuiControlLike {
