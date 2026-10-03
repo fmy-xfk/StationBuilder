@@ -1,0 +1,12 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "stationbuilder:item/rail_builder"
+  },
+  "overrides": [
+    {
+      "predicate": { "building": 1 },
+      "model": "stationbuilder:item/rail_builder_active"
+    }
+  ]
+}
