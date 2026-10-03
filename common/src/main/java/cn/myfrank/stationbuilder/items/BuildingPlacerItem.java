@@ -4,7 +4,6 @@ import cn.myfrank.stationbuilder.StationBuilder;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.manager.PlacerHistoryManager;
 import cn.myfrank.stationbuilder.utils.BlockRotationUtil;
-import cn.myfrank.stationbuilder.utils.BuildingPlacerConfig;
 
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;

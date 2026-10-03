@@ -2,8 +2,6 @@ package cn.myfrank.stationbuilder.items;
 
 import cn.myfrank.stationbuilder.generator.RailGenerator;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
-import cn.myfrank.stationbuilder.utils.RailBuilderConfig;
-import cn.myfrank.stationbuilder.utils.RailBuilderState;
 
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;

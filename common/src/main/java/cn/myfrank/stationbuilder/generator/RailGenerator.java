@@ -1,67 +1,147 @@
 package cn.myfrank.stationbuilder.generator;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.UUID;
 
-import cn.myfrank.stationbuilder.elements.*;
+import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.mtr.MSDIntegration;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
 import cn.myfrank.stationbuilder.utils.*;
-import net.minecraft.block.Block;
-import net.minecraft.block.Blocks;
+import cn.myfrank.stationbuilder.items.RailBuilderConfig;
+import cn.myfrank.stationbuilder.items.RailBuilderState;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.block.WallBlock;
+import net.minecraft.block.enums.RailShape;
 import net.minecraft.block.enums.WallShape;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
-import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.property.Properties;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.Heightmap;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.ArrayList;
-import java.util.UUID;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 
 public class RailGenerator {
     private static final double EPS = 1e-6;
-    public static void placeFirstRailNode(ServerWorld world, BlockPos pos, PlayerEntity player) {
-        if (CommonUtil.isMtrLoaded()){
+
+    private static double lerp(double a, double b, double t) {
+        return a + t * (b - a);
+    }
+
+    private static Vec3d toVec3d(BlockPos v) {
+        return new Vec3d(v.getX(), v.getY(), v.getZ());
+    }
+
+    public enum RailNodeType {
+        VANILLA,
+        CREATE,
+        MTR,
+        UNSUPPORTED
+    }
+
+    public static boolean isRailNode(ServerWorld world, BlockPos pos, RailNodeType railNodeType) {
+        if (railNodeType == RailNodeType.MTR && CommonUtil.isMtrLoaded()) {
+            return MTRIntegration.isRailNode(world, pos);
+        } else if (railNodeType == RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
+            return CreateIntegration.isRailNode(world, pos);
+        } else if (railNodeType == RailNodeType.VANILLA) {
+            BlockState state = world.getBlockState(pos);
+            return state.isOf(Blocks.RAIL) || state.isOf(Blocks.POWERED_RAIL) || state.isOf(Blocks.DETECTOR_RAIL) || state.isOf(Blocks.ACTIVATOR_RAIL);
+        } else {
+            return false;
+        }
+    }
+
+    public static boolean isRailNode(ServerWorld world, BlockPos pos) {
+        if (CommonUtil.isMtrLoaded()) {
+            if (MTRIntegration.isRailNode(world, pos)) return true;
+        }
+        if (CommonUtil.isCreateLoaded()) {
+            if (CreateIntegration.isRailNode(world, pos)) return true;
+        }
+        BlockState state = world.getBlockState(pos);
+        return (state.isOf(Blocks.RAIL) || state.isOf(Blocks.POWERED_RAIL) || state.isOf(Blocks.DETECTOR_RAIL) || state.isOf(Blocks.ACTIVATOR_RAIL));
+    }
+
+    public static RailNodeType getRailNodeType(RailBuilderConfig config) {
+        switch (config.railType.getNamespace()) {
+            case "mtr" -> {
+                if (CommonUtil.isMtrLoaded()) {
+                    if (MTRIntegration.isValidRailType(config.railType)) {
+                        return RailNodeType.MTR;
+                    } else {
+                        return RailNodeType.UNSUPPORTED;
+                    }
+                } else {
+                    return RailNodeType.UNSUPPORTED;
+                }
+            }
+            case "create" -> {
+                if (config.railType.getPath().equals("track")) {
+                    return RailNodeType.CREATE;
+                } else {
+                    return RailNodeType.UNSUPPORTED;
+                }
+            }
+            default -> {
+                if (config.railType.getNamespace().equals("minecraft") && config.railType.getPath().contains("rail")) {
+                    return RailNodeType.VANILLA;
+                } else {
+                    return RailNodeType.UNSUPPORTED;
+                }
+            }
+        }
+    }
+
+    public static void placeRailNode(ServerWorld world, BlockPos pos, PlayerEntity player, RailNodeType railNodeType, boolean showInfo) {
+        if (railNodeType == RailNodeType.MTR && CommonUtil.isMtrLoaded()){
             if (!MTRIntegration.isRailNode(world, pos)) {
                 MTRIntegration.placeRailNode(world, pos, player.getYaw());
             } else {
-                System.out.println("Position is already a rail node: " + pos);
+                if(showInfo) System.out.println("Position is already a rail node: " + pos);
             }
+        } else if (railNodeType == RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
+            CreateIntegration.placeRailNode(world, pos, player.getYaw());
+        } else if (railNodeType == RailNodeType.VANILLA) {
+            BlockState state = Blocks.RAIL.getDefaultState();
+            state.with(Properties.RAIL_SHAPE, (int)(player.getYaw() / 90.0f + 0.5f) % 2 == 0 ? RailShape.NORTH_SOUTH : RailShape.EAST_WEST);
+        } else {
+            if(showInfo) System.out.println("Rail node type not supported or mod not loaded: " + railNodeType);
         }
+    }
+
+    public static void placeFirstRailNode(ServerWorld world, BlockPos pos, PlayerEntity player, RailNodeType railNodeType) {
+        placeRailNode(world, pos, player, railNodeType, true);
     }
 
     public static ArrayList<BlockPos> calcRailNodes(BlockPos pos, float yaw, RailBuilderConfig config) {
         final ArrayList<BlockPos> placedPositions = new ArrayList<>();
-        if (CommonUtil.isMtrLoaded()){
-            Vec3d normal = RailMath.normalFromYaw(yaw);
+        Vec3d normal = RailMath.normalFromYaw(yaw);
 
-            int count = config.railCount;
-            double spacing = config.railSpacing;
+        int count = config.railCount;
+        double spacing = config.railSpacing;
 
-            for (int i = 0; i < count; i++) {
-                double offsetIndex = i - (count - 1) / 2.0;
-                Vec3d offset = normal.multiply(offsetIndex * spacing);
-                BlockPos s = RailMath.offsetPos(pos, offset);
-                placedPositions.add(s);
-            }
-            return placedPositions;
+        for (int i = 0; i < count; i++) {
+            double offsetIndex = i - (count - 1) / 2.0;
+            double t = offsetIndex * spacing;
+            Vec3d offset = normal.multiply(t, t, t);
+            BlockPos s = RailMath.offsetPos(pos, offset);
+            placedPositions.add(s);
         }
-        return null;
+        return placedPositions;
     }
 
     public static ArrayList<BlockPos> placeFirstRailNodes(ServerWorld world, BlockPos pos, PlayerEntity player, RailBuilderConfig config) {
         ArrayList<BlockPos> nodes = calcRailNodes(pos, player.getYaw(), config);
-        if (nodes != null) {
-            for (BlockPos p : nodes) {
-                placeFirstRailNode(world, p, player);
-            }
+        RailNodeType railNodeType = getRailNodeType(config);
+        for (BlockPos p : nodes) {
+            placeFirstRailNode(world, p, player, railNodeType);
         }
         return nodes;
     }
@@ -74,7 +154,12 @@ public class RailGenerator {
             RailBuilderConfig config,
             PlayerEntity player
     ) {
-        if (!CommonUtil.isMtrLoaded()) return null;
+        RailNodeType railNodeType = getRailNodeType(config);
+        if (railNodeType == RailNodeType.UNSUPPORTED) {
+            player.sendMessage(Text.translatable("message.stationbuilder.rail_builder.invalid_rail",
+                    config.railType.toString()), true);
+            return null;
+        }
 
         float yaw = player.getYaw();
         Vec3d normal = RailMath.normalFromYaw(yaw); // 右侧法向量
@@ -85,7 +170,8 @@ public class RailGenerator {
         ArrayList<BlockPos> endPositions = new ArrayList<>();
         for (int i = 0; i < count; i++) {
             double offsetIndex = i - (count - 1) / 2.0;
-            Vec3d offset = normal.multiply(offsetIndex * spacing);
+            double t = offsetIndex * spacing;
+            Vec3d offset = normal.multiply(t, t, t);
             BlockPos e = RailMath.offsetPos(endPos, offset);
             endPositions.add(e);
         }
@@ -97,7 +183,6 @@ public class RailGenerator {
             // 清除该玩家的轨道建造状态（服务端清除）
             ItemStack stack = player.getMainHandStack();
             RailBuilderState.clear(stack);
-            stack.getOrCreateNbt().remove("CustomData"); // 若有其他标记
             return null;
         }
 
@@ -106,28 +191,19 @@ public class RailGenerator {
         for (int i = 0; i < count; i++) {
             BlockPos s = startPositions.get(i);
             BlockPos e = endPositions.get(i);
-            if(MTRIntegration.isRailNode(world, s)) {
-                boolean success = true;
+            if(isRailNode(world, s, railNodeType)) {
                 if (s.equals(e)) continue;
-                if (!MTRIntegration.isRailNode(world, e)) {
-                    MTRIntegration.placeRailNode(world, e, player.getYaw());
-                }
-                anySuccess |= success;
+                placeRailNode(world, e, player, railNodeType, false);
+                anySuccess = true;
             } else {
                 System.out.println("Start position is not a valid rail node: " + s);
             }
         }
 
-        // Validate rail type
-        if (!MTRIntegration.isValidRailType(config.railType)) {
-            player.sendMessage(Text.translatable("message.stationbuilder.rail_builder.invalid_rail",
-                    config.railType.toString()), true);
-            config.railType = MTRIntegration.getDefaultRailType();
-        }
-
         // Build rails
         TickScheduler.schedule(1, () -> {
-            var failToPlaceCatenaryNode = RailGenerator.buildRails(startPositions, endPositions, player.getUuid(), world, config);
+            var failToPlaceCatenaryNode = false;
+            failToPlaceCatenaryNode = buildRails(startPositions, endPositions, player, world, config);
             if (failToPlaceCatenaryNode) {
                 player.sendMessage(Text.translatable("message.stationbuilder.rail_builder.catenary_node_failed"), true);
             }
@@ -139,59 +215,15 @@ public class RailGenerator {
             return null;
         }
     }
-    private static void clearBlock(ServerWorld world, BlockPos pos, boolean includeCatenary) {
-        if(CommonUtil.isMsdLoaded()) {
-            if (MSDIntegration.isCatenaryNode(world, pos)) {
-                if (includeCatenary) {
-                    MSDIntegration.clearCatenary(world, pos);
-                } else {
-                    return;
-                }
-            }
-        }
-        world.setBlockState(pos, Blocks.AIR.getDefaultState());
-    }
 
-    private static double lerp(double a, double b, double t) {
-        return a + t * (b - a);
-    }
-
-    public static Direction horizontalDirectionFromVec(Vec3d v) {
-        double x = v.x, z = v.z;
-        if (Math.abs(x) > Math.abs(z)) {
-            return x > 0 ? Direction.EAST : Direction.WEST;
-        } else {
-            return z > 0 ? Direction.SOUTH : Direction.NORTH;
+    private static void setBlockIfEmpty(ServerWorld world, BlockPos pos, BlockState state) {
+        if (world.getBlockState(pos).isAir() || CommonUtil.isSoftTransparent(world.getBlockState(pos))) {
+            world.setBlockState(pos, state, 3);
         }
-    }
-
-    private static BlockPos addCatenaryNode(
-            ServerWorld world, Vec3d center, Vec3d tangent, boolean isLeftest, boolean isRightest,
-            @Nullable BlockPos lastCatenaryNode, Identifier block, CatenaryTypeMapping type, int height
-    ) {
-        Direction dir = horizontalDirectionFromVec(tangent);
-        double dirAngle = MTRIntegration.getAngleFromVec3d(tangent);
-        int blockY = (int) Math.floor(center.getY());
-        var catenaryPos = new BlockPos((int) Math.floor(center.x), blockY + height, (int) Math.floor(center.z));
-        if (isLeftest || isRightest) {
-            if (isLeftest) {
-                dir = dir.rotateYClockwise();
-            } else {
-                dir = dir.rotateYCounterclockwise();
-            }
-            if (!MSDIntegration.placeCatenaryNode(world, catenaryPos, dir, dirAngle, block)){
-                return null;
-            }
-            if (lastCatenaryNode != null) {
-                MSDIntegration.connectCatenary(world, lastCatenaryNode, catenaryPos, type);
-            }
-            return catenaryPos;
-        }
-        return null;
     }
 
     private static void drawLine(ServerWorld world, BlockPos a, BlockPos b, Identifier lineBlock) {
-        var state = Registries.BLOCK.get(lineBlock).getDefaultState();
+        var state = CommonUtil.getBlockState(lineBlock);
         int x1 = a.getX(), y1 = a.getY(), z1 = a.getZ();
         int x2 = b.getX(), y2 = b.getY(), z2 = b.getZ();
 
@@ -216,7 +248,7 @@ public class RailGenerator {
             int curX = x1 + Math.round((float)(i * (x2 - x1)) / max);
             int curY = y1 + Math.round((float)(i * (y2 - y1)) / max);
             int curZ = z1 + Math.round((float)(i * (z2 - z1)) / max);
-                        // 强制采取 6向（曼哈顿）步进移动，杜绝对角线产生不连接的孤立围栏
+            // 强制采取 6向（曼哈顿）步进移动，杜绝对角线产生不连接的孤立围栏
             while(x != curX || y != curY || z != curZ) {
                 if (x != curX) x += xs;
                 else if (z != curZ) z += zs;
@@ -225,18 +257,13 @@ public class RailGenerator {
             }
         }
     }
+
     private static void buildPillarDown(ServerWorld world, BlockPos topPos, Identifier pillarBlock) {
-        var state = Registries.BLOCK.get(pillarBlock).getDefaultState();
+        var state = CommonUtil.getBlockState(pillarBlock);
         BlockPos pos = topPos;
         while(world.isInBuildLimit(pos) && CommonUtil.isSoftTransparent(world.getBlockState(pos))) {
             world.setBlockState(pos, state, 3);
             pos = pos.offset(Direction.DOWN);
-        }
-    }
-
-    private static void setBlockIfEmpty(ServerWorld world, BlockPos pos, net.minecraft.block.BlockState state) {
-        if (world.getBlockState(pos).isAir() || CommonUtil.isSoftTransparent(world.getBlockState(pos))) {
-            world.setBlockState(pos, state, 3);
         }
     }
 
@@ -290,8 +317,78 @@ public class RailGenerator {
         return catenaryPos;
     }
 
+    public static void calcBuildingMode(
+            CurveData rail, ServerWorld world, RailBuilderConfig config, boolean reverseMath, int segments,
+            byte[] upBuildingModes, byte[] downBuildingModes
+    ) {
+
+        final int thickBallastHeight = config.ballastMaxThickness;
+        final double halfTunnelWidth = config.tunnelWidth / 2.0 + EPS;
+        final double halfBridgeWidth = config.bridgeWidth / 2.0 + EPS;
+
+        // Determine building modes for upper and lower attachments
+        int i = 0;
+        for (var pp = new PointProvider(rail, segments, reverseMath); pp.notExhausted(); pp.next(), i++) {
+            var tuple = pp.get();
+            Vec3d center = tuple.get(0);
+            Vec3d normal = tuple.get(2);
+
+            // Stretch left and right from the center point, and get a bundle of BlockPos
+            int blockY = (int) Math.floor(center.y);
+            var blockXZs = RailMath.getPositions(center, normal, Math.max(halfTunnelWidth, halfBridgeWidth));
+
+            // Determine building modes
+            BuildingMode.Up ubm = BuildingMode.Up.Clear;
+            BuildingMode.Down dbm = BuildingMode.Down.Ballast;
+            int roofBlocks = 0, roofSolidBlocks = 0;
+            int lowBlocks = 0, lowSolidBlocks = 0;
+
+            for (var block: blockXZs) {
+                // Calculate distance to center
+                int floorBlocks = 0, floorSolidBlocks = 0;
+                for (int y = -thickBallastHeight - 1; y <= config.tunnelHeight + 3; y++) {
+                    var pos = new BlockPos(block.x(), blockY + y, block.z());
+                    if (!world.isInBuildLimit(pos)) continue;
+                    var state = world.getBlockState(pos);
+                    boolean isRailNode = isRailNode(world, pos);
+                    boolean isSoftTransparent = CommonUtil.isSoftTransparent(state);
+                    if (y < -1) {
+                        // 检查是否需要更厚的路基
+                        if (y == -thickBallastHeight - 1) {
+                            lowBlocks += 1;
+                            if (!isRailNode && !isSoftTransparent) lowSolidBlocks += 1;
+                        } else {
+                            floorBlocks += 1;
+                            if (!isRailNode && !isSoftTransparent) floorSolidBlocks += 1;
+                        }
+                    } else if (y >= config.tunnelHeight) {
+                        roofBlocks++;
+                        if (!state.isAir() && !isRailNode && !CommonUtil.isNotLiquidTransparent(state)) {
+                            roofSolidBlocks++;
+                        }
+                    }
+                }
+                if ((double) floorSolidBlocks / floorBlocks <= 0.7) {
+                    dbm = BuildingMode.Down.ThickBallast;
+                }
+            }
+            if ((double) roofSolidBlocks / roofBlocks >= 0.6) {
+                ubm = BuildingMode.Up.Tunnel;
+            }
+            if ((double) lowSolidBlocks / lowBlocks <= 0.6) {
+                dbm = BuildingMode.Down.Bridge;
+            }
+            upBuildingModes[i] = ubm.getValue();
+            downBuildingModes[i] = dbm.getValue();
+        }
+    }
+
+    private static void clearBlock(ServerWorld world, BlockPos pos, boolean includeCatenary) {
+        world.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
+    }
+
     private static void clearHeights(Vec3d center, Vec3d normal, ServerWorld world, RailBuilderConfig config,
-             boolean isLeftest, boolean isRightest, boolean clearCatenary) {
+                                     boolean isLeftest, boolean isRightest, boolean clearCatenary) {
         double halfWidth = config.ballastTopWidth / 2.0 + EPS;
         int baseY = (int) Math.floor(center.y);
         if (config.clearFullHeight) {
@@ -313,7 +410,7 @@ public class RailGenerator {
                         isRightest ? halfWidth2 : halfWidth);
                 for (var block : blockXZs) {
                     var pos = new BlockPos(block.x(), blockY, block.z());
-                    if (!MTRIntegration.isRailNode(world, pos)) {
+                    if (!isRailNode(world, pos)) {
                         clearBlock(world, pos, clearCatenary);
                     }
                 }
@@ -328,7 +425,7 @@ public class RailGenerator {
                         isRightest ? clearHalfWidth : halfWidth);
                 for(var block: blockXZs) {
                     var pos = new BlockPos(block.x(), blockY, block.z());
-                    if (!MTRIntegration.isRailNode(world, pos)) {
+                    if (!isRailNode(world, pos)) {
                         clearBlock(world, pos, clearCatenary);
                     }
                 }
@@ -352,7 +449,7 @@ public class RailGenerator {
                     isRightest? halfWidth: halfTopWidth);
             for(var block: blockXZs) {
                 var pos = new BlockPos(block.x(), blockY, block.z());
-                world.setBlockState(pos, Registries.BLOCK.get(config.ballastBlock).getDefaultState(), 3);
+                world.setBlockState(pos, CommonUtil.getBlockState(config.ballastBlock), 3);
             }
         }
     }
@@ -373,24 +470,24 @@ public class RailGenerator {
             for (int i = 0; i < bridgeXZs.size(); i++) {
                 var block = bridgeXZs.get(i);
                 int x = block.x(), z = block.z();
-                var bridgeBlockState = Registries.BLOCK.get(config.bridgeBlock).getDefaultState();
+                var bridgeBlockState = CommonUtil.getBlockState(config.bridgeBlock);
                 if ((isLeftest && i == 0) || (isRightest && i == bridgeXZs.size() - 1)) {
                     var pos = new BlockPos(x, blockY - 1, z);
-                    if (!MTRIntegration.isRailNode(world, pos)) {
+                    if (!isRailNode(world, pos)) {
                         world.setBlockState(pos, bridgeBlockState, 3);
                     }
                     var posU = new BlockPos(x, blockY, z);
-                    if (!MTRIntegration.isRailNode(world, posU)) {
-                        world.setBlockState(posU, Registries.BLOCK.get(config.bridgeGuardRailBlock).getDefaultState(), 3);
+                    if (!isRailNode(world, posU)) {
+                        world.setBlockState(posU, CommonUtil.getBlockState(config.bridgeGuardRailBlock), 3);
                         overpass_walls.add(posU);
                     }
                 } else {
                     var posD = new BlockPos(x, blockY - 2, z);
                     world.setBlockState(posD, bridgeBlockState, 3);
                     var pos = new BlockPos(x, blockY - 1, z);
-                    world.setBlockState(pos, Registries.BLOCK.get(config.ballastBlock).getDefaultState(), 3);
+                    world.setBlockState(pos, CommonUtil.getBlockState(config.ballastBlock), 3);
                     var posU = new BlockPos(x, blockY, z);
-                    if (!MTRIntegration.isRailNode(world, posU)) {
+                    if (!isRailNode(world, posU)) {
                         clearBlock(world, posU, clearCatenary);
                     }
                 }
@@ -402,7 +499,7 @@ public class RailGenerator {
                         int solidCount = 0;
                         while(solidCount < 3 && world.isInBuildLimit(pos)) {
                             if (CommonUtil.isSoftTransparent(world.getBlockState(pos))) {
-                                world.setBlockState(pos, Registries.BLOCK.get(config.bridgePillarBlock).getDefaultState(), 3);
+                                world.setBlockState(pos, CommonUtil.getBlockState(config.bridgePillarBlock), 3);
                                 solidCount = 0;
                             } else {
                                 solidCount++;
@@ -420,21 +517,24 @@ public class RailGenerator {
                 var block = tunnelXZs.get(i);
                 int x = block.x(), z = block.z();
                 var posTop = new BlockPos(x, blockY + config.tunnelHeight, z);
-                if (!MTRIntegration.isRailNode(world, posTop)) {
-                    world.setBlockState(posTop, Registries.BLOCK.get(config.tunnelWallBlock).getDefaultState(), 3);
+                if (!isRailNode(world, posTop)) {
+                    world.setBlockState(posTop, CommonUtil.getBlockState(config.tunnelWallBlock), 3);
                 }
                 var posBottom = new BlockPos(x, blockY - 1, z);
-                if (!MTRIntegration.isRailNode(world, posBottom)) {
-                    world.setBlockState(posBottom, Registries.BLOCK.get(config.ballastBlock).getDefaultState(), 3);
+                if (!isRailNode(world, posBottom)) {
+                    world.setBlockState(posBottom, CommonUtil.getBlockState(config.ballastBlock), 3);
                 }
                 if ((isLeftest && i == 0) || (isRightest && i == tunnelXZs.size() - 1)) {
                     for(int y = 0; y < config.tunnelHeight; y++) {
                         world.setBlockState(new BlockPos(x, blockY + y, z),
-                                Registries.BLOCK.get(config.tunnelWallBlock).getDefaultState(), 3);
+                                CommonUtil.getBlockState(config.tunnelWallBlock), 3);
                     }
                 } else {
                     for(int y = 0; y < config.tunnelHeight; y++) {
-                        clearBlock(world, new BlockPos(x, blockY + y, z), clearCatenary);
+                        BlockPos airPos = new BlockPos(x, blockY + y, z);
+                        if (!isRailNode(world, airPos)) {
+                            clearBlock(world, airPos, clearCatenary);
+                        }
                     }
                 }
             }
@@ -444,8 +544,8 @@ public class RailGenerator {
             for (var block : ballastXZs) {
                 int x = block.x(), z = block.z();
                 var pos = new BlockPos(x, blockY - 1, z);
-                if (!MTRIntegration.isRailNode(world, pos)) {
-                    world.setBlockState(pos, Registries.BLOCK.get(config.ballastBlock).getDefaultState());
+                if (!isRailNode(world, pos)) {
+                    world.setBlockState(pos, CommonUtil.getBlockState(config.ballastBlock), 3);
                 }
             }
         }
@@ -453,36 +553,34 @@ public class RailGenerator {
             var state = world.getBlockState(pos);
             if (state.getBlock() instanceof WallBlock) {
                 if (world.getBlockState(pos.offset(Direction.NORTH)).getBlock() instanceof WallBlock) {
-                    state = state.with(WallBlock.NORTH_SHAPE, WallShape.LOW);
+                    state = state.with(Properties.NORTH_WALL_SHAPE, WallShape.LOW);
                 }
                 if (world.getBlockState(pos.offset(Direction.SOUTH)).getBlock() instanceof WallBlock) {
-                    state = state.with(WallBlock.SOUTH_SHAPE, WallShape.LOW);
+                    state = state.with(Properties.SOUTH_WALL_SHAPE, WallShape.LOW);
                 }
                 if (world.getBlockState(pos.offset(Direction.EAST)).getBlock() instanceof WallBlock) {
-                    state = state.with(WallBlock.EAST_SHAPE, WallShape.LOW);
+                    state = state.with(Properties.EAST_WALL_SHAPE, WallShape.LOW);
                 }
                 if (world.getBlockState(pos.offset(Direction.WEST)).getBlock() instanceof WallBlock) {
-                    state = state.with(WallBlock.WEST_SHAPE, WallShape.LOW);
+                    state = state.with(Properties.WEST_WALL_SHAPE, WallShape.LOW);
                 }
                 world.setBlockState(pos, state, 3 | 16);
             }
         }
     }
-    private static Vec3d toVec3d(BlockPos pos) {
-        return new Vec3d(pos.getX(), pos.getY(), pos.getZ());
-    }
 
     // >0: R is on left side of vector AB, <0 R is on right side of vector AB
     public static double getSide(Vec3d a, Vec3d b, Vec3d r) {
-        Vec3d AB = b.subtract(a);
-        Vec3d AR = r.subtract(a);
+        Vec3d AB = b.subtract(a), AR = r.subtract(a);
         return AB.x * AR.z - AB.z * AR.x;
     }
 
     public static boolean buildRails(
             ArrayList<BlockPos> startPositions, ArrayList<BlockPos> endPositions,
-            UUID uuid, ServerWorld world, RailBuilderConfig config) {
+            PlayerEntity player, ServerWorld world, RailBuilderConfig config) {
         int count = startPositions.size();
+        UUID uuid = player.getUuid();
+        RailNodeType nodeType = getRailNodeType(config);
         assert endPositions.size() == count;
 
         // Connect rails
@@ -496,10 +594,15 @@ public class RailGenerator {
                 pos1 = pos2;
                 pos2 = temp;
             }
-            var rail = MTRIntegration.connectRailNodes(uuid, world, pos1, pos2, config.railType);
-            rails[i] = rail;
-            if (rail != null) {
-                maxLength = Math.max(maxLength, rail.getLength());
+            if (nodeType == RailNodeType.MTR) {
+                rails[i] = MTRIntegration.connectRailNodes(uuid, world, pos1, pos2, config.railType);
+            } else if (nodeType == RailNodeType.CREATE) {
+                rails[i] = CreateIntegration.connectRailNodes(player, world, pos1, pos2);
+            } else {
+                rails[i] = null;
+            }
+            if (rails[i] != null) {
+                maxLength = Math.max(maxLength, rails[i].getLength());
             }
         }
 
@@ -660,68 +763,37 @@ public class RailGenerator {
         return failToPlaceCatenaryNode;
     }
 
-    public static void calcBuildingMode(
-            CurveData math, ServerWorld world, RailBuilderConfig config, boolean reverseMath, int segments,
-            byte[] upBuildingModes, byte[] downBuildingModes
+    private static BlockPos addCatenaryNode(
+            ServerWorld world, Vec3d center, Vec3d tangent, boolean isLeftest, boolean isRightest,
+            @Nullable BlockPos lastCatenaryNode, Identifier block, CatenaryTypeMapping type, int height
     ) {
-        final int thickBallastHeight = config.ballastMaxThickness;
-        final double halfTunnelWidth = config.tunnelWidth / 2.0 + EPS;
-        final double halfBridgeWidth = config.bridgeWidth / 2.0 + EPS;
-
-        // Determine building modes for upper and lower attachments
-        int i = 0;
-        for (var pp = new PointProvider(math, segments, reverseMath); pp.notExhausted(); pp.next(), i++) {
-            var tuple = pp.get();
-            Vec3d center = tuple.get(0);
-            Vec3d normal = tuple.get(2);
-
-            // Stretch left and right from the center point, and get a bundle of BlockPos
-            int blockY = (int) Math.floor(center.y);
-            var blockXZs = RailMath.getPositions(center, normal, Math.max(halfTunnelWidth, halfBridgeWidth));
-
-            // Determine building modes
-            BuildingMode.Up ubm = BuildingMode.Up.Clear;
-            BuildingMode.Down dbm = BuildingMode.Down.Ballast;
-            int roofBlocks = 0, roofSolidBlocks = 0;
-            int lowBlocks = 0, lowSolidBlocks = 0;
-
-            for (var block: blockXZs) {
-                // Calculate distance to center
-                int floorBlocks = 0, floorSolidBlocks = 0;
-                for (int y = -thickBallastHeight - 1; y <= config.tunnelHeight + 3; y++) {
-                    var pos = new BlockPos(block.x(), blockY + y, block.z());
-                    if (!world.isInBuildLimit(pos)) continue;
-                    var state = world.getBlockState(pos);
-                    boolean isRailNode = MTRIntegration.isRailNode(world, pos);
-                    boolean isSoftTransparent = CommonUtil.isSoftTransparent(state);
-                    if (y < -1) {
-                        // 检查是否需要更厚的路基
-                        if (y == -thickBallastHeight - 1) {
-                            lowBlocks += 1;
-                            if (!isRailNode && !isSoftTransparent) lowSolidBlocks += 1;
-                        } else {
-                            floorBlocks += 1;
-                            if (!isRailNode && !isSoftTransparent) floorSolidBlocks += 1;
-                        }
-                    } else if (y >= config.tunnelHeight) {
-                        roofBlocks++;
-                        if (!state.isAir() && !isRailNode && !CommonUtil.isNotLiquidTransparent(state)) {
-                            roofSolidBlocks++;
-                        }
-                    }
-                }
-                if ((double) floorSolidBlocks / floorBlocks <= 0.7) {
-                    dbm = BuildingMode.Down.ThickBallast;
-                }
+        Direction dir = horizontalDirectionFromVec(tangent);
+        double dirAngle = MTRIntegration.getAngleFromVec3d(tangent);
+        int blockY = (int) Math.floor(center.getY());
+        var catenaryPos = new BlockPos((int) Math.floor(center.x), blockY + height, (int) Math.floor(center.z));
+        if (isLeftest || isRightest) {
+            if (isLeftest) {
+                dir = dir.rotateYClockwise();
+            } else {
+                dir = dir.rotateYCounterclockwise();
             }
-            if ((double) roofSolidBlocks / roofBlocks >= 0.6) {
-                ubm = BuildingMode.Up.Tunnel;
+            if (!MSDIntegration.placeCatenaryNode(world, catenaryPos, dir, dirAngle, block)){
+                return null;
             }
-            if ((double) lowSolidBlocks / lowBlocks <= 0.6) {
-                dbm = BuildingMode.Down.Bridge;
+            if (lastCatenaryNode != null) {
+                MSDIntegration.connectCatenary(world, lastCatenaryNode, catenaryPos, type);
             }
-            upBuildingModes[i] = ubm.getValue();
-            downBuildingModes[i] = dbm.getValue();
+            return catenaryPos;
+        }
+        return null;
+    }
+
+    public static Direction horizontalDirectionFromVec(Vec3d v) {
+        double x = v.x, z = v.z;
+        if (Math.abs(x) > Math.abs(z)) {
+            return x > 0 ? Direction.EAST : Direction.WEST;
+        } else {
+            return z > 0 ? Direction.SOUTH : Direction.NORTH;
         }
     }
 }

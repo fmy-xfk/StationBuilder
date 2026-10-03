@@ -9,9 +9,9 @@ import cn.myfrank.stationbuilder.items.ModItems;
 import cn.myfrank.stationbuilder.items.RailBuilderItem;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.manager.PlacerHistoryManager;
-import cn.myfrank.stationbuilder.utils.BuildingPlacerConfig;
-import cn.myfrank.stationbuilder.utils.RailBuilderConfig;
-import cn.myfrank.stationbuilder.utils.RailBuilderState;
+import cn.myfrank.stationbuilder.items.BuildingPlacerConfig;
+import cn.myfrank.stationbuilder.items.RailBuilderConfig;
+import cn.myfrank.stationbuilder.items.RailBuilderState;
 import cn.myfrank.stationbuilder.utils.TickScheduler;
 
 import cn.myfrank.stationbuilder.elements.StationElement;

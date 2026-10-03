@@ -1,4 +1,4 @@
-package cn.myfrank.stationbuilder.utils;
+package cn.myfrank.stationbuilder.items;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;

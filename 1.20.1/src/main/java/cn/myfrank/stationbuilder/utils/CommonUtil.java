@@ -66,12 +66,19 @@ public final class CommonUtil {
         NbtIo.writeCompressed(nbt, path.toFile());
     }
 
-    public static boolean isMtrLoaded() {
-        return FabricLoader.getInstance().isModLoaded("mtr");
+    private static final boolean createLoaded = FabricLoader.getInstance().isModLoaded("create");
+    public static boolean isCreateLoaded() {
+        return createLoaded;
     }
 
+    private static final boolean mtrLoaded = FabricLoader.getInstance().isModLoaded("mtr");
+    public static boolean isMtrLoaded() {
+        return mtrLoaded;
+    }
+
+    private static final boolean msdLoaded = FabricLoader.getInstance().isModLoaded("msd");
     public static boolean isMsdLoaded() {
-        return FabricLoader.getInstance().isModLoaded("msd");
+        return msdLoaded;
     }
 
     public static boolean isSoftTransparent(BlockState state) {

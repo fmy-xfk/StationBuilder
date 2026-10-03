@@ -10,9 +10,9 @@ import cn.myfrank.stationbuilder.items.ModItems;
 import cn.myfrank.stationbuilder.items.RailBuilderItem;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
-import cn.myfrank.stationbuilder.utils.BuildingPlacerConfig;
-import cn.myfrank.stationbuilder.utils.RailBuilderConfig;
-import cn.myfrank.stationbuilder.utils.RailBuilderState;
+import cn.myfrank.stationbuilder.items.BuildingPlacerConfig;
+import cn.myfrank.stationbuilder.items.RailBuilderConfig;
+import cn.myfrank.stationbuilder.items.RailBuilderState;
 import cn.myfrank.stationbuilder.utils.RailMath;
 
 import java.util.ArrayList;
