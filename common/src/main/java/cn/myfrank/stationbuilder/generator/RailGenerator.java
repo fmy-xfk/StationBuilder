@@ -1,7 +1,6 @@
 package cn.myfrank.stationbuilder.generator;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.UUID;
 
 import cn.myfrank.stationbuilder.utils.*;
@@ -147,23 +146,6 @@ public class RailGenerator {
         return nodes;
     }
 
-    public static boolean adjustPointSequence(ArrayList<BlockPos> fromNodes, ArrayList<BlockPos> toNodes) {
-        int count = fromNodes.size();
-        if (fromNodes.size() != toNodes.size()) {
-            throw new IllegalArgumentException("Lists must have same size");
-        }
-        if (count > 1) {
-            if (RailMath.getSideRelation(
-                    fromNodes.get(0), toNodes.get(0),
-                    fromNodes.get(count - 1), toNodes.get(count - 1)
-            ) < 0) {
-                Collections.reverse(fromNodes);
-                return true;
-            }
-        }
-        return false;
-    }
-
     @Nullable
     public static ArrayList<BlockPos> buildRails(
             ServerLevel world,
@@ -195,7 +177,7 @@ public class RailGenerator {
         }
 
         // Adjust positions
-        adjustPointSequence(startPositions, endPositions);
+        RailMath.adjustPointSequence(startPositions, endPositions);
 
         if (startPositions.size() != endPositions.size()) {
             // 清除该玩家的轨道建造状态（服务端清除）
@@ -744,7 +726,7 @@ public class RailGenerator {
                                 lastCatenaryNode, config.tunnelHeight - 1,
                                 thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar,
                                 config.catenaryBlock);
-                    } else {
+                    } else if (CommonUtil.isMtrLoaded() && CommonUtil.isMsdLoaded()){
                         if (isLeftest[i] || isRightest[i]) {
                             CatenaryTypeMapping type = CatenaryTypeMapping.values()[config.catenaryModeIndex];
                             ResourceLocation pillarBlock = thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar;
@@ -768,7 +750,7 @@ public class RailGenerator {
                             }
 
                             lastCatenaryNode = MTRIntegration.addCatenaryNode(world, center, tangent, isLeftest[i], isRightest[i],
-                                    lastCatenaryNode, pillarBlock, type, config.tunnelHeight - 1);
+                                        lastCatenaryNode, pillarBlock, type, config.tunnelHeight - 1);
                             if (lastCatenaryNode == null) {
                                 failToPlaceCatenaryNode = true;
                             }

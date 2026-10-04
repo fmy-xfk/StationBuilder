@@ -21,4 +21,12 @@ public final class CommonUtil extends CommonUtilBase {
         CompoundTag nbt = NbtIo.readCompressed(file);
         return loadStructureTemplate(nbt);
     }
+
+    public static CompoundTag readCompressed(File file) throws IOException {
+        return NbtIo.readCompressed(file);
+    }
+
+    public static void writeCompressed(CompoundTag nbt, File file) throws IOException {
+        NbtIo.writeCompressed(nbt, file);
+    }
 }

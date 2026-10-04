@@ -1,12 +1,12 @@
 package cn.myfrank.stationbuilder;
 
+import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
-
+import cn.myfrank.stationbuilder.utils.RailMath;
 import cn.myfrank.stationbuilder.generator.RailGenerator;
 import cn.myfrank.stationbuilder.items.*;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
-import cn.myfrank.stationbuilder.utils.RailMath;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -162,6 +162,7 @@ public final class RailPreviewRenderer {
         );
         if (nodes == null) return;
 
+        RailBuilderConfig config = RailBuilderConfig.fromItem(stack);
         Minecraft mc = Minecraft.getInstance();
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
         VertexConsumer consumer = bufferSource.getBuffer(RenderType.lines());
@@ -186,8 +187,12 @@ public final class RailPreviewRenderer {
                 return;
             }
 
+            // 使用安全的非 MTR 依赖方法进行多线序列对齐
             RailMath.adjustPointSequence(lastNodes, nodes);
             float angle = player.getYRot();
+
+            // 根据配置选中的铁轨物品类型判定属于哪个模组
+            RailGenerator.RailNodeType railType = RailGenerator.getRailNodeType(config);
             Vec3 textPos = getPreviewCenterPos(lastNodes, targetPos);
             Vec3i d = getDelta(lastNodes, targetPos);
             double minRadius = 1e9, minLength = 1e9;
@@ -198,17 +203,35 @@ public final class RailPreviewRenderer {
                 var lastNode = lastNodes.get(i);
                 drawBox(matrices, consumer, lastNode, cam, 0f, 1f, 1f, 0.6f); // 青色半透明
                 drawBox(matrices, consumer, node, cam, 0f, 1f, 1f, 0.6f); // 青色半透明
-                if (CommonUtil.isMtrLoaded()) {
-                    var preview = previewCache.get(lastNode, MTRIntegration.parseAngle(lastAngle),
-                            node, MTRIntegration.parseAngle(angle));
+                // 1. MTR 铁轨
+                if (railType == RailGenerator.RailNodeType.MTR && CommonUtil.isMtrLoaded()) {
+                    var preview = previewCache.get(
+                            lastNode, MTRIntegration.parseAngle(lastAngle),
+                            node, MTRIntegration.parseAngle(angle)
+                    );
                     if (preview == null) {
                         preview = MTRIntegration.testConnectRailNodes(lastAngle, angle, lastNode, node);
-                        previewCache.put(lastNode, MTRIntegration.parseAngle(lastAngle),
-                                node, MTRIntegration.parseAngle(angle), preview);
+                        previewCache.put(
+                                lastNode, MTRIntegration.parseAngle(lastAngle),
+                                node, MTRIntegration.parseAngle(angle),
+                                preview
+                        );
                     }
                     if (preview.success()) {
                         successCount += 1;
-                        renderCurve(matrices, bufferSource, event.getCamera(), preview.positions());
+                        renderCurve(matrices, Minecraft.getInstance().renderBuffers().bufferSource(), event.getCamera(), preview.positions());
+                        if (preview.radius() > 0) {
+                            minRadius = Math.min(minRadius, preview.radius());
+                            minLength = Math.min(minLength, preview.length());
+                        }
+                    }
+                }
+                // 2. Create 铁轨
+                else if (railType == RailGenerator.RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
+                    var preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle);
+                    if (preview.success()) {
+                        successCount += 1;
+                        renderCurve(matrices, Minecraft.getInstance().renderBuffers().bufferSource(), event.getCamera(), preview.positions());
                         if (preview.radius() > 0) {
                             minRadius = Math.min(minRadius, preview.radius());
                             minLength = Math.min(minLength, preview.length());

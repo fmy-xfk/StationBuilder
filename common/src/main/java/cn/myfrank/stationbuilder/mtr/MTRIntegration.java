@@ -1,8 +1,6 @@
 package cn.myfrank.stationbuilder.mtr;
 
 import cn.myfrank.stationbuilder.utils.*;
-import cn.myfrank.stationbuilder.StationBuilder;
-import cn.myfrank.stationbuilder.items.RailBuilderConfig;
 import cn.myfrank.stationbuilder.mixin.mtr.EnumPSDAPGItemAccessor;
 import cn.myfrank.stationbuilder.mixin.mtr.EnumPSDAPGTypeAccessor;
 import cn.myfrank.stationbuilder.mixin.mtr.ItemPSDAPGBaseAccessor;
@@ -10,8 +8,6 @@ import cn.myfrank.stationbuilder.mixin.mtr.ItemRailModifierAccessor;
 import it.unimi.dsi.fastutil.Pair;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
-import net.minecraft.world.level.block.WallBlock;
-import net.minecraft.world.level.block.state.properties.WallSide;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.resources.ResourceLocation;
@@ -20,7 +16,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.Heightmap;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -47,8 +42,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 
 public class MTRIntegration {
-    private static final double EPS = 1e-6;
-
     public static ResourceLocation getDefaultRailType() {
         return ResourceLocation.fromNamespaceAndPath("mtr", "rail_connector_160");
     }

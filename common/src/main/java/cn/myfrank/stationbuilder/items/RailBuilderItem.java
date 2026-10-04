@@ -1,8 +1,5 @@
 package cn.myfrank.stationbuilder.items;
 
-import cn.myfrank.stationbuilder.utils.CommonUtil;
-
-import cn.myfrank.stationbuilder.mtr.MTRIntegration;
 import cn.myfrank.stationbuilder.PlatformServices;
 import cn.myfrank.stationbuilder.generator.RailGenerator;
 import cn.myfrank.stationbuilder.StationBuilder;
@@ -39,12 +36,6 @@ public class RailBuilderItem extends Item {
         Player player = context.getPlayer();
         if (player == null) return InteractionResult.PASS;
 
-        StationBuilder.LOGGER.info("[Item] useOn called. isClient: {}, crouching: {}", world.isClientSide, player.isCrouching());
-
-        if (!CommonUtil.isMtrLoaded()) {
-            if (world.isClientSide) player.displayClientMessage(Component.translatable("message.stationbuilder.rail_builder.no_mtr"), true);
-            return InteractionResult.FAIL;
-        }
         ItemStack stack = context.getItemInHand();
         RailBuilderConfig cfg = RailBuilderConfig.fromItem(stack);
         if (player.isCrouching()) {
@@ -56,7 +47,7 @@ public class RailBuilderItem extends Item {
         if (!world.isClientSide && player instanceof ServerPlayer serverPlayer) {
             BlockPos pos = context.getClickedPos();
             var serverWorld = serverPlayer.serverLevel();
-            if (!MTRIntegration.isRailNode(serverWorld, pos) && !world.getBlockState(pos).canBeReplaced()) pos = pos.relative(context.getClickedFace());
+            if (!RailGenerator.isRailNode(serverWorld, pos) && !world.getBlockState(pos).canBeReplaced()) pos = pos.relative(context.getClickedFace());
             var last = RailBuilderState.getLastNodesAndAngle(stack);
             if (last == null) {
                 var nodes = RailGenerator.placeFirstRailNodes(serverWorld, pos, player, cfg);

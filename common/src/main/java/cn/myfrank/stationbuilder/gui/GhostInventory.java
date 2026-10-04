@@ -2,7 +2,6 @@ package cn.myfrank.stationbuilder.gui;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.world.item.ItemStack;
 
 public class GhostInventory extends GuiControl {

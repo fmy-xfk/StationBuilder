@@ -2,7 +2,6 @@ package cn.myfrank.stationbuilder.items;
 
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 
-import cn.myfrank.stationbuilder.StationBuilder;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;

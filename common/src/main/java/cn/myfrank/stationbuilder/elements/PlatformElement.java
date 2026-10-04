@@ -2,7 +2,6 @@ package cn.myfrank.stationbuilder.elements;
 
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 
-import cn.myfrank.stationbuilder.StationBuilder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.FriendlyByteBuf;

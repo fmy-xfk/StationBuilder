@@ -8,7 +8,6 @@ import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.navigation.FocusNavigationEvent;
 import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.StringUtil;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import java.util.function.Predicate;

@@ -3,11 +3,14 @@
 **/out/
 **/run/
 **/run-data/
+**/bin/
 **/mcmodsrepo/
 .idea/
 .classpath
 .project
 .settings/
 .vscode/
+.eclipse/
 .DS_Store
 Thumbs.db
+*.launch

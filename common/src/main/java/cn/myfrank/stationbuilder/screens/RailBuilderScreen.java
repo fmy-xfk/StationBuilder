@@ -181,6 +181,7 @@ public class RailBuilderScreen extends GuiScreen {
         } else {
             this.catenaryModeIndex = 0;
         }
+        syncCatenaryMode(catenaryModeButton);
         syncCatenaryState();
 
         if (nbt.contains("catenaryBlock", Tag.TAG_STRING)) {
