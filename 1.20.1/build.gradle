@@ -5,7 +5,31 @@ plugins {
 
 apply from: rootProject.file("../gradle/fabric-common.gradle")
 
+configurations {
+    rawRuntimeMods {
+        canBeResolved = true
+        canBeConsumed = false
+        transitive = false // 不需要解析传递依赖，只需要这个单一的完整打包 Jar
+    }
+}
+
 dependencies {
     // MSD FABRIC 1.4.0 for MTR 4.0.0 + 1.20.1
     modImplementation "curse.maven:station-decoration-790307:6893835"
+
+    // Create Fabric 1.20.1
+    modCompileOnly "maven.modrinth:create-fabric:6.0.8.1+build.1744-mc${project.minecraft_version}"
+
+    rawRuntimeMods "maven.modrinth:create-fabric:6.0.8.1+build.1744-mc${project.minecraft_version}"
+}
+
+// 2. 创建自动复制任务：每次运行客户端前，自动把 rawRuntimeMods 里的 Jar 拷贝到 run/mods
+tasks.register('deployModsToRunDir', Copy) {
+    from configurations.rawRuntimeMods
+    into file("run/mods")
+}
+
+// 3. 挂载依赖关系：只要执行 runClient 或 runServer，自动触发拷贝
+tasks.matching { it.name in ['runClient', 'runServer'] }.configureEach {
+    dependsOn 'deployModsToRunDir'
 }

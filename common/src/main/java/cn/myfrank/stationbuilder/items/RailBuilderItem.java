@@ -42,13 +42,6 @@ public class RailBuilderItem extends Item {
         PlayerEntity player = context.getPlayer();
         if (player == null) return ActionResult.PASS;
 
-        if (!CommonUtil.isMtrLoaded()) {
-            if(world.isClient) {
-                player.sendMessage(Text.translatable("message.stationbuilder.rail_builder.no_mtr"), true);
-            }
-            return ActionResult.FAIL;
-        }
-
         ItemStack stack = context.getStack();
         RailBuilderConfig cfg = RailBuilderConfig.fromItem(stack);
 
@@ -62,7 +55,7 @@ public class RailBuilderItem extends Item {
         if (!world.isClient) {
             BlockPos pos = context.getBlockPos();
             var serverWorld = ((ServerPlayerEntity) player).getServerWorld();
-            if (!MTRIntegration.isRailNode(serverWorld, pos) && !world.getBlockState(pos).isReplaceable()) {
+            if (!RailGenerator.isRailNode(serverWorld, pos) && !world.getBlockState(pos).isReplaceable()) {
                 pos = pos.offset(context.getSide());
             }
 

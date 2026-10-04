@@ -1,5 +1,6 @@
 package cn.myfrank.stationbuilder;
 
+import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.screens.*;
 
@@ -224,6 +225,7 @@ public class StationBuilderClient implements ClientModInitializer {
 			targetPos, player.getYaw(), RailBuilderConfig.fromItem(stack)
 		);
 		if (nodes == null) return;
+		RailBuilderConfig config = RailBuilderConfig.fromItem(stack);
 		VertexConsumer consumer = context.consumers().getBuffer(RenderLayer.getLines());
 		MatrixStack matrices = context.matrixStack();
 		Vec3d cam = context.camera().getPos();
@@ -249,6 +251,8 @@ public class StationBuilderClient implements ClientModInitializer {
 
 			RailMath.adjustPointSequence(lastNodes, nodes);
 			float angle = player.getYaw();
+
+			RailGenerator.RailNodeType railType = RailGenerator.getRailNodeType(config);
 			Vec3d textPos = getPreviewCenterPos(lastNodes, targetPos);
 			var d = getDelta(lastNodes, targetPos);
 			double minRadius = 1e9, minLength = 1e9;
@@ -259,14 +263,32 @@ public class StationBuilderClient implements ClientModInitializer {
 				var lastNode = lastNodes.get(i);
 				drawBox(matrices, consumer, lastNode, cam, 0f, 1f, 1f, 0.6f); // 青色半透明
 				drawBox(matrices, consumer, node, cam, 0f, 1f, 1f, 0.6f); // 青色半透明
-				if (CommonUtil.isMtrLoaded()) {
-					var preview = previewCache.get(lastNode, MTRIntegration.parseAngle(lastAngle),
-							node, MTRIntegration.parseAngle(angle));
-					if(preview == null) {
+				// 1. MTR 铁轨
+				if (railType == RailGenerator.RailNodeType.MTR && CommonUtil.isMtrLoaded()) {
+					var preview = previewCache.get(
+							lastNode, MTRIntegration.parseAngle(lastAngle),
+							node, MTRIntegration.parseAngle(angle)
+					);
+					if (preview == null) {
 						preview = MTRIntegration.testConnectRailNodes(lastAngle, angle, lastNode, node);
-						previewCache.put(lastNode, MTRIntegration.parseAngle(lastAngle),
-								node, MTRIntegration.parseAngle(angle), preview);
+						previewCache.put(
+								lastNode, MTRIntegration.parseAngle(lastAngle),
+								node, MTRIntegration.parseAngle(angle),
+								preview
+						);
 					}
+					if (preview.success()) {
+						successCount += 1;
+						renderCurve(matrices, context.consumers(), context.camera(), preview.positions());
+						if (preview.radius() > 0) {
+							minRadius = Math.min(minRadius, preview.radius());
+							minLength = Math.min(minLength, preview.length());
+						}
+					}
+				}
+				// 2. Create 铁轨
+				else if (railType == RailGenerator.RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
+					var preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle);
 					if (preview.success()) {
 						successCount += 1;
 						renderCurve(matrices, context.consumers(), context.camera(), preview.positions());
