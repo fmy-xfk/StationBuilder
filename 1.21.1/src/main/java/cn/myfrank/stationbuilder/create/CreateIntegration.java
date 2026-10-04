@@ -146,7 +146,7 @@ public class CreateIntegration {
 
         TrackPlacement.PlacementInfo info;
         try {
-            info = TrackPlacement.tryConnect(world, player, e, state2, trackStack, false, false);
+            info = TrackPlacement.tryConnect(world, player, e, state2, trackStack, false, true);
         } catch (Throwable t) {
             return null;
         }
@@ -172,14 +172,13 @@ public class CreateIntegration {
 
         carveTunnelAndBuildBridge(world, curveData, s, e, 1);
 
-        BlockHitResult hitEnd = new BlockHitResult(Vec3.atCenterOf(e), Direction.UP, e, false);
-        UseOnContext endContext = new UseOnContext(world, player, InteractionHand.MAIN_HAND, trackStack, hitEnd);
-        InteractionResult secondResult = trackStack.useOn(endContext);
-
-        if (secondResult == InteractionResult.SUCCESS || secondResult == InteractionResult.CONSUME) {
-            return curveData;
+        try {
+            BlockState updatedState2 = world.getBlockState(e);
+            TrackPlacement.tryConnect(world, player, e, updatedState2, trackStack, false, true);
+        } catch (Throwable t) {
+            t.printStackTrace();
         }
-        return null;
+        return curveData;
     }
 
     public static CreatePreviewResult testConnectRailNodes(

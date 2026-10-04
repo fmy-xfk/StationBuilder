@@ -137,7 +137,9 @@ public class StationBuilderClient {
                 if (bhr == null) return;
                 var state = client.level.getBlockState(bhr.getBlockPos());
                 var pos = bhr.getBlockPos();
-                if (!CommonUtil.isSoftTransparent(state)) pos = pos.relative(bhr.getDirection());
+                if (!RailGenerator.isRailNode(client.level, pos) && !state.canBeReplaced()) {
+                    pos = pos.relative(bhr.getDirection());
+                }
                 renderRailPreviewGeometry(event, client.player, pos, stack);
             }
         } else { // AFTER_TRANSLUCENT_BLOCKS
@@ -145,7 +147,9 @@ public class StationBuilderClient {
             if (bhr == null) return;
             var state = client.level.getBlockState(bhr.getBlockPos());
             var pos = bhr.getBlockPos();
-            if (!CommonUtil.isSoftTransparent(state)) pos = pos.relative(bhr.getDirection());
+            if (!RailGenerator.isRailNode(client.level, pos) && !state.canBeReplaced()) {
+                pos = pos.relative(bhr.getDirection());
+            }
             renderRailPreviewText(event, client.player, pos, stack);
         }
     }
