@@ -21,6 +21,8 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.Heightmap;
+import net.minecraft.world.World;
+
 import org.jetbrains.annotations.Nullable;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -57,7 +59,7 @@ public class RailGenerator {
         }
     }
 
-    public static boolean isRailNode(ServerWorld world, BlockPos pos) {
+    public static boolean isRailNode(World world, BlockPos pos) {
         if (CommonUtil.isMTRLoaded()) {
             if (MTRIntegration.isRailNode(world, pos)) return true;
         }

@@ -114,7 +114,9 @@ public class StationBuilderClient implements ClientModInitializer {
 				if (!(hit instanceof BlockHitResult bhr)) return;
 				var state = client.world.getBlockState(bhr.getBlockPos());
 				var pos = bhr.getBlockPos();
-				if (!StationBuilder.isSoftTransparent(state)) pos = pos.offset(bhr.getSide());
+				if (!RailGenerator.isRailNode(client.world, pos) && !state.isReplaceable()) {
+                    pos = pos.offset(bhr.getSide());
+                }
 				renderRailPreviewGeometry(context, client.player, pos, stack);
 			}
 		});
@@ -131,7 +133,9 @@ public class StationBuilderClient implements ClientModInitializer {
 
 			var state = client.world.getBlockState(bhr.getBlockPos());
 			var pos = bhr.getBlockPos();
-			if (!StationBuilder.isSoftTransparent(state)) pos = pos.offset(bhr.getSide());
+			if (!RailGenerator.isRailNode(client.world, pos) && !state.isReplaceable()) {
+                pos = pos.offset(bhr.getSide());
+            }
 
 			renderRailPreviewText(context, client.player, pos, stack);
 		});

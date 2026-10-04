@@ -10,6 +10,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.server.world.ServerWorld;
@@ -43,7 +44,7 @@ public class MTRIntegration {
         return Identifier.of("mtr", "rail_connector_160");
     }
 
-    public static boolean isRailNode(ServerWorld world, BlockPos pos) {
+    public static boolean isRailNode(World world, BlockPos pos) {
         var block = world.getBlockState(pos).getBlock();
         return block == Blocks.RAIL_NODE.get();
     }

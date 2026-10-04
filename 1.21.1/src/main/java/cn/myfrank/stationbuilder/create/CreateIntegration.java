@@ -12,7 +12,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
-/** Fabric Create compatibility facade. Create is not bundled for 1.21.4. */
+/** Fabric Create compatibility facade. Create is not bundled for 1.21.1. */
 public class CreateIntegration {
     public record CreatePreviewResult(boolean success, double radius, double length, List<Vec3d> positions) {}
 
