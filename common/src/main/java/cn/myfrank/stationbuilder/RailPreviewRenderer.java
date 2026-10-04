@@ -77,7 +77,9 @@ public final class RailPreviewRenderer {
 
         var state = client.level.getBlockState(bhr.getBlockPos());
         var pos = bhr.getBlockPos();
-        if (!CommonUtil.isSoftTransparent(state)) pos = pos.relative(bhr.getDirection());
+        if (!RailGenerator.isRailNode(client.level, pos) && !state.canBeReplaced()) {
+            pos = pos.relative(bhr.getDirection());
+        }
 
         renderRailPreview(event, client.player, pos, stack);
     }

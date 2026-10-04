@@ -57,7 +57,7 @@ public class CreateIntegration {
     }
 
     public static boolean isRailNode(Level world, BlockPos pos) {
-        return world.getBlockState(pos).getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock;
+        return world.getBlockState(pos).getBlock() instanceof ITrackBlock;
     }
 
     public static BlockState getTrackBlockState(float angle) {
@@ -105,7 +105,7 @@ public class CreateIntegration {
 
                     if (modified.add(airPos)) {
                         BlockState state = world.getBlockState(airPos);
-                        if (!state.isAir() && !(state.getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock)) {
+                        if (!state.isAir() && !(state.getBlock() instanceof ITrackBlock)) {
                             world.setBlock(airPos, Blocks.AIR.defaultBlockState(), 3);
                         }
                     }
@@ -130,8 +130,8 @@ public class CreateIntegration {
         BlockState state1 = world.getBlockState(s);
         BlockState state2 = world.getBlockState(e);
 
-        if (!(state1.getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock) ||
-                !(state2.getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock)) {
+        if (!(state1.getBlock() instanceof ITrackBlock) ||
+                !(state2.getBlock() instanceof ITrackBlock)) {
             return null;
         }
 
@@ -146,13 +146,13 @@ public class CreateIntegration {
 
         TrackPlacement.PlacementInfo info;
         try {
-            info = TrackPlacement.tryConnect(world, player, e, state2, trackStack, false, false);
+            info = TrackPlacement.tryConnect(world, player, e, state2, trackStack, false, true);
         } catch (Throwable t) {
             return null;
         }
 
         if (info == null) return null;
-        PlacementInfoAccessor accessor = (PlacementInfoAccessor) (Object) info;
+        PlacementInfoAccessor accessor = (PlacementInfoAccessor) info;
         if (!accessor.isValid()) return null;
 
         CreateCurveData curveData = new CreateCurveData();
@@ -171,15 +171,13 @@ public class CreateIntegration {
         }
 
         carveTunnelAndBuildBridge(world, curveData, s, e, 1);
-
-        BlockHitResult hitEnd = new BlockHitResult(Vec3.atCenterOf(e), Direction.UP, e, false);
-        UseOnContext endContext = new UseOnContext(world, player, InteractionHand.MAIN_HAND, trackStack, hitEnd);
-        InteractionResult secondResult = trackStack.useOn(endContext);
-
-        if (secondResult == InteractionResult.SUCCESS || secondResult == InteractionResult.CONSUME) {
-            return curveData;
+        try {
+            BlockState updatedState2 = world.getBlockState(e);
+            TrackPlacement.tryConnect(world, player, e, updatedState2, trackStack, false, true);
+        } catch (Throwable t) {
+            t.printStackTrace();
         }
-        return null;
+        return curveData;
     }
 
     public static CreatePreviewResult testConnectRailNodes(
@@ -196,13 +194,13 @@ public class CreateIntegration {
 
         // 【关键防御 1】：如果起点已被挖掉（不是 Create 铁轨方块），坚决不执行 useOn，彻底根绝幽灵方块！
         BlockState stateStart = level.getBlockState(startPos);
-        if (!(stateStart.getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock)) {
+        if (!(stateStart.getBlock() instanceof ITrackBlock)) {
             return new CreatePreviewResult(false, 0, 0, List.of());
         }
 
         // 终点虚拟状态：如果终点尚未放置铁轨，虚拟一个对应朝向的轨道状态给求解器
         BlockState stateEnd = level.getBlockState(endPos);
-        if (!(stateEnd.getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock)) {
+        if (!(stateEnd.getBlock() instanceof ITrackBlock)) {
             stateEnd = getTrackBlockState(endAngle);
         }
 

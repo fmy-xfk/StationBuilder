@@ -25,7 +25,6 @@ public class RailBuilderItem extends Item {
     private void openGui(ServerPlayer player, ItemStack stack) {
         RailBuilderConfig cfg = RailBuilderConfig.fromItem(stack);
         cfg.saveToItem(stack);
-        StationBuilder.LOGGER.info("[Item] Preparing to send PACKET_SYNC_OPEN_RAIL to player");
         PlatformServices.sendToPlayer(player, StationBuilder.PACKET_SYNC_OPEN_RAIL,
                 StationBuilder.buf(buf -> buf.writeNbt(cfg.toNbt())));
     }
@@ -47,7 +46,9 @@ public class RailBuilderItem extends Item {
         if (!world.isClientSide && player instanceof ServerPlayer serverPlayer) {
             BlockPos pos = context.getClickedPos();
             var serverWorld = serverPlayer.serverLevel();
-            if (!RailGenerator.isRailNode(serverWorld, pos) && !world.getBlockState(pos).canBeReplaced()) pos = pos.relative(context.getClickedFace());
+            if (!RailGenerator.isRailNode(serverWorld, pos) && !world.getBlockState(pos).canBeReplaced()) {
+                pos = pos.relative(context.getClickedFace());
+            }
             var last = RailBuilderState.getLastNodesAndAngle(stack);
             if (last == null) {
                 var nodes = RailGenerator.placeFirstRailNodes(serverWorld, pos, player, cfg);
@@ -64,7 +65,6 @@ public class RailBuilderItem extends Item {
     @Override
     public InteractionResultHolder<ItemStack> use(Level world, Player user, InteractionHand hand) {
         ItemStack stack = user.getItemInHand(hand);
-        StationBuilder.LOGGER.info("[Item] use (air right click) called. isClient: {}, crouching: {}", world.isClientSide, user.isCrouching());
         if (user.isCrouching()) {
             if (!world.isClientSide && user instanceof ServerPlayer serverPlayer) openGui(serverPlayer, stack);
             return InteractionResultHolder.success(stack);
