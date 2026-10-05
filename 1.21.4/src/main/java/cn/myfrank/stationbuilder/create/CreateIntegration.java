@@ -1,9 +1,7 @@
 package cn.myfrank.stationbuilder.create;
 
-import java.util.*;
-
 import cn.myfrank.stationbuilder.utils.CurveData;
-
+import cn.myfrank.stationbuilder.utils.TestConnectResult;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -13,8 +11,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
 public class CreateIntegration {
-    public record CreatePreviewResult(boolean success, double radius, double length, List<Vec3> positions) {}
-
     public static Vec3 getTrackDirectionFromAngle(float angle) {
         int sector = Math.floorMod((int) Math.floor(angle / 45.0F + 0.5F), 8);
         return switch (sector) {
@@ -58,10 +54,10 @@ public class CreateIntegration {
         return null;
     }
 
-    public static CreatePreviewResult testConnectRailNodes(
+    public static TestConnectResult testConnectRailNodes(
             BlockPos startPos, float startAngle,
             BlockPos endPos, float endAngle) {
-        return new CreatePreviewResult(true, 0, 0, new ArrayList<>());
+        return TestConnectResult.fail();
     }
 
 }

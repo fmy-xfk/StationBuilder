@@ -5,6 +5,8 @@ import java.util.*;
 import cn.myfrank.stationbuilder.mixin.create.PlacementInfoAccessor;
 import cn.myfrank.stationbuilder.utils.CurveData;
 import cn.myfrank.stationbuilder.utils.PointProvider;
+import cn.myfrank.stationbuilder.utils.TestConnectResult;
+
 import com.simibubi.create.content.trains.track.*;
 
 import net.minecraft.client.Minecraft;
@@ -24,7 +26,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
 public class CreateIntegration {
-    public record CreatePreviewResult(boolean success, double radius, double length, List<Vec3> positions) {}
     private static final TrackBlock TRACK_BLOCK = (TrackBlock) net.minecraft.core.registries.BuiltInRegistries.BLOCK
             .get(ResourceLocation.fromNamespaceAndPath("create", "track"));
 
@@ -181,13 +182,13 @@ public class CreateIntegration {
         return curveData;
     }
 
-    public static CreatePreviewResult testConnectRailNodes(
+    public static TestConnectResult testConnectRailNodes(
             BlockPos startPos, float startAngle,
             BlockPos endPos, float endAngle) {
 
         Minecraft client = Minecraft.getInstance();
         if (client.level == null || client.player == null) {
-            return new CreatePreviewResult(false, 0, 0, List.of());
+            return TestConnectResult.fail();
         }
 
         Level level = client.level;
@@ -196,7 +197,7 @@ public class CreateIntegration {
         // 【关键防御 1】：如果起点已被挖掉（不是 Create 铁轨方块），坚决不执行 useOn，彻底根绝幽灵方块！
         BlockState stateStart = level.getBlockState(startPos);
         if (!(stateStart.getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock)) {
-            return new CreatePreviewResult(false, 0, 0, List.of());
+            return TestConnectResult.fail();
         }
 
         // 终点虚拟状态：如果终点尚未放置铁轨，虚拟一个对应朝向的轨道状态给求解器
@@ -219,7 +220,7 @@ public class CreateIntegration {
         UseOnContext startContext = new UseOnContext(level, player, InteractionHand.MAIN_HAND, trackStack, hitStart);
         InteractionResult firstResult = trackStack.useOn(startContext);
         if (firstResult != InteractionResult.SUCCESS && firstResult != InteractionResult.CONSUME) {
-            return new CreatePreviewResult(false, 0, 0, List.of());
+            return TestConnectResult.fail();
         }
 
         // 调用 Create 原生求解器（穿透模式 ignoreObstruction = true）
@@ -227,16 +228,16 @@ public class CreateIntegration {
         try {
             info = TrackPlacement.tryConnect(level, player, endPos, stateEnd, trackStack, false, true);
         } catch (Throwable t) {
-            return new CreatePreviewResult(false, 0, 0, List.of());
+            return TestConnectResult.fail();
         }
 
         if (info == null) {
-            return new CreatePreviewResult(false, 0, 0, List.of());
+            return TestConnectResult.fail();
         }
 
         PlacementInfoAccessor accessor = (PlacementInfoAccessor) (Object) info;
         if (!accessor.isValid()) {
-            return new CreatePreviewResult(false, 0, 0, List.of());
+            return TestConnectResult.fail();
         }
 
         // 提取几何信息与连续中心线
@@ -269,13 +270,30 @@ public class CreateIntegration {
             // (3) 曲线切点 curveEnd -> 终点方块中心
             sampleSegment(previewPoints, curveEnd, endCenter, step);
             length += startCenter.distanceTo(curveStart) + curveEnd.distanceTo(endCenter);
+
+            if (radius <= 0) {
+                // 计算曲线实际切点之间的相对位移
+                Vec3 delta = curveEnd.subtract(curveStart);
+                Vec3 axis = getTrackDirectionFromAngle(startAngle).normalize();
+
+                // 投影求得沿轨道轴向的纵向跨度 L 与横向偏距 u
+                double L = Math.abs(delta.x * axis.x + delta.z * axis.z);
+                // 横向偏距向量 = 相对向量 - 纵向投影向量
+                Vec3 normalComp = new Vec3(delta.x - L * axis.x, 0, delta.z - L * axis.z);
+                double u = normalComp.length();
+
+                // 当存在横向偏移时，通过对称双圆弧几何公式 R = (L^2 + u^2) / (4u)
+                if (u > 0.05 && L > 0.1) {
+                    radius = (L * L + u * u) / (4.0 * u);
+                }
+            }
         } else {
             length = startCenter.distanceTo(endCenter);
             radius = 0.0;
             sampleSegment(previewPoints, startCenter, endCenter, 0.5);
         }
 
-        return new CreatePreviewResult(true, radius, length, previewPoints);
+        return new TestConnectResult(true, radius, length, previewPoints);
     }
 
     /**

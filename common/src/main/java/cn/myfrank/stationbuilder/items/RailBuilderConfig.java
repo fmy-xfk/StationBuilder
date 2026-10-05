@@ -33,7 +33,7 @@ public class RailBuilderConfig {
     public boolean clearFullHeight = false;
 
     public boolean useCatenary = true;
-    public boolean isVanillaCatenary = !CommonUtil.isMtrLoaded();
+    public boolean isVanillaCatenary = !CommonUtil.isMsdLoaded();
     public int catenaryModeIndex = 0;
     public int catenarySpacing = 50;
     public ResourceLocation catenaryBlock = CommonUtil.isMsdLoaded() ?
