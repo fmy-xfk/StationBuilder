@@ -40,8 +40,8 @@ import java.util.Locale;
 
 @Mod.EventBusSubscriber(modid = StationBuilder.MOD_ID, value = Dist.CLIENT)
 public final class RailPreviewRenderer {
-
-    private static final RailPreviewCache previewCache = new RailPreviewCache();
+    private static final RailPreviewCache MTRPreviewCache = new RailPreviewCache();
+    private static final RailPreviewCache CreatePreviewCache = new RailPreviewCache();
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
@@ -207,13 +207,13 @@ public final class RailPreviewRenderer {
                 drawBox(matrices, consumer, node, cam, 0f, 1f, 1f, 0.6f); // 青色半透明
                 // 1. MTR 铁轨
                 if (railType == RailGenerator.RailNodeType.MTR && CommonUtil.isMtrLoaded()) {
-                    var preview = previewCache.get(
+                    var preview = MTRPreviewCache.get(
                             lastNode, MTRIntegration.parseAngle(lastAngle),
                             node, MTRIntegration.parseAngle(angle)
                     );
                     if (preview == null) {
                         preview = MTRIntegration.testConnectRailNodes(lastAngle, angle, lastNode, node);
-                        previewCache.put(
+                        MTRPreviewCache.put(
                                 lastNode, MTRIntegration.parseAngle(lastAngle),
                                 node, MTRIntegration.parseAngle(angle),
                                 preview
@@ -230,7 +230,11 @@ public final class RailPreviewRenderer {
                 }
                 // 2. Create 铁轨
                 else if (railType == RailGenerator.RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
-                    var preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle);
+                    var preview = CreatePreviewCache.get(lastNode, lastAngle, node, angle);
+					if (preview == null) {
+						preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle);
+						CreatePreviewCache.put(lastNode, lastAngle, node, angle, preview);
+					}
                     if (preview.success()) {
                         successCount += 1;
                         renderCurve(matrices, Minecraft.getInstance().renderBuffers().bufferSource(), event.getCamera(), preview.positions());

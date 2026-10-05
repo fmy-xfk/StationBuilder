@@ -6,9 +6,10 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
 import java.util.ArrayList;
 
-public record TestConnectResult(boolean success, double radius, double length, ArrayList<Vec3> positions) {
+public record TestConnectResult(boolean success, double radius, double length, List<Vec3> positions) {
     public CompoundTag toNbt() {
         CompoundTag nbt = new CompoundTag();
         nbt.putBoolean("success", success);
@@ -38,7 +39,7 @@ public record TestConnectResult(boolean success, double radius, double length, A
         boolean success = nbt.getBoolean("success");
         double radius = nbt.getDouble("radius");
         double length = nbt.getDouble("length");
-        ArrayList<Vec3> positions = new ArrayList<>();
+        List<Vec3> positions = new ArrayList<>();
 
         if (nbt.contains("positions", Tag.TAG_LIST)) {
             ListTag positionsList = nbt.getList("positions", Tag.TAG_COMPOUND);
@@ -55,5 +56,9 @@ public record TestConnectResult(boolean success, double radius, double length, A
         }
 
         return new TestConnectResult(success, radius, length,positions);
+    }
+
+    public static TestConnectResult fail() {
+        return new TestConnectResult(false, 0, 0, List.of());
     }
 }
