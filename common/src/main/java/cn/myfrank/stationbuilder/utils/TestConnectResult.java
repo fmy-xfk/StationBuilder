@@ -7,8 +7,9 @@ import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.List;
 
-public record TestConnectResult(boolean success, double radius, double length, ArrayList<Vec3d> positions) {
+public record TestConnectResult(boolean success, double radius, double length, List<Vec3d> positions) {
     public NbtCompound toNbt() {
         NbtCompound nbt = new NbtCompound();
         nbt.putBoolean("success", success);
@@ -38,7 +39,7 @@ public record TestConnectResult(boolean success, double radius, double length, A
         boolean success = nbt.getBoolean("success");
         double radius = nbt.getDouble("radius");
         double length = nbt.getDouble("length");
-        ArrayList<Vec3d> positions = new ArrayList<>();
+        List<Vec3d> positions = new ArrayList<>();
 
         if (nbt.contains("positions", NbtElement.LIST_TYPE)) {
             NbtList positionsList = nbt.getList("positions", NbtElement.COMPOUND_TYPE);
@@ -54,6 +55,10 @@ public record TestConnectResult(boolean success, double radius, double length, A
             }
         }
 
-        return new TestConnectResult(success, radius, length,positions);
+        return new TestConnectResult(success, radius, length, positions);
+    }
+
+    public static TestConnectResult fail() {
+        return new TestConnectResult(false, 0, 0, List.of());
     }
 }

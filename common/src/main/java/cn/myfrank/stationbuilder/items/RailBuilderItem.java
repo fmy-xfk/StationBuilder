@@ -1,8 +1,6 @@
 package cn.myfrank.stationbuilder.items;
 
 import cn.myfrank.stationbuilder.generator.RailGenerator;
-import cn.myfrank.stationbuilder.mtr.MTRIntegration;
-
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.client.item.TooltipContext;
@@ -17,7 +15,6 @@ import net.minecraft.util.*;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import static cn.myfrank.stationbuilder.StationBuilder.SYNC_AND_OPEN_PACKET_RAIL;
-import cn.myfrank.stationbuilder.utils.CommonUtil;
 
 import java.util.List;
 

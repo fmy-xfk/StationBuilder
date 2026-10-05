@@ -5,7 +5,6 @@ import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.BlockRotationUtil;
 import cn.myfrank.stationbuilder.utils.TickScheduler;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
-import cn.myfrank.stationbuilder.blocks.StationBuilderBlockEntity;
 
 import cn.myfrank.stationbuilder.elements.*;
 import net.minecraft.block.Block;

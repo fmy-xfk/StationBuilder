@@ -2,10 +2,11 @@ package cn.myfrank.stationbuilder.create;
 
 import java.util.*;
 
-import cn.myfrank.stationbuilder.StationBuilder;
 import cn.myfrank.stationbuilder.mixin.create.PlacementInfoAccessor;
 import cn.myfrank.stationbuilder.utils.CurveData;
 import cn.myfrank.stationbuilder.utils.PointProvider;
+import cn.myfrank.stationbuilder.utils.TestConnectResult;
+
 import com.simibubi.create.content.trains.track.*;
 
 import net.minecraft.block.Block;
@@ -27,7 +28,6 @@ import net.minecraft.world.World;
 import net.minecraft.client.MinecraftClient;
 
 public class CreateIntegration {
-    public record CreatePreviewResult(boolean success, double radius, double length, List<Vec3d> positions) {}
     private static final Block TRACK_BLOCK = Registries.BLOCK.get(new Identifier("create", "track"));
 
     public static Vec3d getTrackDirectionFromAngle(float angle) {
@@ -185,36 +185,28 @@ public class CreateIntegration {
         return curveData;
     }
 
-    public static CreatePreviewResult testConnectRailNodes(
-            BlockPos startPos, float startAngle,
-            BlockPos endPos, float endAngle) {
-
+    public static TestConnectResult testConnectRailNodes(BlockPos startPos, float startAngle, BlockPos endPos, float endAngle) {
         MinecraftClient client = MinecraftClient.getInstance();
 
         if (client.world == null || client.player == null) {
-            return new CreatePreviewResult(false, 0, 0, List.of());
+            return TestConnectResult.fail();
         }
 
         World level = client.world;
         PlayerEntity player = client.player;
 
-        // 【关键防御 1】：如果起点已被挖掉（不是 Create 铁轨方块），坚决不执行 useOn，彻底根绝幽灵方块！
         BlockState stateStart = level.getBlockState(startPos);
-        if (!(stateStart.getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock)) {
-            return new CreatePreviewResult(false, 0, 0, List.of());
+        if (!(stateStart.getBlock() instanceof ITrackBlock)) {
+            return TestConnectResult.fail();
         }
 
-        // 终点虚拟状态：如果终点尚未放置铁轨，虚拟一个对应朝向的轨道状态给求解器
         BlockState stateEnd = level.getBlockState(endPos);
-        if (!(stateEnd.getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock)) {
+        if (!(stateEnd.getBlock() instanceof ITrackBlock)) {
             stateEnd = getTrackBlockState(endAngle);
         }
 
-        // 构造虚拟铁轨物品
         ItemStack trackStack = new ItemStack(TRACK_BLOCK.asItem());
 
-        // 【关键修复 2】：因为上面已经确认 startPos 是真实存在的铁轨，
-        // 这里的 useOn 只会提取起点数据写入 trackStack，绝不会在空气中放置幽灵方块！
         BlockHitResult hitStart = new BlockHitResult(
                 Vec3d.ofCenter(startPos),
                 Direction.UP,
@@ -224,24 +216,23 @@ public class CreateIntegration {
         ItemUsageContext startContext = new ItemUsageContext(level, player, Hand.MAIN_HAND, trackStack, hitStart);
         ActionResult firstResult = trackStack.useOnBlock(startContext);
         if (firstResult != ActionResult.SUCCESS && firstResult != ActionResult.CONSUME) {
-            return new CreatePreviewResult(false, 0, 0, List.of());
+            return TestConnectResult.fail();
         }
 
-        // 调用 Create 原生求解器（穿透模式 ignoreObstruction = true）
         TrackPlacement.PlacementInfo info;
         try {
             info = TrackPlacement.tryConnect(level, player, endPos, stateEnd, trackStack, false, true);
         } catch (Throwable t) {
-            return new CreatePreviewResult(false, 0, 0, List.of());
+            return TestConnectResult.fail();
         }
 
         if (info == null) {
-            return new CreatePreviewResult(false, 0, 0, List.of());
+            return TestConnectResult.fail();
         }
 
         PlacementInfoAccessor accessor = (PlacementInfoAccessor) (Object) info;
         if (!accessor.isValid()) {
-            return new CreatePreviewResult(false, 0, 0, List.of());
+            return TestConnectResult.fail();
         }
 
         // 提取几何信息与连续中心线
@@ -274,13 +265,30 @@ public class CreateIntegration {
             // (3) 曲线切点 curveEnd -> 终点方块中心
             sampleSegment(previewPoints, curveEnd, endCenter, step);
             length += startCenter.distanceTo(curveStart) + curveEnd.distanceTo(endCenter);
+
+            if (radius <= 0) {
+                // 计算曲线实际切点之间的相对位移
+                Vec3d delta = curveEnd.subtract(curveStart);
+                Vec3d axis = getTrackDirectionFromAngle(startAngle).normalize();
+
+                // 投影求得沿轨道轴向的纵向跨度 L 与横向偏距 u
+                double L = Math.abs(delta.x * axis.x + delta.z * axis.z);
+                // 横向偏距向量 = 相对向量 - 纵向投影向量
+                Vec3d normalComp = new Vec3d(delta.x - L * axis.x, 0, delta.z - L * axis.z);
+                double u = normalComp.length();
+
+                // 当存在横向偏移时，通过对称双圆弧几何公式 R = (L^2 + u^2) / (4u)
+                if (u > 0.05 && L > 0.1) {
+                    radius = (L * L + u * u) / (4.0 * u);
+                }
+            }
         } else {
             length = startCenter.distanceTo(endCenter);
             radius = 0.0;
             sampleSegment(previewPoints, startCenter, endCenter, 0.5);
         }
 
-        return new CreatePreviewResult(true, radius, length, previewPoints);
+        return new TestConnectResult(true, radius, length, previewPoints);
     }
 
     /**

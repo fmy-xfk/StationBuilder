@@ -1,6 +1,5 @@
 package cn.myfrank.stationbuilder.screens;
 
-import cn.myfrank.stationbuilder.*;
 import cn.myfrank.stationbuilder.StationBuilder;
 import cn.myfrank.stationbuilder.elements.BuildingElement;
 import cn.myfrank.stationbuilder.elements.PlatformElement;
@@ -11,15 +10,12 @@ import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.manager.PresetManager;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.SchematicLoaderUtil;
-import cn.myfrank.stationbuilder.utils.ClientUtil;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.registry.Registries;
 import net.minecraft.structure.StructureTemplate;
 import net.minecraft.text.Text;
 import net.minecraft.util.BlockRotation;

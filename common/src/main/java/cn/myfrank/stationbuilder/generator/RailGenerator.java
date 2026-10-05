@@ -1,7 +1,6 @@
 package cn.myfrank.stationbuilder.generator;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.UUID;
 
 import cn.myfrank.stationbuilder.create.CreateIntegration;

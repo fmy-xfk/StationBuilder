@@ -1,7 +1,5 @@
 package cn.myfrank.stationbuilder.mtr;
 
-import cn.myfrank.stationbuilder.utils.RailMath;
-
 import cn.myfrank.stationbuilder.utils.CurveData;
 import net.minecraft.util.math.Vec3d;
 import org.mtr.core.tool.Vector;

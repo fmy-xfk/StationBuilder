@@ -1,9 +1,7 @@
 package cn.myfrank.stationbuilder.screens;
 
-import cn.myfrank.stationbuilder.*;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.utils.ClientUtil;
-import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.elements.BuildingElement;
 import cn.myfrank.stationbuilder.gui.GuiTextField;
 import net.minecraft.client.gui.DrawContext;

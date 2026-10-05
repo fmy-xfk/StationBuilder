@@ -44,7 +44,8 @@ import net.minecraft.util.math.*;
 import org.joml.Matrix4f;
 
 public class StationBuilderClient implements ClientModInitializer {
-	private static final RailPreviewCache previewCache = new RailPreviewCache();
+	private static final RailPreviewCache MTRPreviewCache = new RailPreviewCache();
+	private static final RailPreviewCache CreatePreviewCache = new RailPreviewCache();
 	@Override
 	public void onInitializeClient() {
 		StationBuilderKeyBindings.register();
@@ -265,13 +266,13 @@ public class StationBuilderClient implements ClientModInitializer {
 				drawBox(matrices, consumer, node, cam, 0f, 1f, 1f, 0.6f); // 青色半透明
 				// 1. MTR 铁轨
 				if (railType == RailGenerator.RailNodeType.MTR && CommonUtil.isMtrLoaded()) {
-					var preview = previewCache.get(
+					var preview = MTRPreviewCache.get(
 							lastNode, MTRIntegration.parseAngle(lastAngle),
 							node, MTRIntegration.parseAngle(angle)
 					);
 					if (preview == null) {
 						preview = MTRIntegration.testConnectRailNodes(lastAngle, angle, lastNode, node);
-						previewCache.put(
+						MTRPreviewCache.put(
 								lastNode, MTRIntegration.parseAngle(lastAngle),
 								node, MTRIntegration.parseAngle(angle),
 								preview
@@ -288,7 +289,11 @@ public class StationBuilderClient implements ClientModInitializer {
 				}
 				// 2. Create 铁轨
 				else if (railType == RailGenerator.RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
-					var preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle);
+					var preview = CreatePreviewCache.get(lastNode, lastAngle, node, angle);
+					if (preview == null) {
+						preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle);
+						CreatePreviewCache.put(lastNode, lastAngle, node, angle, preview);
+					}
 					if (preview.success()) {
 						successCount += 1;
 						renderCurve(matrices, context.consumers(), context.camera(), preview.positions());

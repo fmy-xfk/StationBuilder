@@ -1,7 +1,6 @@
 package cn.myfrank.stationbuilder.utils;
 
 import net.minecraft.client.gui.DrawContext;
-import cn.myfrank.stationbuilder.gui.GuiScreen;
 import net.minecraft.client.gui.screen.Screen;
 
 /**

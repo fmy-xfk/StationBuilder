@@ -1,9 +1,7 @@
 package cn.myfrank.stationbuilder.screens;
 
-import cn.myfrank.stationbuilder.*;
 import cn.myfrank.stationbuilder.manager.PresetManager;
 import cn.myfrank.stationbuilder.utils.ClientUtil;
-import cn.myfrank.stationbuilder.utils.CommonUtil;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
