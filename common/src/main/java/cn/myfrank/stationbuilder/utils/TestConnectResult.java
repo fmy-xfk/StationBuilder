@@ -56,4 +56,8 @@ public record TestConnectResult(boolean success, double radius, double length, A
 
         return new TestConnectResult(success, radius, length,positions);
     }
+
+    public static TestConnectResult fail() {
+        return new TestConnectResult(false, 0, 0, new ArrayList<>());
+    }
 }

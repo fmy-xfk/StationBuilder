@@ -1,9 +1,7 @@
 package cn.myfrank.stationbuilder.create;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import cn.myfrank.stationbuilder.utils.CurveData;
+import cn.myfrank.stationbuilder.utils.TestConnectResult;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -12,10 +10,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
-/** Fabric Create compatibility facade. Create is not bundled for 1.21.4. */
 public class CreateIntegration {
-    public record CreatePreviewResult(boolean success, double radius, double length, List<Vec3d> positions) {}
-
     public static Vec3d getTrackDirectionFromAngle(float angle) {
         int sector = Math.floorMod((int) Math.floor(angle / 45.0F + 0.5F), 8);
         return switch (sector) {
@@ -38,7 +33,7 @@ public class CreateIntegration {
     public static Vec3d getRailCenter(BlockPos pos) { return Vec3d.ofCenter(pos).add(0, 0.125, 0); }
     public static void carveTunnelAndBuildBridge(ServerWorld world, CurveData curveData, BlockPos startPos, BlockPos endPos, int tunnelRadius) {}
     public static CurveData connectRailNodes(PlayerEntity player, ServerWorld world, BlockPos s, BlockPos e) { return null; }
-    public static CreatePreviewResult testConnectRailNodes(BlockPos startPos, float startAngle, BlockPos endPos, float endAngle) {
-        return new CreatePreviewResult(true, 0, 0, new ArrayList<>());
+    public static TestConnectResult testConnectRailNodes(BlockPos startPos, float startAngle, BlockPos endPos, float endAngle) {
+        return TestConnectResult.fail();
     }
 }
