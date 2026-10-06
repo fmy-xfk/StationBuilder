@@ -15,6 +15,8 @@ import cn.myfrank.stationbuilder.screens.StationEditorScreen;
 import cn.myfrank.stationbuilder.utils.ClientUtil;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.RailMath;
+import cn.myfrank.stationbuilder.utils.TestConnectResult;
+import cn.myfrank.stationbuilder.vanilla.VanillaIntegration;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -37,6 +39,7 @@ import org.joml.Matrix4f;
 public class StationBuilderClient implements ClientModInitializer {
 	private static final RailPreviewCache MTRPreviewCache = new RailPreviewCache();
 	private static final RailPreviewCache CreatePreviewCache = new RailPreviewCache();
+	private static final RailPreviewCache VanillaPreviewCache = new RailPreviewCache();
 
 	@Override
 	public void onInitializeClient() {
@@ -253,9 +256,9 @@ public class StationBuilderClient implements ClientModInitializer {
 
 			drawBox(matrices, consumer, lastNode, cam, 0f, 1f, 1f, 0.6f);
 			drawBox(matrices, consumer, node, cam, 0f, 1f, 1f, 0.6f);
-
+			TestConnectResult preview = null;
 			if (railType == RailGenerator.RailNodeType.MTR && CommonUtil.isMTRLoaded()) {
-				var preview = MTRPreviewCache.get(
+				preview = MTRPreviewCache.get(
 						lastNode, MTRIntegration.parseAngle(lastAngle),
 						node, MTRIntegration.parseAngle(angle)
 				);
@@ -271,14 +274,23 @@ public class StationBuilderClient implements ClientModInitializer {
 					renderCurve(matrices, context.consumers(), context.camera(), preview.positions());
 				}
 			} else if (railType == RailGenerator.RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
-				var preview = CreatePreviewCache.get(lastNode, lastAngle, node, angle);
+				preview = CreatePreviewCache.get(lastNode, lastAngle, node, angle);
 				if (preview == null) {
 					preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle);
 					CreatePreviewCache.put(lastNode, lastAngle, node, angle, preview);
 				}
-				if (preview.success()) {
-					renderCurve(matrices, context.consumers(), context.camera(), preview.positions());
+			} else if (railType == RailGenerator.RailNodeType.VANILLA) {
+				float pAngle1 = VanillaIntegration.parseAngle(lastAngle);
+				float pAngle2 = VanillaIntegration.parseAngle(angle);
+
+				preview = VanillaPreviewCache.get(lastNode, pAngle1, node, pAngle2);
+				if (preview == null) {
+					preview = VanillaIntegration.testConnectRailNodes(lastNode, pAngle1, node, pAngle2);
+					VanillaPreviewCache.put(lastNode, pAngle1, node, pAngle2, preview);
 				}
+			}
+			if (preview != null && preview.success()) {
+				renderCurve(matrices, context.consumers(), context.camera(), preview.positions());
 			}
 		}
 	}
@@ -317,9 +329,9 @@ public class StationBuilderClient implements ClientModInitializer {
 		for (int i = 0; i < lastNodes.size(); ++i) {
 			var lastNode = lastNodes.get(i);
 			var node = nodes.get(i);
-
+			TestConnectResult preview = null;
 			if (railType == RailGenerator.RailNodeType.MTR && CommonUtil.isMTRLoaded()) {
-				var preview = MTRPreviewCache.get(
+				preview = MTRPreviewCache.get(
 						lastNode, MTRIntegration.parseAngle(lastAngle),
 						node, MTRIntegration.parseAngle(angle)
 				);
@@ -331,27 +343,28 @@ public class StationBuilderClient implements ClientModInitializer {
 							preview
 					);
 				}
-
-				if (preview != null && preview.success()) {
-					successCount += 1;
-					if (preview.radius() > 0) {
-						minRadius = Math.min(minRadius, preview.radius());
-						minLength = Math.min(minLength, preview.length());
-					}
-				}
 			} else if (railType == RailGenerator.RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
-				var preview = CreatePreviewCache.get(lastNode, lastAngle, node, angle);
+				preview = CreatePreviewCache.get(lastNode, lastAngle, node, angle);
 				if (preview == null) {
 					preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle);
 					CreatePreviewCache.put(lastNode, lastAngle, node, angle, preview);
 				}
 
-				if (preview.success()) {
-					successCount += 1;
-					if (preview.radius() > 0) {
-						minRadius = Math.min(minRadius, preview.radius());
-						minLength = Math.min(minLength, preview.length());
-					}
+			} else if (railType == RailGenerator.RailNodeType.VANILLA) {
+				float pAngle1 = VanillaIntegration.parseAngle(lastAngle);
+				float pAngle2 = VanillaIntegration.parseAngle(angle);
+
+				preview = VanillaPreviewCache.get(lastNode, pAngle1, node, pAngle2);
+				if (preview == null) {
+					preview = VanillaIntegration.testConnectRailNodes(lastNode, pAngle1, node, pAngle2);
+					VanillaPreviewCache.put(lastNode, pAngle1, node, pAngle2, preview);
+				}
+			}
+			if (preview != null && preview.success()) {
+				successCount += 1;
+				if (preview.radius() > 0) {
+					minRadius = Math.min(minRadius, preview.radius());
+					minLength = Math.min(minLength, preview.length());
 				}
 			}
 		}

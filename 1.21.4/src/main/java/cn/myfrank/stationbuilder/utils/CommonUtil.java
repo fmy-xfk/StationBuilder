@@ -116,4 +116,8 @@ public final class CommonUtil {
         }
         return block;
     }
+
+    public static Direction fromRotation(float angle) {
+        return Direction.fromHorizontalDegrees(angle);
+    }
 }

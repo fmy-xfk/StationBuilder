@@ -1,18 +1,17 @@
 package cn.myfrank.stationbuilder.generator;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.UUID;
 
 import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
 import cn.myfrank.stationbuilder.utils.*;
+import cn.myfrank.stationbuilder.vanilla.VanillaIntegration;
 import cn.myfrank.stationbuilder.items.RailBuilderConfig;
 import cn.myfrank.stationbuilder.items.RailBuilderState;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.WallBlock;
-import net.minecraft.block.enums.RailShape;
 import net.minecraft.block.enums.WallShape;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
@@ -52,8 +51,7 @@ public class RailGenerator {
         } else if (railNodeType == RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
             return CreateIntegration.isRailNode(world, pos);
         } else if (railNodeType == RailNodeType.VANILLA) {
-            BlockState state = world.getBlockState(pos);
-            return state.isOf(Blocks.RAIL) || state.isOf(Blocks.POWERED_RAIL) || state.isOf(Blocks.DETECTOR_RAIL) || state.isOf(Blocks.ACTIVATOR_RAIL);
+            return VanillaIntegration.isRailNode(world, pos);
         } else {
             return false;
         }
@@ -66,8 +64,7 @@ public class RailGenerator {
         if (CommonUtil.isCreateLoaded()) {
             if (CreateIntegration.isRailNode(world, pos)) return true;
         }
-        BlockState state = world.getBlockState(pos);
-        return (state.isOf(Blocks.RAIL) || state.isOf(Blocks.POWERED_RAIL) || state.isOf(Blocks.DETECTOR_RAIL) || state.isOf(Blocks.ACTIVATOR_RAIL));
+        return VanillaIntegration.isRailNode(world, pos);
     }
 
     public static RailNodeType getRailNodeType(RailBuilderConfig config) {
@@ -100,7 +97,7 @@ public class RailGenerator {
         }
     }
 
-    public static void placeRailNode(ServerWorld world, BlockPos pos, PlayerEntity player, RailNodeType railNodeType, boolean showInfo) {
+    public static void placeRailNode(ServerWorld world, BlockPos pos, PlayerEntity player, RailNodeType railNodeType, RailBuilderConfig config, boolean showInfo) {
         if (railNodeType == RailNodeType.MTR && CommonUtil.isMTRLoaded()){
             if (!MTRIntegration.isRailNode(world, pos)) {
                 MTRIntegration.placeRailNode(world, pos, player.getYaw());
@@ -110,15 +107,14 @@ public class RailGenerator {
         } else if (railNodeType == RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
             CreateIntegration.placeRailNode(world, pos, player.getYaw());
         } else if (railNodeType == RailNodeType.VANILLA) {
-            BlockState state = Blocks.RAIL.getDefaultState();
-            state.with(Properties.RAIL_SHAPE, (int)(player.getYaw() / 90.0f + 0.5f) % 2 == 0 ? RailShape.NORTH_SOUTH : RailShape.EAST_WEST);
+            VanillaIntegration.placeRailNode(world, pos, player.getYaw(), config.railType);
         } else {
             if(showInfo) System.out.println("Rail node type not supported or mod not loaded: " + railNodeType);
         }
     }
 
-    public static void placeFirstRailNode(ServerWorld world, BlockPos pos, PlayerEntity player, RailNodeType railNodeType) {
-        placeRailNode(world, pos, player, railNodeType, true);
+    public static void placeFirstRailNode(ServerWorld world, BlockPos pos, PlayerEntity player, RailNodeType railNodeType, RailBuilderConfig config) {
+        placeRailNode(world, pos, player, railNodeType, config, true);
     }
 
     public static ArrayList<BlockPos> calcRailNodes(BlockPos pos, float yaw, RailBuilderConfig config) {
@@ -142,26 +138,9 @@ public class RailGenerator {
         ArrayList<BlockPos> nodes = calcRailNodes(pos, player.getYaw(), config);
         RailNodeType railNodeType = getRailNodeType(config);
         for (BlockPos p : nodes) {
-            placeFirstRailNode(world, p, player, railNodeType);
+            placeFirstRailNode(world, p, player, railNodeType, config);
         }
         return nodes;
-    }
-
-    public static boolean adjustPointSequence(ArrayList<BlockPos> fromNodes, ArrayList<BlockPos> toNodes) {
-        int count = fromNodes.size();
-        if (fromNodes.size() != toNodes.size()) {
-            throw new IllegalArgumentException("Lists must have same size");
-        }
-        if (count > 1) {
-            if (RailMath.getSideRelation(
-                    fromNodes.get(0), toNodes.get(0),
-                    fromNodes.get(count - 1), toNodes.get(count - 1)
-            ) < 0) {
-                Collections.reverse(fromNodes);
-                return true;
-            }
-        }
-        return false;
     }
 
     @Nullable
@@ -195,7 +174,7 @@ public class RailGenerator {
         }
 
         // Adjust positions
-        adjustPointSequence(startPositions, endPositions);
+        RailMath.adjustPointSequence(startPositions, endPositions);
 
         if (startPositions.size() != endPositions.size()) {
             // 清除该玩家的轨道建造状态（服务端清除）
@@ -211,7 +190,7 @@ public class RailGenerator {
             BlockPos e = endPositions.get(i);
             if(isRailNode(world, s, railNodeType)) {
                 if (s.equals(e)) continue;
-                placeRailNode(world, e, player, railNodeType, false);
+                placeRailNode(world, e, player, railNodeType, config, false);
                 anySuccess = true;
             } else {
                 System.out.println("Start position is not a valid rail node: " + s);
@@ -617,7 +596,7 @@ public class RailGenerator {
             } else if (nodeType == RailNodeType.CREATE) {
                 rails[i] = CreateIntegration.connectRailNodes(player, world, pos1, pos2);
             } else {
-                rails[i] = null;
+                rails[i] = VanillaIntegration.preconnectRailNodes(player, world, pos1, pos2);
             }
             if (rails[i] != null) {
                 maxLength = Math.max(maxLength, rails[i].getLength());
@@ -724,6 +703,20 @@ public class RailGenerator {
             }
         }
 
+        if (nodeType == RailNodeType.VANILLA) {
+            for(int i = 0; i < count; i++) {
+                if (rails[i] == null) continue;
+                var pos1 = startPositions.get(i);
+                var pos2 = endPositions.get(i);
+                if (i < count / 2) {
+                    var temp = pos1;
+                    pos1 = pos2;
+                    pos2 = temp;
+                }
+                VanillaIntegration.connectRailNodes(world, rails[i], config.railType, config.ballastBlock, pos1, pos2);
+            }
+        }
+
         // Build catenary
         boolean failToPlaceCatenaryNode = false;
         for(int i = 0; i < count; i++) {
@@ -750,5 +743,14 @@ public class RailGenerator {
             }
         }
         return failToPlaceCatenaryNode;
+    }
+
+    public static Direction horizontalDirectionFromVec(Vec3d v) {
+        double x = v.x, z = v.z;
+        if (Math.abs(x) > Math.abs(z)) {
+            return x > 0 ? Direction.EAST : Direction.WEST;
+        } else {
+            return z > 0 ? Direction.SOUTH : Direction.NORTH;
+        }
     }
 }

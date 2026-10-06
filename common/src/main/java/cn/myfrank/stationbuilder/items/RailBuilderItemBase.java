@@ -117,7 +117,9 @@ public class RailBuilderItemBase extends Item {
     protected ActionResult handleUse(World world, PlayerEntity user, Hand hand) {
         ItemStack stack = user.getStackInHand(hand);
         if (user.isSneaking()) {
-            openGui((ServerPlayerEntity) user, stack);
+            if (!world.isClient()) {
+                openGui((ServerPlayerEntity) user, stack);
+            }
             return ActionResult.SUCCESS;
         }
         return ActionResult.PASS;
