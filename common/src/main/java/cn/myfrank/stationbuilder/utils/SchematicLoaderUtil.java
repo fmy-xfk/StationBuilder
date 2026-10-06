@@ -4,13 +4,10 @@ import cn.myfrank.stationbuilder.schematic4j.SchematicLoader;
 import cn.myfrank.stationbuilder.schematic4j.exception.ParsingException;
 import cn.myfrank.stationbuilder.schematic4j.schematic.Schematic;
 import net.minecraft.SharedConstants;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtInt;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.structure.StructureTemplate;
-import net.minecraft.util.Identifier;
 import net.minecraft.registry.Registries;
 
 import java.io.IOException;
@@ -102,27 +99,5 @@ public class SchematicLoaderUtil {
         template.readNbt(Registries.BLOCK.getReadOnlyWrapper(), nbt);
 
         return template;
-    }
-
-    private static BlockState convertBlockState(String blockString) {
-        if (blockString == null || blockString.isEmpty()) {
-            return Blocks.AIR.getDefaultState();
-        }
-
-        // schematic4j 的 name 包含附带的方块状态（如楼梯的朝向），我们用 "[" 截断只取其 ID 进行最基础的映射
-        String blockId = blockString.split("\\[")[0];
-
-        Identifier id = Identifier.tryParse(blockId);
-        if (id == null) return Blocks.AIR.getDefaultState();
-
-        var block = Registries.BLOCK.get(id);
-
-        // 如果注册表中找不到这个方块 (比如旧版模组的方块)，则用空气替代
-        if (block == null || (block == Blocks.AIR && !blockId.equals("minecraft:air"))) {
-            return Blocks.AIR.getDefaultState();
-        }
-
-        // 简单返回默认状态 (如果希望支持精确朝向，需要编写额外的字符串解析逻辑)
-        return block.getDefaultState();
     }
 }

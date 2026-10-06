@@ -12,21 +12,21 @@ public class RailBuilderConfig {
     public double ballastTopWidth = 5.0;
     public double ballastBottomWidth = 11.0;
     public int ballastMaxThickness = 4;
-    public Identifier ballastBlock = new Identifier("minecraft", "andesite");
+    public Identifier ballastBlock = Identifier.of("minecraft", "andesite");
     public Identifier railType = CommonUtil.isMtrLoaded() ?
-            new Identifier("mtr", "rail_connector_160") :
-            new Identifier("minecraft", "rail");
+            Identifier.of("mtr", "rail_connector_160") :
+            Identifier.of("minecraft", "rail");
 
     public int bridgeClearSpan = 50;
-    public Identifier bridgeGuardRailBlock = new Identifier("minecraft", "stone_brick_wall");
-    public Identifier bridgeBlock = new Identifier("minecraft", "smooth_stone");
-    public Identifier bridgePillarBlock = new Identifier("minecraft", "light_gray_concrete");
+    public Identifier bridgeGuardRailBlock = Identifier.of("minecraft", "stone_brick_wall");
+    public Identifier bridgeBlock = Identifier.of("minecraft", "smooth_stone");
+    public Identifier bridgePillarBlock = Identifier.of("minecraft", "light_gray_concrete");
     public double bridgeWidth = 7.0;
 
     public int tunnelHeight = 7;
-    public Identifier tunnelWallBlock = new Identifier("minecraft", "stone");
-    public Identifier tunnelCeilingBlock = new Identifier("minecraft", "light_gray_concrete");
-    public Identifier tunnelFloorBlock = new Identifier("minecraft", "andesite");
+    public Identifier tunnelWallBlock = Identifier.of("minecraft", "stone");
+    public Identifier tunnelCeilingBlock = Identifier.of("minecraft", "light_gray_concrete");
+    public Identifier tunnelFloorBlock = Identifier.of("minecraft", "andesite");
     public double tunnelWidth = 7.0;
     public boolean clearFullHeight = false;
 
@@ -35,14 +35,14 @@ public class RailBuilderConfig {
     public int catenaryModeIndex = 0;
     public int catenarySpacing = 50;
     public Identifier catenaryBlock = CommonUtil.isMsdLoaded() ?
-            new Identifier("msd", "catenary_connector") :
-            new Identifier("minecraft", "cobweb");
+            Identifier.of("msd", "catenary_connector") :
+            Identifier.of("minecraft", "cobweb");
     public Identifier catenaryBridgePillar = CommonUtil.isMsdLoaded() ?
-            new Identifier("msd", "catenary_with_long") :
-            new Identifier("minecraft", "stone_brick_wall");
+            Identifier.of("msd", "catenary_with_long") :
+            Identifier.of("minecraft", "stone_brick_wall");
     public Identifier catenaryTunnelPillar = CommonUtil.isMsdLoaded() ?
-            new Identifier("msd", "catenary_with_long_top") :
-            new Identifier("minecraft", "stone_brick_wall");
+            Identifier.of("msd", "catenary_with_long_top") :
+            Identifier.of("minecraft", "stone_brick_wall");
 
     // ===== NBT =====
     public static RailBuilderConfig fromItem(ItemStack stack) {
