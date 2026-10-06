@@ -3,11 +3,12 @@ package cn.myfrank.stationbuilder.mtr;
 import cn.myfrank.stationbuilder.utils.CurveData;
 import net.minecraft.util.math.Vec3d;
 import org.mtr.core.tool.Vector;
+import org.mtr.core.data.RailMath;
 
 public class MTRCurveData implements CurveData {
-    private final org.mtr.core.data.RailMath math;
+    private final RailMath math;
 
-    public MTRCurveData(org.mtr.core.data.RailMath math) {
+    public MTRCurveData(RailMath math) {
         this.math = math;
     }
 

@@ -7,12 +7,12 @@ import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.mtr.MSDIntegration;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
 import cn.myfrank.stationbuilder.utils.*;
+import cn.myfrank.stationbuilder.vanilla.VanillaIntegration;
 import cn.myfrank.stationbuilder.items.RailBuilderConfig;
 import cn.myfrank.stationbuilder.items.RailBuilderState;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.WallBlock;
-import net.minecraft.block.enums.RailShape;
 import net.minecraft.block.enums.WallShape;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
@@ -50,8 +50,7 @@ public class RailGenerator {
         } else if (railNodeType == RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
             return CreateIntegration.isRailNode(world, pos);
         } else if (railNodeType == RailNodeType.VANILLA) {
-            BlockState state = world.getBlockState(pos);
-            return state.isOf(Blocks.RAIL) || state.isOf(Blocks.POWERED_RAIL) || state.isOf(Blocks.DETECTOR_RAIL) || state.isOf(Blocks.ACTIVATOR_RAIL);
+            return VanillaIntegration.isRailNode(world, pos);
         } else {
             return false;
         }
@@ -64,8 +63,7 @@ public class RailGenerator {
         if (CommonUtil.isCreateLoaded()) {
             if (CreateIntegration.isRailNode(world, pos)) return true;
         }
-        BlockState state = world.getBlockState(pos);
-        return (state.isOf(Blocks.RAIL) || state.isOf(Blocks.POWERED_RAIL) || state.isOf(Blocks.DETECTOR_RAIL) || state.isOf(Blocks.ACTIVATOR_RAIL));
+        return VanillaIntegration.isRailNode(world, pos);
     }
 
     public static RailNodeType getRailNodeType(RailBuilderConfig config) {
@@ -108,8 +106,7 @@ public class RailGenerator {
         } else if (railNodeType == RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
             CreateIntegration.placeRailNode(world, pos, player.getYaw());
         } else if (railNodeType == RailNodeType.VANILLA) {
-            BlockState state = Blocks.RAIL.getDefaultState();
-            state.with(Properties.RAIL_SHAPE, (int)(player.getYaw() / 90.0f + 0.5f) % 2 == 0 ? RailShape.NORTH_SOUTH : RailShape.EAST_WEST);
+            VanillaIntegration.placeRailNode(world, pos, player.getYaw());
         } else {
             if(showInfo) System.out.println("Rail node type not supported or mod not loaded: " + railNodeType);
         }
@@ -598,7 +595,7 @@ public class RailGenerator {
             } else if (nodeType == RailNodeType.CREATE) {
                 rails[i] = CreateIntegration.connectRailNodes(player, world, pos1, pos2);
             } else {
-                rails[i] = null;
+                rails[i] = VanillaIntegration.connectRailNodes(player, world, pos1, pos2, config.railType);
             }
             if (rails[i] != null) {
                 maxLength = Math.max(maxLength, rails[i].getLength());

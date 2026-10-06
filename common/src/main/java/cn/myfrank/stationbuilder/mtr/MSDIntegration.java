@@ -84,7 +84,6 @@ public class MSDIntegration {
             }
         } else {
             if (Catenary.verifyPosition(positionStart, positionEnd, offsetPositionStart, offsetPositionEnd)) {
-                System.out.println(c);
                 Catenary catenary = new Catenary(positionStart, positionEnd, offsetPositionStart, offsetPositionEnd, c);
                 world.setBlockState(a, stateStart.with(BlockNodeBase.IS_CONNECTED.data, true));
                 world.setBlockState(b, stateEnd.with(BlockNodeBase.IS_CONNECTED.data, true));
