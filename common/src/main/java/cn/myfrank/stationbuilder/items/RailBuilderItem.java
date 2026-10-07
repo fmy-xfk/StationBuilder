@@ -37,7 +37,7 @@ public class RailBuilderItem extends Item {
 
         ItemStack stack = context.getItemInHand();
         RailBuilderConfig cfg = RailBuilderConfig.fromItem(stack);
-        if (player.isCrouching()) {
+        if (player.isShiftKeyDown()) {
             if (!world.isClientSide && player instanceof ServerPlayer serverPlayer) {
                 openGui(serverPlayer, stack);
             }
@@ -65,7 +65,7 @@ public class RailBuilderItem extends Item {
     @Override
     public InteractionResultHolder<ItemStack> use(Level world, Player user, InteractionHand hand) {
         ItemStack stack = user.getItemInHand(hand);
-        if (user.isCrouching()) {
+        if (user.isShiftKeyDown()) {
             if (!world.isClientSide && user instanceof ServerPlayer serverPlayer) openGui(serverPlayer, stack);
             return InteractionResultHolder.success(stack);
         }

@@ -3,6 +3,8 @@ package cn.myfrank.stationbuilder;
 import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.RailMath;
+import cn.myfrank.stationbuilder.utils.TestConnectResult;
+import cn.myfrank.stationbuilder.vanilla.VanillaIntegration;
 import cn.myfrank.stationbuilder.generator.RailGenerator;
 import cn.myfrank.stationbuilder.items.*;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
@@ -42,6 +44,7 @@ import java.util.Locale;
 public final class RailPreviewRenderer {
     private static final RailPreviewCache MTRPreviewCache = new RailPreviewCache();
     private static final RailPreviewCache CreatePreviewCache = new RailPreviewCache();
+    private static final RailPreviewCache VanillaPreviewCache = new RailPreviewCache();
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
@@ -205,45 +208,44 @@ public final class RailPreviewRenderer {
                 var lastNode = lastNodes.get(i);
                 drawBox(matrices, consumer, lastNode, cam, 0f, 1f, 1f, 0.6f); // 青色半透明
                 drawBox(matrices, consumer, node, cam, 0f, 1f, 1f, 0.6f); // 青色半透明
-                // 1. MTR 铁轨
-                if (railType == RailGenerator.RailNodeType.MTR && CommonUtil.isMtrLoaded()) {
-                    var preview = MTRPreviewCache.get(
-                            lastNode, MTRIntegration.parseAngle(lastAngle),
-                            node, MTRIntegration.parseAngle(angle)
-                    );
-                    if (preview == null) {
-                        preview = MTRIntegration.testConnectRailNodes(lastAngle, angle, lastNode, node);
-                        MTRPreviewCache.put(
-                                lastNode, MTRIntegration.parseAngle(lastAngle),
-                                node, MTRIntegration.parseAngle(angle),
-                                preview
-                        );
-                    }
-                    if (preview.success()) {
-                        successCount += 1;
-                        renderCurve(matrices, Minecraft.getInstance().renderBuffers().bufferSource(), event.getCamera(), preview.positions());
-                        if (preview.radius() > 0) {
-                            minRadius = Math.min(minRadius, preview.radius());
-                            minLength = Math.min(minLength, preview.length());
-                        }
-                    }
-                }
-                // 2. Create 铁轨
-                else if (railType == RailGenerator.RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
-                    var preview = CreatePreviewCache.get(lastNode, lastAngle, node, angle);
+                TestConnectResult preview = null;
+				// 1. MTR 铁轨
+				if (railType == RailGenerator.RailNodeType.MTR && CommonUtil.isMtrLoaded()) {
+					var angle1 = MTRIntegration.parseAngle(lastAngle);
+					var angle2 = MTRIntegration.parseAngle(angle);
+					preview = MTRPreviewCache.get(lastNode, angle1, node, angle2);
+					if (preview == null) {
+						preview = MTRIntegration.testConnectRailNodes(lastAngle, angle, lastNode, node);
+						MTRPreviewCache.put(lastNode, angle1, node, angle2, preview);
+					}
+				}
+				// 2. Create 铁轨
+				else if (railType == RailGenerator.RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
+					preview = CreatePreviewCache.get(lastNode, lastAngle, node, angle);
 					if (preview == null) {
 						preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle);
 						CreatePreviewCache.put(lastNode, lastAngle, node, angle, preview);
 					}
-                    if (preview.success()) {
-                        successCount += 1;
-                        renderCurve(matrices, Minecraft.getInstance().renderBuffers().bufferSource(), event.getCamera(), preview.positions());
-                        if (preview.radius() > 0) {
-                            minRadius = Math.min(minRadius, preview.radius());
-                            minLength = Math.min(minLength, preview.length());
-                        }
-                    }
-                }
+				}
+				// 3. 原版铁轨
+				else if (railType == RailGenerator.RailNodeType.VANILLA) {
+					float pAngle1 = VanillaIntegration.parseAngle(lastAngle);
+					float pAngle2 = VanillaIntegration.parseAngle(angle);
+
+					preview = VanillaPreviewCache.get(lastNode, pAngle1, node, pAngle2);
+					if (preview == null) {
+						preview = VanillaIntegration.testConnectRailNodes(lastNode, pAngle1, node, pAngle2);
+						VanillaPreviewCache.put(lastNode, pAngle1, node, pAngle2, preview);
+					}
+				}
+				if (preview != null && preview.success()) {
+					successCount += 1;
+					renderCurve(matrices, Minecraft.getInstance().renderBuffers().bufferSource(), event.getCamera(), preview.positions());
+					if (preview.radius() > 0) {
+						minRadius = Math.min(minRadius, preview.radius());
+						minLength = Math.min(minLength, preview.length());
+					}
+				}
             }
             String extras = "";
             int extra_color = 0xAAAAAA;
