@@ -44,14 +44,15 @@ public class RailBuilderItem extends Item {
 
         if (player.isSneaking()) {
             if (!world.isClient) {
-                openGui((ServerPlayerEntity) player, stack);
+                if (!(player instanceof ServerPlayerEntity serverPlayer)) return ActionResult.PASS;
+                openGui(serverPlayer, stack);
             }
             return ActionResult.SUCCESS;
         }
 
-        if (!world.isClient) {
+        if (!world.isClient && player instanceof ServerPlayerEntity serverPlayer) {
             BlockPos pos = context.getBlockPos();
-            var serverWorld = ((ServerPlayerEntity) player).getServerWorld();
+            var serverWorld = serverPlayer.getServerWorld();
             if (!RailGenerator.isRailNode(serverWorld, pos) && !world.getBlockState(pos).isReplaceable()) {
                 pos = pos.offset(context.getSide());
             }
@@ -76,8 +77,8 @@ public class RailBuilderItem extends Item {
     public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
         ItemStack stack = user.getStackInHand(hand);
         if (user.isSneaking()) { // Shift
-            if (!world.isClient) {
-                openGui((ServerPlayerEntity) user, stack);
+            if (!world.isClient && user instanceof ServerPlayerEntity serverPlayer) {
+                openGui(serverPlayer, stack);
             }
             return TypedActionResult.success(stack);
         }
