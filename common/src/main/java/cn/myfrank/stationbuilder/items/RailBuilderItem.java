@@ -1,5 +1,7 @@
 package cn.myfrank.stationbuilder.items;
 
+import java.util.List;
+
 import cn.myfrank.stationbuilder.StationBuilder;
 import cn.myfrank.stationbuilder.generator.RailGenerator;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
@@ -11,28 +13,20 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.component.CustomModelData;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-import java.util.List;
-
-
-public class RailBuilderItem extends Item {
-    public RailBuilderItem(Item.Properties properties) {
+public class RailBuilderItem extends BaseItem {
+    public RailBuilderItem(Properties properties) {
         super(properties);
     }
 
     private static void updateCustomModelData(ItemStack stack) {
         if (RailBuilderState.isBuilding(stack)) {
-            stack.set(
-                    DataComponents.CUSTOM_MODEL_DATA,
-                    new CustomModelData(List.of(1.0f), List.of(), List.of(), List.of())
-            );
+            CommonUtil.setCustomModelData(stack, 1);
         } else {
             stack.remove(DataComponents.CUSTOM_MODEL_DATA);
         }
@@ -49,17 +43,22 @@ public class RailBuilderItem extends Item {
     }
 
     @Override
+    public InteractionResult handleUse(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+        if (player.isShiftKeyDown()) {
+            if (!level.isClientSide) {
+                openGui((ServerPlayer) player, stack);
+            }
+            return InteractionResult.SUCCESS;
+        }
+        return InteractionResult.PASS;
+    }
+
+    @Override
     public InteractionResult useOn(UseOnContext context) {
         Level level = context.getLevel();
         Player player = context.getPlayer();
         if (player == null) return InteractionResult.PASS;
-
-        if (!CommonUtil.isMtrLoaded()) {
-            if (level.isClientSide) {
-                player.displayClientMessage(Component.translatable("message.stationbuilder.rail_builder.no_mtr"), true);
-            }
-            return InteractionResult.FAIL;
-        }
 
         ItemStack stack = context.getItemInHand();
         RailBuilderConfig cfg = RailBuilderConfig.fromItem(stack);
@@ -96,20 +95,7 @@ public class RailBuilderItem extends Item {
     }
 
     @Override
-    public InteractionResult use(Level level, Player player, InteractionHand hand) {
-        ItemStack stack = player.getItemInHand(hand);
-        if (player.isShiftKeyDown()) {
-            if (!level.isClientSide) {
-                openGui((ServerPlayer) player, stack);
-            }
-            return InteractionResult.SUCCESS;
-        }
-
-        return InteractionResult.PASS;
-    }
-
-    @Override
-    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.translatable("tooltip.stationbuilder.rail_builder.line1"));
         tooltip.add(Component.translatable("tooltip.stationbuilder.rail_builder.line2"));
         tooltip.add(Component.translatable("tooltip.stationbuilder.rail_builder.line3"));

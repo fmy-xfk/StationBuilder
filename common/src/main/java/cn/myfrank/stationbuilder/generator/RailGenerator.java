@@ -1,19 +1,14 @@
 package cn.myfrank.stationbuilder.generator;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.UUID;
 
-import cn.myfrank.stationbuilder.utils.CurveData;
+import cn.myfrank.stationbuilder.utils.*;
+import cn.myfrank.stationbuilder.vanilla.VanillaIntegration;
 import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.items.RailBuilderConfig;
 import cn.myfrank.stationbuilder.items.RailBuilderState;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
-import cn.myfrank.stationbuilder.utils.RailMath;
-import cn.myfrank.stationbuilder.utils.BuildingMode;
-import cn.myfrank.stationbuilder.utils.CommonUtil;
-import cn.myfrank.stationbuilder.utils.PointProvider;
-import cn.myfrank.stationbuilder.utils.TickScheduler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -24,9 +19,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.WallBlock;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.RailShape;
 import net.minecraft.world.level.block.state.properties.WallSide;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
@@ -57,8 +50,7 @@ public class RailGenerator {
         } else if (railNodeType == RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
             return CreateIntegration.isRailNode(world, pos);
         } else if (railNodeType == RailNodeType.VANILLA) {
-            BlockState state = world.getBlockState(pos);
-            return state.is(Blocks.RAIL) || state.is(Blocks.POWERED_RAIL) || state.is(Blocks.DETECTOR_RAIL) || state.is(Blocks.ACTIVATOR_RAIL);
+            return VanillaIntegration.isRailNode(world, pos);
         } else {
             return false;
         }
@@ -71,8 +63,7 @@ public class RailGenerator {
         if (CommonUtil.isCreateLoaded()) {
             if (CreateIntegration.isRailNode(world, pos)) return true;
         }
-        BlockState state = world.getBlockState(pos);
-        return (state.is(Blocks.RAIL) || state.is(Blocks.POWERED_RAIL) || state.is(Blocks.DETECTOR_RAIL) || state.is(Blocks.ACTIVATOR_RAIL));
+        return VanillaIntegration.isRailNode(world, pos);
     }
 
     public static RailNodeType getRailNodeType(RailBuilderConfig config) {
@@ -86,14 +77,14 @@ public class RailGenerator {
                     }
                 } else {
                     return RailNodeType.UNSUPPORTED;
-                }           
+                }
             }
             case "create" -> {
                 if (config.railType.getPath().equals("track")) {
                     return RailNodeType.CREATE;
                 } else {
                     return RailNodeType.UNSUPPORTED;
-                }            
+                }
             }
             default -> {
                 if (config.railType.getNamespace().equals("minecraft") && config.railType.getPath().contains("rail")) {
@@ -105,7 +96,7 @@ public class RailGenerator {
         }
     }
 
-    public static void placeRailNode(ServerLevel world, BlockPos pos, Player player, RailNodeType railNodeType, boolean showInfo) {
+    public static void placeRailNode(ServerLevel world, BlockPos pos, Player player, RailNodeType railNodeType, RailBuilderConfig config, boolean showInfo) {
         if (railNodeType == RailNodeType.MTR && CommonUtil.isMtrLoaded()){
             if (!MTRIntegration.isRailNode(world, pos)) {
                 MTRIntegration.placeRailNode(world, pos, player.getYRot());
@@ -115,15 +106,14 @@ public class RailGenerator {
         } else if (railNodeType == RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
             CreateIntegration.placeRailNode(world, pos, player.getYRot());
         } else if (railNodeType == RailNodeType.VANILLA) {
-            BlockState state = Blocks.RAIL.defaultBlockState();
-            state.setValue(BlockStateProperties.RAIL_SHAPE, (int)(player.getYRot() / 90.0f + 0.5f) % 2 == 0 ? RailShape.NORTH_SOUTH : RailShape.EAST_WEST);
+            VanillaIntegration.placeRailNode(world, pos, player.getYRot(), config.railType);
         } else {
             if(showInfo) System.out.println("Rail node type not supported or mod not loaded: " + railNodeType);
         }
     }
 
-    public static void placeFirstRailNode(ServerLevel world, BlockPos pos, Player player, RailNodeType railNodeType) {
-        placeRailNode(world, pos, player, railNodeType, true);
+    public static void placeFirstRailNode(ServerLevel world, BlockPos pos, Player player, RailNodeType railNodeType, RailBuilderConfig config) {
+        placeRailNode(world, pos, player, railNodeType, config, true);
     }
 
     public static ArrayList<BlockPos> calcRailNodes(BlockPos pos, float yaw, RailBuilderConfig config) {
@@ -147,26 +137,9 @@ public class RailGenerator {
         ArrayList<BlockPos> nodes = calcRailNodes(pos, player.getYRot(), config);
         RailNodeType railNodeType = getRailNodeType(config);
         for (BlockPos p : nodes) {
-            placeFirstRailNode(world, p, player, railNodeType);
+            placeFirstRailNode(world, p, player, railNodeType, config);
         }
         return nodes;
-    }
-
-    public static boolean adjustPointSequence(ArrayList<BlockPos> fromNodes, ArrayList<BlockPos> toNodes) {
-        int count = fromNodes.size();
-        if (fromNodes.size() != toNodes.size()) {
-            throw new IllegalArgumentException("Lists must have same size");
-        }
-        if (count > 1) {
-            if (RailMath.getSideRelation(
-                    fromNodes.getFirst(), toNodes.getFirst(),
-                    fromNodes.get(count - 1), toNodes.get(count - 1)
-            ) < 0) {
-                Collections.reverse(fromNodes);
-                return true;
-            }
-        }
-        return false;
     }
 
     @Nullable
@@ -200,7 +173,7 @@ public class RailGenerator {
         }
 
         // Adjust positions
-        adjustPointSequence(startPositions, endPositions);
+        RailMath.adjustPointSequence(startPositions, endPositions);
 
         if (startPositions.size() != endPositions.size()) {
             // 清除该玩家的轨道建造状态（服务端清除）
@@ -216,7 +189,7 @@ public class RailGenerator {
             BlockPos e = endPositions.get(i);
             if(isRailNode(world, s, railNodeType)) {
                 if (s.equals(e)) continue;
-                placeRailNode(world, e, player, railNodeType, false);
+                placeRailNode(world, e, player, railNodeType, config, false);
                 anySuccess = true;
             } else {
                 System.out.println("Start position is not a valid rail node: " + s);
@@ -622,7 +595,7 @@ public class RailGenerator {
             } else if (nodeType == RailNodeType.CREATE) {
                 rails[i] = CreateIntegration.connectRailNodes(player, world, pos1, pos2);
             } else {
-                rails[i] = null;
+                rails[i] = VanillaIntegration.preconnectRailNodes(player, world, pos1, pos2);
             }
             if (rails[i] != null) {
                 maxLength = Math.max(maxLength, rails[i].getLength());
@@ -726,6 +699,20 @@ public class RailGenerator {
                 if (thisDbm == BuildingMode.Down.ThickBallast) {
                     buildThickerBallast(center, normal, world, config, isLeftest[i], isRightest[i]);
                 }
+            }
+        }
+
+        if (nodeType == RailNodeType.VANILLA) {
+            for(int i = 0; i < count; i++) {
+                if (rails[i] == null) continue;
+                var pos1 = startPositions.get(i);
+                var pos2 = endPositions.get(i);
+                if (i < count / 2) {
+                    var temp = pos1;
+                    pos1 = pos2;
+                    pos2 = temp;
+                }
+                VanillaIntegration.connectRailNodes(world, rails[i], config.railType, config.ballastBlock, pos1, pos2);
             }
         }
 

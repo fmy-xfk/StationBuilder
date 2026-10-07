@@ -1,11 +1,13 @@
 package cn.myfrank.stationbuilder.utils;
 
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomModelData;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Rotation;
@@ -117,5 +119,10 @@ public final class CommonUtil {
             return Blocks.AIR;
         }
         return block;
+    }
+
+    public static void setCustomModelData(ItemStack stack, int value) {
+        stack.set(DataComponents.CUSTOM_MODEL_DATA,
+                new CustomModelData(value));
     }
 }

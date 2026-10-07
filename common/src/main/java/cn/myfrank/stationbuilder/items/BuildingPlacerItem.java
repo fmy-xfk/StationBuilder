@@ -4,10 +4,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import cn.myfrank.stationbuilder.utils.BlockRotationUtil;
+import cn.myfrank.stationbuilder.StationBuilder;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.manager.PlacerHistoryManager;
-import cn.myfrank.stationbuilder.StationBuilder;
+import cn.myfrank.stationbuilder.utils.BlockRotationUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
@@ -18,7 +18,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
@@ -31,9 +30,28 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureProc
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-public class BuildingPlacerItem extends Item {
-    public BuildingPlacerItem(Item.Properties properties) {
+public class BuildingPlacerItem extends BaseItem {
+    public BuildingPlacerItem(Properties properties) {
         super(properties);
+    }
+
+    private void openGui(ServerPlayer player, ItemStack stack) {
+        PacketDistributor.sendToPlayer(
+                player,
+                new StationBuilder.SyncOpenPlacerPayload(BuildingPlacerConfig.fromItem(stack).toNbt())
+        );
+    }
+
+    @Override
+    public InteractionResult handleUse(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+        if (player.isShiftKeyDown()) {
+            if (!level.isClientSide) {
+                openGui((ServerPlayer) player, stack);
+            }
+            return InteractionResult.SUCCESS;
+        }
+        return InteractionResult.PASS;
     }
 
     @Override
@@ -47,10 +65,7 @@ public class BuildingPlacerItem extends Item {
 
         if (player.isShiftKeyDown()) {
             if (!level.isClientSide) {
-                PacketDistributor.sendToPlayer(
-                        (ServerPlayer) player,
-                        new StationBuilder.SyncOpenPlacerPayload(cfg.toNbt())
-                );
+                openGui((ServerPlayer) player, stack);
             }
             return InteractionResult.SUCCESS;
         }
@@ -91,7 +106,7 @@ public class BuildingPlacerItem extends Item {
                     }
                 });
 
-                // === 保存放置前的环境快照 ===
+                // 保存放置前的环境快照
                 Vec3i size = template.getSize();
                 Map<BlockPos, PlacerHistoryManager.SavedBlockState> savedBlocks = new HashMap<>();
                 for (int x = 0; x < size.getX(); x++) {
@@ -124,22 +139,7 @@ public class BuildingPlacerItem extends Item {
     }
 
     @Override
-    public InteractionResult use(Level level, Player player, InteractionHand hand) {
-        ItemStack stack = player.getItemInHand(hand);
-        if (player.isShiftKeyDown()) {
-            if (!level.isClientSide) {
-                PacketDistributor.sendToPlayer(
-                        (ServerPlayer) player,
-                        new StationBuilder.SyncOpenPlacerPayload(BuildingPlacerConfig.fromItem(stack).toNbt())
-                );
-            }
-            return InteractionResult.SUCCESS;
-        }
-        return InteractionResult.PASS;
-    }
-
-    @Override
-    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.translatable("tooltip.stationbuilder.building_placer_line1"));
         tooltip.add(Component.translatable("tooltip.stationbuilder.building_placer_line2"));
         tooltip.add(Component.translatable("tooltip.stationbuilder.building_placer_line3"));

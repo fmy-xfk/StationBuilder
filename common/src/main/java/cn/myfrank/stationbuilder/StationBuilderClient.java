@@ -4,6 +4,9 @@ import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.generator.RailGenerator;
 import cn.myfrank.stationbuilder.utils.ClientUtil;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
+import cn.myfrank.stationbuilder.utils.RailMath;
+import cn.myfrank.stationbuilder.utils.TestConnectResult;
+import cn.myfrank.stationbuilder.vanilla.VanillaIntegration;
 import cn.myfrank.stationbuilder.items.*;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
@@ -50,6 +53,7 @@ import java.util.List;
 public class StationBuilderClient {
     private static final RailPreviewCache MTRPreviewCache = new RailPreviewCache();
     private static final RailPreviewCache CreatePreviewCache = new RailPreviewCache();
+    private static final RailPreviewCache VanillaPreviewCache = new RailPreviewCache();
 
     public StationBuilderClient(IEventBus modEventBus) {
         modEventBus.addListener(StationBuilderClient::registerKeyMappings);
@@ -274,7 +278,7 @@ public class StationBuilderClient {
         // ==================================================================
 
         // 使用安全的非 MTR 依赖方法进行多线序列对齐
-        RailGenerator.adjustPointSequence(lastNodes, nodes);
+        RailMath.adjustPointSequence(lastNodes, nodes);
         float angle = player.getYRot();
 
         // 根据配置选中的铁轨物品类型判定属于哪个模组
@@ -286,10 +290,10 @@ public class StationBuilderClient {
 
             drawBox(poseStack, consumer, lastNode, cam, 0f, 1f, 1f, 0.6f);
             drawBox(poseStack, consumer, node, cam, 0f, 1f, 1f, 0.6f);
-
+            TestConnectResult preview = null;
             // 1. MTR 铁轨
             if (railType == RailGenerator.RailNodeType.MTR && CommonUtil.isMtrLoaded()) {
-                var preview = MTRPreviewCache.get(
+                preview = MTRPreviewCache.get(
                         lastNode, MTRIntegration.parseAngle(lastAngle),
                         node, MTRIntegration.parseAngle(angle)
                 );
@@ -301,20 +305,28 @@ public class StationBuilderClient {
                             preview
                     );
                 }
-                if (preview.success()) {
-                    renderCurve(poseStack, Minecraft.getInstance().renderBuffers().bufferSource(), event.getCamera(), preview.positions());
-                }
             }
             // 2. Create 铁轨
             else if (railType == RailGenerator.RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
-                var preview = CreatePreviewCache.get(lastNode, lastAngle, node, angle);
+                preview = CreatePreviewCache.get(lastNode, lastAngle, node, angle);
                 if (preview == null) {
                     preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle);
                     CreatePreviewCache.put(lastNode, lastAngle, node, angle, preview);
                 }
-                if (preview.success()) {
-                    renderCurve(poseStack, Minecraft.getInstance().renderBuffers().bufferSource(), event.getCamera(), preview.positions());
+            }
+            // 3. Vanilla 铁轨
+            else if (railType == RailGenerator.RailNodeType.VANILLA) {
+                float pAngle1 = VanillaIntegration.parseAngle(lastAngle);
+                float pAngle2 = VanillaIntegration.parseAngle(angle);
+
+                preview = VanillaPreviewCache.get(lastNode, pAngle1, node, pAngle2);
+                if (preview == null) {
+                    preview = VanillaIntegration.testConnectRailNodes(lastNode, pAngle1, node, pAngle2);
+                    VanillaPreviewCache.put(lastNode, pAngle1, node, pAngle2, preview);
                 }
+            }
+            if (preview.success()) {
+                renderCurve(poseStack, Minecraft.getInstance().renderBuffers().bufferSource(), event.getCamera(), preview.positions());
             }
         }
     }
@@ -336,7 +348,7 @@ public class StationBuilderClient {
             return;
         }
 
-        RailGenerator.adjustPointSequence(lastNodes, nodes);
+        RailMath.adjustPointSequence(lastNodes, nodes);
         float angle = player.getYRot();
 
         Vec3 textPos = getPreviewCenterPos(lastNodes, targetPos);
@@ -350,10 +362,10 @@ public class StationBuilderClient {
         for (int i = 0; i < lastNodes.size(); ++i) {
             var lastNode = lastNodes.get(i);
             var node = nodes.get(i);
-
+            TestConnectResult preview = null;
             // MTR 模式收集曲线信息
             if (railType == RailGenerator.RailNodeType.MTR && CommonUtil.isMtrLoaded()) {
-                var preview = MTRPreviewCache.get(
+                preview = MTRPreviewCache.get(
                         lastNode, MTRIntegration.parseAngle(lastAngle),
                         node, MTRIntegration.parseAngle(angle)
                 );
@@ -365,27 +377,30 @@ public class StationBuilderClient {
                             preview
                     );
                 }
-
-                if (preview.success()) {
-                    successCount += 1;
-                    if (preview.radius() > 0) {
-                        minRadius = Math.min(minRadius, preview.radius());
-                        minLength = Math.min(minLength, preview.length());
-                    }
-                }
             }
             // Create 模式收集曲线信息
             else if (railType == RailGenerator.RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
-                var preview = CreatePreviewCache.get(lastNode, lastAngle, node, angle);
+                preview = CreatePreviewCache.get(lastNode, lastAngle, node, angle);
                 if (preview == null) {
                     preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle);
                     CreatePreviewCache.put(lastNode, lastAngle, node, angle, preview);
                 }
-                if (preview.success()) {
-                    successCount += 1;
-                    if (preview.radius() > 0) {
-                        minRadius = Math.min(minRadius, preview.radius());
-                    }
+            }
+            // Vanilla 模式收集曲线信息
+            else if (railType == RailGenerator.RailNodeType.VANILLA) {
+                float pAngle1 = VanillaIntegration.parseAngle(lastAngle);
+                float pAngle2 = VanillaIntegration.parseAngle(angle);
+
+                preview = VanillaPreviewCache.get(lastNode, pAngle1, node, pAngle2);
+                if (preview == null) {
+                    preview = VanillaIntegration.testConnectRailNodes(lastNode, pAngle1, node, pAngle2);
+                    VanillaPreviewCache.put(lastNode, pAngle1, node, pAngle2, preview);
+                }
+            }
+            if (preview != null && preview.success()) {
+                successCount += 1;
+                if (preview.radius() > 0) {
+                    minRadius = Math.min(minRadius, preview.radius());
                     minLength = Math.min(minLength, preview.length());
                 }
             }
