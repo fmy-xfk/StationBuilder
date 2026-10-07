@@ -1,6 +1,5 @@
 package cn.myfrank.stationbuilder.items;
 
-import cn.myfrank.stationbuilder.mtr.MTRIntegration;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.generator.RailGenerator;
 import cn.myfrank.stationbuilder.StationBuilder;
@@ -51,28 +50,21 @@ public class RailBuilderItemBase extends Item {
         PlayerEntity player = context.getPlayer();
         if (player == null) return ActionResult.PASS;
 
-        if (!CommonUtil.isMTRLoaded()) {
-            if (world.isClient) {
-                player.sendMessage(Text.translatable("message.stationbuilder.rail_builder.no_mtr"), true);
-            }
-            return ActionResult.FAIL;
-        }
-
         ItemStack stack = context.getStack();
         RailBuilderConfig cfg = RailBuilderConfig.fromItem(stack);
 
         if (player.isSneaking()) {
             if (!world.isClient) {
-                openGui((ServerPlayerEntity) player, stack);
+                if (!(player instanceof ServerPlayerEntity serverPlayer)) return ActionResult.PASS;
+                openGui(serverPlayer, stack);
             }
             return ActionResult.SUCCESS;
         }
 
-        if (!world.isClient) {
+        if (!world.isClient && player instanceof ServerPlayerEntity serverPlayer) {
             BlockPos pos = context.getBlockPos();
-            var serverWorld = ((ServerPlayerEntity) player).getServerWorld();
-
-            if (!MTRIntegration.isRailNode(serverWorld, pos) && !world.getBlockState(pos).isReplaceable()) {
+            var serverWorld = serverPlayer.getServerWorld();
+            if (!RailGenerator.isRailNode(serverWorld, pos) && !world.getBlockState(pos).isReplaceable()) {
                 pos = pos.offset(context.getSide());
             }
 
@@ -92,7 +84,16 @@ public class RailBuilderItemBase extends Item {
         return ActionResult.SUCCESS;
     }
 
-
+    protected ActionResult handleUse(World world, PlayerEntity user, Hand hand) {
+        ItemStack stack = user.getStackInHand(hand);
+        if (user.isSneaking()) {
+            if (!world.isClient() && user instanceof ServerPlayerEntity serverPlayer) {
+                openGui(serverPlayer, stack);
+            }
+            return ActionResult.SUCCESS;
+        }
+        return ActionResult.PASS;
+    }
 
     @Override
     public void appendTooltip(ItemStack stack, TooltipContext context, List<Text> tooltip, TooltipType type) {
@@ -112,17 +113,6 @@ public class RailBuilderItemBase extends Item {
                 last.getZ()
             ).formatted(Formatting.GREEN)
         );
-    }
-
-    protected ActionResult handleUse(World world, PlayerEntity user, Hand hand) {
-        ItemStack stack = user.getStackInHand(hand);
-        if (user.isSneaking()) {
-            if (!world.isClient()) {
-                openGui((ServerPlayerEntity) user, stack);
-            }
-            return ActionResult.SUCCESS;
-        }
-        return ActionResult.PASS;
     }
 
 }
