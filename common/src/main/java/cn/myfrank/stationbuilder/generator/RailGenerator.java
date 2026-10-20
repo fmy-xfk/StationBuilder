@@ -67,33 +67,17 @@ public class RailGenerator {
     }
 
     public static RailNodeType getRailNodeType(RailBuilderConfig config) {
-        switch (config.railType.getNamespace()) {
-            case "mtr" -> {
-                if (CommonUtil.isMtrLoaded()) {
-                    if (MTRIntegration.isValidRailType(config.railType)) {
-                        return RailNodeType.MTR;
-                    } else {
-                        return RailNodeType.UNSUPPORTED;
-                    }
-                } else {
-                    return RailNodeType.UNSUPPORTED;
-                }
-            }
-            case "create" -> {
-                if (config.railType.getPath().equals("track")) {
-                    return RailNodeType.CREATE;
-                } else {
-                    return RailNodeType.UNSUPPORTED;
-                }
-            }
-            default -> {
-                if (config.railType.getNamespace().equals("minecraft") && config.railType.getPath().contains("rail")) {
-                    return RailNodeType.VANILLA;
-                } else {
-                    return RailNodeType.UNSUPPORTED;
-                }
-            }
+        // 优先检查是否为 MTR 铁轨连接器（只要继承自 ItemRailModifier，不论属于哪个模组均可）
+        if (CommonUtil.isMtrLoaded() && MTRIntegration.isValidRailType(config.railType)) {
+            return RailNodeType.MTR;
         }
+        if (CommonUtil.isCreateLoaded() && config.railType.getNamespace().equals("create") && config.railType.getPath().equals("track")) {
+            return RailNodeType.CREATE;
+        }
+        if (config.railType.getNamespace().equals("minecraft") && config.railType.getPath().contains("rail")) {
+            return RailNodeType.VANILLA;
+        }
+        return RailNodeType.UNSUPPORTED;
     }
 
     public static void placeRailNode(ServerWorld world, BlockPos pos, PlayerEntity player, RailNodeType railNodeType, RailBuilderConfig config, boolean showInfo) {

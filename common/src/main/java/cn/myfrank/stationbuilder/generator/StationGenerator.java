@@ -50,8 +50,10 @@ public class StationGenerator {
         }
 
         List<BlockPos> mtrRails = new ArrayList<>();
+        int deltaL = elements.get(0) instanceof TrackElement ? 1 : 0;
+        int deltaR = elements.get(elements.size() - 1) instanceof TrackElement ? 1 : 0;
         for (int l = 1; l <= length; l++) {
-            for (int w = -4; w < totalWidth + 4; w++) {
+            for (int w = -deltaL; w < totalWidth + deltaR; w++) {
                 for (int y = 0; y <= maxConstHeight; y++) {
                     BlockPos p = origin.offset(facing, l).offset(right, w).up(y);
                     BlockState state = world.getBlockState(p);
@@ -99,7 +101,7 @@ public class StationGenerator {
     }
 
     // --- 站房生成逻辑 ---
-        private static void generateBuilding(ServerWorld world, BlockPos pos, Direction facing, BuildingElement element, int length) {
+    private static void generateBuilding(ServerWorld world, BlockPos pos, Direction facing, BuildingElement element, int length) {
         Optional<StructureTemplate> custom = BuildingTemplateManager.getTemplate(element.presetName);
         StructureTemplate template = custom.orElse(null);
 
@@ -453,7 +455,7 @@ public class StationGenerator {
                         : net.minecraft.block.enums.RailShape.NORTH_SOUTH;
 
         BlockState railState;
-        if (t.track.getNamespace().equals("mtr") && hasMTR) {
+        if (hasMTR && MTRIntegration.isValidRailType(t.track)) {
             railState = null;
         } else {
             railState = CommonUtil.getBlockState(t.track);
@@ -487,7 +489,7 @@ public class StationGenerator {
             TickScheduler.schedule(1, () -> {
                 MTRIntegration.placeRailNode(world, nodeStart, facing);
                 MTRIntegration.placeRailNode(world, nodeEnd, facing);
-                MTRIntegration.connectRailNodes(playerUuid, world, nodeStart, nodeEnd, 0);
+                MTRIntegration.connectRailNodes(playerUuid, world, nodeStart, nodeEnd, t.track);
             });
         }
     }
