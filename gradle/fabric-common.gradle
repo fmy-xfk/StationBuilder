@@ -1,8 +1,4 @@
-/*
- * Shared Fabric Loom configuration for the 1.20.x targets.
- * Minecraft/Yarn/Fabric/MSD values remain target-specific.
- */
-
+// Shared configuration for all Fabric targets in this multi-version source tree.
 version = project.mod_version
 group = project.maven_group
 
@@ -18,22 +14,20 @@ repositories {
         url = "https://cursemaven.com"
         content { includeGroup "curse.maven" }
     }
+    maven {
+        name = "essentialMavenPublic"
+        url = uri("https://repo.essential.gg/public")
+    }
 }
 
-// The shared source tree intentionally uses a single main source set.
-// Fabric's client entrypoint/classes live in this same source set; client-only
-// initialization remains selected by fabric.mod.json's "client" entrypoint.
+// Keep the source shared across 1.20/1.21 in common, and add the appropriate family layer.
+def mcVersion = project.minecraft_version.toString()
+def familySourceDir = mcVersion.startsWith("1.20.") ? "../1.20-common" : "../1.21-common"
 sourceSets.main {
-    java.srcDir rootProject.file("../common/src/main/java")
-    resources.srcDir rootProject.file("../common/src/main/resources")
-}
-
-dependencies {
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
-    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
-    modImplementation "maven.modrinth:minecraft-transit-railway:FABRIC-${project.mtr_version}+${project.minecraft_version}"
+    java.srcDir(rootProject.file("../common/src/main/java"))
+    resources.srcDir(rootProject.file("../common/src/main/resources"))
+    java.srcDir(rootProject.file("${familySourceDir}/src/main/java"))
+    resources.srcDir(rootProject.file("${familySourceDir}/src/main/resources"))
 }
 
 processResources {
@@ -74,7 +68,7 @@ publishing {
             from components.java
         }
     }
-    repositories { }
+    repositories {}
 }
 
 remapJar {

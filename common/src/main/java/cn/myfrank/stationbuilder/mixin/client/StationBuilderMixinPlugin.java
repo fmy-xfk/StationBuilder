@@ -12,9 +12,11 @@ public class StationBuilderMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        // 如果 Mixin 类名包含 ".mtr."，则检查 mtr 是否加载
         if (mixinClassName.contains(".mtr.")) {
             return FabricLoader.getInstance().isModLoaded("mtr");
+        }
+        if (mixinClassName.contains(".create.")) {
+            return FabricLoader.getInstance().isModLoaded("create");
         }
         return true;
     }
