@@ -8,4 +8,4 @@ pluginManagement {
     }
 }
 
-rootProject.name = 'StationBuilder-Forge-1.20.1'
+rootProject.name = 'StationBuilder-1.20.1'

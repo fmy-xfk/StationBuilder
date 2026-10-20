@@ -6,7 +6,7 @@ plugins {
     id 'org.spongepowered.mixin' version '0.7.+'
 }
 
-apply from: file('../gradle/forge-common.gradle')
+apply from: file('../gradle/target-1.20.gradle')
 
 minecraft {
     mappings channel: mapping_channel, version: mapping_version

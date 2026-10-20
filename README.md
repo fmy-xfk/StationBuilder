@@ -1,44 +1,32 @@
-# StationBuilder Forge 多版本工程
+# StationBuilder 多版本工程（Forge 1.20.x / NeoForge 1.21.x）
 
-本工程将 Forge 1.20.1 与 Forge 1.20.4 合并到同一个仓库，同时尽量共享源码与资源。
+本工程只包含 Forge 1.20.x 与 NeoForge 1.21.x，不包含 Fabric 构建目标或 Fabric 源码。
 
-## 结构
+## 工程结构
 
-- `common/`：两个版本完全相同的 Java 源码和通用资源。
-- `1.20.1/`：Forge 47.x target，只保留 1.20.1 独有或存在 API 差异的文件。
-- `1.20.4/`：Forge 49.x target，只保留 1.20.4 独有或存在 API 差异的文件。
-- `gradle/forge-common.gradle`：两个 target 共享的 Gradle 配置。
+- `common/`：确认可在 1.20.x 与 1.21.x 之间共用的源码和资源。
+- `1.20-common/`：1.20.x 系列共用源码和资源。由于 1.20.x 对应 Forge，该目录直接包含这组版本需要的实现，不再单独设置 Forge 平台适配源码层。
+- `1.21-common/`：1.21.x 系列共用源码和资源。由于 1.21.x 对应 NeoForge，该目录直接包含这组版本需要的实现，不再单独设置 NeoForge 平台适配源码层。
+- `1.20.1/`、`1.20.4/`、`1.21.1/`、`1.21.4/`：各 Minecraft 版本的独立构建目标和仅该版本需要的源码、资源及配置。
+- `gradle/target-1.20.gradle`、`gradle/target-1.21.gradle`：按版本系列复用的 Gradle 构建配置，不是额外的源码层。由于 ForgeGradle 与 ModDevGradle 的配置不同，仍分别保留对应构建脚本。
+
+## 源码加载规则
+
+每个版本目标只加载三部分：
+
+1. `common/`
+2. 对应系列的 `1.20-common/` 或 `1.21-common/`
+3. 目标自身的 `src/main/java`、`src/main/resources` 和 `src/generated/resources`
 
 ## 构建
 
-两个 target 都保持为独立 ForgeGradle 工程，同时复用同一个 `common/` 源码目录：
+在目标目录中执行：
 
-```text
-cd 1.20.1
-./gradlew build
+- Windows：`gradlew.bat build`
+- Linux/macOS：`./gradlew build`
 
-cd ../1.20.4
-./gradlew build
-```
+例如进入 `1.20.1/` 后构建 Forge 1.20.1，进入 `1.21.4/` 后构建 NeoForge 1.21.4。
 
-Windows：
+## 验证说明
 
-```text
-cd 1.20.1
-gradlew.bat build
-```
-
-## Gradle 边界
-
-公共脚本只包含版本无关的 Java、资源、仓库、Mixin、processResources、jar、publishing 和 IDE 配置。
-
-`minecraft { ... }`、Minecraft/Forge mappings、DataGen runs 和 target-specific mod dependencies 继续留在各版本 `build.gradle`，避免把 1.20.x 的 ForgeGradle target API 强行统一。
-
-## Create
-
-上传的两个 Forge 工程中的 `CreateIntegration` 都是空壳实现，因此随完全相同 Java 一起进入 `common/`。以后某一版本真正加入 Create 时，再把该版本实现移回 target 即可。
-
-
-## ForgeGradle plugin resolution
-
-The target `settings.gradle` files intentionally configure Forge Maven under `pluginManagement.repositories`. ForgeGradle 6 is distributed via the MinecraftForge Maven; this repository is required for resolving the `net.minecraftforge.gradle` plugin used by both 1.20.x targets.
+源码与资源按共享层重组并进行静态路径审计。实际 Gradle 编译仍需在能访问 Gradle 发行包及 Minecraft/Forge/NeoForge 依赖仓库的环境中执行；不能将静态检查等同于成功编译。

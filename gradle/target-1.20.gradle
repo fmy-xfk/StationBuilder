@@ -1,8 +1,10 @@
-// Shared Gradle configuration for the Forge 1.20.x targets.
+// Shared Gradle configuration for the 1.20.x targets (Forge).
 // Keep Minecraft/Forge-specific API configuration in each target's build.gradle.
 
 def commonJavaDir = project.file('../common/src/main/java')
 def commonResourcesDir = project.file('../common/src/main/resources')
+def familyJavaDir = project.file('../1.20-common/src/main/java')
+def familyResourcesDir = project.file('../1.20-common/src/main/resources')
 
 group = mod_group_id
 version = mod_version
@@ -26,6 +28,8 @@ repositories {
 
 sourceSets.main.java.srcDir(commonJavaDir)
 sourceSets.main.resources.srcDir(commonResourcesDir)
+sourceSets.main.java.srcDir(familyJavaDir)
+sourceSets.main.resources.srcDir(familyResourcesDir)
 sourceSets.main.resources.srcDir(project.file('src/generated/resources'))
 
 mixin {
@@ -55,7 +59,7 @@ tasks.named('processResources', ProcessResources).configure {
 }
 
 tasks.named('jar', Jar).configure {
-    archiveFileName = "${mod_id}-FORGE-${mod_version}+${minecraft_version}.jar"
+    archiveFileName = "${mod_id}-${mod_version}+${minecraft_version}.jar"
 
     manifest {
         attributes([

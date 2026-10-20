@@ -6,7 +6,7 @@ plugins {
     id 'org.spongepowered.mixin' version '0.7.+'
 }
 
-apply from: file('../gradle/forge-common.gradle')
+apply from: file('../gradle/target-1.20.gradle')
 
 // Forge 49.x / Minecraft 1.20.4 uses the Java module/classpath layout where
 // a mod's compiled classes and processed resources must live in the same
