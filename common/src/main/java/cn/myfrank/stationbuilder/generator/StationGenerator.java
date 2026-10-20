@@ -55,8 +55,10 @@ public class StationGenerator {
         }
 
         List<BlockPos> mtrRails = new ArrayList<>();
+        int deltaL = elements.get(0) instanceof TrackElement ? 1 : 0;
+        int deltaR = elements.get(elements.size() - 1) instanceof TrackElement ? 1 : 0;
         for (int l = 1; l <= length; l++) {
-            for (int w = -4; w < totalWidth + 4; w++) {
+            for (int w = -deltaL; w < totalWidth + deltaR; w++) {
                 for (int y = 0; y <= maxConstHeight; y++) {
                     BlockPos p = origin.relative(facing, l).relative(right, w).above(y);
                     BlockState state = world.getBlockState(p);
@@ -467,7 +469,7 @@ public class StationGenerator {
                 ? RailShape.EAST_WEST
                 : RailShape.NORTH_SOUTH;
         BlockState railState = Blocks.RAIL.defaultBlockState().setValue(BlockStateProperties.RAIL_SHAPE, shape);
-        if (t.track.getNamespace().equals("mtr") && hasMTR) {
+        if (hasMTR && MTRIntegration.isValidRailType(t.track)) {
             railState = null;
         } else if (t.track.getNamespace().equals("create") && hasCreate) {
             if (!t.track.getPath().equals("track")) {
