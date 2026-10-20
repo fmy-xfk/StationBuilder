@@ -51,8 +51,10 @@ public class StationGenerator {
         }
 
         List<BlockPos> mtrRails = new ArrayList<>();
+        int deltaL = elements.get(0) instanceof TrackElement ? 1 : 0;
+        int deltaR = elements.get(elements.size() - 1) instanceof TrackElement ? 1 : 0;
         for (int l = 1; l <= length; l++) {
-            for (int w = -4; w < totalWidth + 4; w++) {
+            for (int w = -deltaL; w < totalWidth + deltaR; w++) {
                 for (int y = 0; y <= maxConstHeight; y++) {
                     BlockPos p = origin.offset(facing, l).offset(right, w).up(y);
                     BlockState state = world.getBlockState(p);
@@ -454,12 +456,12 @@ public class StationGenerator {
                 : RailShape.NORTH_SOUTH;
 
         BlockState railState = Blocks.RAIL.getDefaultState().with(Properties.RAIL_SHAPE, shape);
-        if (t.track.getNamespace().equals("mtr") && hasMTR) {
+        if (hasMTR && MTRIntegration.isValidRailType(t.track)) {
             railState = null;
         } else if (t.track.getNamespace().equals("create") && hasCreate) {
             if (!t.track.getPath().equals("track")) {
                 player.sendMessage(Text.translatable("gui.stationbuilder.bad_rail_msg", t.track.getPath()));
-            }else{
+            } else {
                 railState = CreateIntegration.getTrackBlockState(facing);
             }
         } else {
@@ -491,7 +493,7 @@ public class StationGenerator {
                 // 延迟一个tick，以确保其他方块onBreak能被正确执行
                 MTRIntegration.placeRailNode(world, nodeStart, facing);
                 MTRIntegration.placeRailNode(world, nodeEnd, facing);
-                MTRIntegration.connectRailNodes(playerUuid, world, nodeStart, nodeEnd,0);
+                MTRIntegration.connectRailNodes(playerUuid, world, nodeStart, nodeEnd, t.track);
             });
         }
     }
