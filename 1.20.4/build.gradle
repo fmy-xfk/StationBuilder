@@ -21,9 +21,6 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
     modImplementation "maven.modrinth:minecraft-transit-railway:FABRIC-${project.mtr_version}+${project.minecraft_version}"
 
-    // Joban Client Mod 2.2.6 + 1.20.4
-    //modImplementation "maven.modrinth:lQqKCDhg:KGjRNU2W"
-
     // MSD FABRIC for MTR 4.0.0 + Minecraft 1.20.4
     modImplementation "curse.maven:station-decoration-790307:6893840"
 }
