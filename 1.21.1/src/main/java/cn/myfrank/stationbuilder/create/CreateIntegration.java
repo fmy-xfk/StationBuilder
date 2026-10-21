@@ -3,6 +3,7 @@ package cn.myfrank.stationbuilder.create;
 import java.util.*;
 
 import cn.myfrank.stationbuilder.mixin.create.PlacementInfoAccessor;
+import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.CurveData;
 import cn.myfrank.stationbuilder.utils.PointProvider;
 import cn.myfrank.stationbuilder.utils.TestConnectResult;
@@ -12,22 +13,25 @@ import com.simibubi.create.content.trains.track.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
 public class CreateIntegration {
-    private static final TrackBlock TRACK_BLOCK = (TrackBlock) net.minecraft.core.registries.BuiltInRegistries.BLOCK
-            .get(ResourceLocation.fromNamespaceAndPath("create", "track"));
+    private static final TrackBlock TRACK_BLOCK = (TrackBlock) BuiltInRegistries.BLOCK.get(ResourceLocation.fromNamespaceAndPath("create", "track"));
 
     public static Vec3 getTrackDirectionFromAngle(float angle) {
         int sector = Math.floorMod((int) Math.floor(angle / 45.0F + 0.5F), 8);
@@ -57,8 +61,43 @@ public class CreateIntegration {
         return state;
     }
 
+    public static BlockState getTrackBlockState(Direction facing, ResourceLocation railType) {
+        Block block = CommonUtil.getBlock(railType);
+        if (!(block instanceof ITrackBlock)) {
+            block = TRACK_BLOCK; // 回退到默认铁轨
+        }
+        BlockState state = block.defaultBlockState();
+        TrackShape shape = switch (facing) {
+            case NORTH, SOUTH -> TrackShape.ZO;
+            case EAST, WEST -> TrackShape.XO;
+            default -> TrackShape.NONE;
+        };
+        if (shape != TrackShape.NONE && state.hasProperty(TrackBlock.SHAPE)) {
+            state = state.setValue(TrackBlock.SHAPE, shape);
+        }
+        return state;
+    }
+
     public static boolean isRailNode(Level world, BlockPos pos) {
-        return world.getBlockState(pos).getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock;
+        return world.getBlockState(pos).getBlock() instanceof ITrackBlock;
+    }
+
+    public static boolean isValidRailType(ResourceLocation railType) {
+        if (railType == null) return false;
+
+        // 1. 尝试直接获取方块，检查是否实现了 ITrackBlock 接口
+        Block block = CommonUtil.getBlock(railType);
+        if (block instanceof ITrackBlock) {
+            return true;
+        }
+
+        // 2. 容错处理：若传入的是物品 ID（如 BlockItem），获取其绑定的方块进行判定
+        Item item = CommonUtil.getItem(railType);
+        if (item instanceof BlockItem blockItem && blockItem.getBlock() instanceof ITrackBlock) {
+            return true;
+        }
+
+        return false;
     }
 
     public static BlockState getTrackBlockState(float angle) {
@@ -77,8 +116,28 @@ public class CreateIntegration {
         return state;
     }
 
-    public static void placeRailNode(ServerLevel world, BlockPos pos, float angle) {
-        var state = getTrackBlockState(angle);
+    public static BlockState getTrackBlockState(float angle, ResourceLocation railType) {
+        Block block = CommonUtil.getBlock(railType);
+        if (!(block instanceof ITrackBlock)) {
+            block = TRACK_BLOCK;
+        }
+        BlockState state = block.defaultBlockState();
+        int sector = Math.floorMod((int) Math.floor(angle / 45.0F + 0.5F), 8);
+        TrackShape shape = switch (sector) {
+            case 0, 4 -> TrackShape.ZO;
+            case 2, 6 -> TrackShape.XO;
+            case 1, 5 -> TrackShape.ND;
+            case 3, 7 -> TrackShape.PD;
+            default -> TrackShape.NONE;
+        };
+        if (shape != TrackShape.NONE) {
+            state = state.setValue(TrackBlock.SHAPE, shape);
+        }
+        return state;
+    }
+
+    public static void placeRailNode(ServerLevel world, BlockPos pos, float angle, ResourceLocation railType) {
+        var state = getTrackBlockState(angle, railType);
         world.setBlock(pos, state, 3);
     }
 
@@ -106,7 +165,7 @@ public class CreateIntegration {
 
                     if (modified.add(airPos)) {
                         BlockState state = world.getBlockState(airPos);
-                        if (!state.isAir() && !(state.getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock)) {
+                        if (!state.isAir() && !(state.getBlock() instanceof ITrackBlock)) {
                             world.setBlock(airPos, Blocks.AIR.defaultBlockState(), 3);
                         }
                     }
@@ -127,16 +186,19 @@ public class CreateIntegration {
     /**
      * 单段标准 Create 原生连接（两点距离在限制内时调用）
      */
-    public static CurveData connectRailNodes(Player player, ServerLevel world, BlockPos s, BlockPos e) {
+    public static CurveData connectRailNodes(Player player, ServerLevel world, BlockPos s, BlockPos e, ResourceLocation railType) {
         BlockState state1 = world.getBlockState(s);
         BlockState state2 = world.getBlockState(e);
 
-        if (!(state1.getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock) ||
-                !(state2.getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock)) {
+        if (!(state1.getBlock() instanceof ITrackBlock) ||
+                !(state2.getBlock() instanceof ITrackBlock)) {
             return null;
         }
 
-        ItemStack trackStack = new ItemStack(TRACK_BLOCK.asItem());
+        ItemStack trackStack = CommonUtil.getItemStack(railType);
+        if (trackStack.isEmpty() || !(trackStack.getItem() instanceof BlockItem bi && bi.getBlock() instanceof ITrackBlock)) {
+            trackStack = new ItemStack(TRACK_BLOCK.asItem());
+        }
 
         BlockHitResult hitStart = new BlockHitResult(Vec3.atCenterOf(s), Direction.UP, s, false);
         UseOnContext startContext = new UseOnContext(world, player, InteractionHand.MAIN_HAND, trackStack, hitStart);
@@ -153,7 +215,7 @@ public class CreateIntegration {
         }
 
         if (info == null) return null;
-        PlacementInfoAccessor accessor = (PlacementInfoAccessor) (Object) info;
+        PlacementInfoAccessor accessor = (PlacementInfoAccessor) info;
         if (!accessor.isValid()) return null;
 
         CreateCurveData curveData = new CreateCurveData();
@@ -172,7 +234,6 @@ public class CreateIntegration {
         }
 
         carveTunnelAndBuildBridge(world, curveData, s, e, 1);
-
         try {
             BlockState updatedState2 = world.getBlockState(e);
             TrackPlacement.tryConnect(world, player, e, updatedState2, trackStack, false, true);
@@ -184,7 +245,7 @@ public class CreateIntegration {
 
     public static TestConnectResult testConnectRailNodes(
             BlockPos startPos, float startAngle,
-            BlockPos endPos, float endAngle) {
+            BlockPos endPos, float endAngle, ResourceLocation railType) {
 
         Minecraft client = Minecraft.getInstance();
         if (client.level == null || client.player == null) {
@@ -194,23 +255,21 @@ public class CreateIntegration {
         Level level = client.level;
         Player player = client.player;
 
-        // 【关键防御 1】：如果起点已被挖掉（不是 Create 铁轨方块），坚决不执行 useOn，彻底根绝幽灵方块！
         BlockState stateStart = level.getBlockState(startPos);
-        if (!(stateStart.getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock)) {
+        if (!(stateStart.getBlock() instanceof ITrackBlock)) {
             return TestConnectResult.fail();
         }
 
-        // 终点虚拟状态：如果终点尚未放置铁轨，虚拟一个对应朝向的轨道状态给求解器
         BlockState stateEnd = level.getBlockState(endPos);
-        if (!(stateEnd.getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock)) {
-            stateEnd = getTrackBlockState(endAngle);
+        if (!(stateEnd.getBlock() instanceof ITrackBlock)) {
+            stateEnd = getTrackBlockState(endAngle, railType);
+        }
+        
+        ItemStack trackStack = CommonUtil.getItemStack(railType);
+        if (trackStack.isEmpty() || !(trackStack.getItem() instanceof BlockItem bi && bi.getBlock() instanceof ITrackBlock)) {
+            trackStack = new ItemStack(TRACK_BLOCK.asItem());
         }
 
-        // 构造虚拟铁轨物品
-        ItemStack trackStack = new ItemStack(TRACK_BLOCK.asItem());
-
-        // 【关键修复 2】：因为上面已经确认 startPos 是真实存在的铁轨，
-        // 这里的 useOn 只会提取起点数据写入 trackStack，绝不会在空气中放置幽灵方块！
         BlockHitResult hitStart = new BlockHitResult(
                 Vec3.atCenterOf(startPos),
                 Direction.UP,
@@ -223,7 +282,6 @@ public class CreateIntegration {
             return TestConnectResult.fail();
         }
 
-        // 调用 Create 原生求解器（穿透模式 ignoreObstruction = true）
         TrackPlacement.PlacementInfo info;
         try {
             info = TrackPlacement.tryConnect(level, player, endPos, stateEnd, trackStack, false, true);

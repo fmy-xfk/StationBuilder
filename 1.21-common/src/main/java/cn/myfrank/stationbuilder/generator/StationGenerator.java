@@ -471,12 +471,8 @@ public class StationGenerator {
         BlockState railState = Blocks.RAIL.defaultBlockState().setValue(BlockStateProperties.RAIL_SHAPE, shape);
         if (hasMTR && MTRIntegration.isValidRailType(t.track)) {
             railState = null;
-        } else if (t.track.getNamespace().equals("create") && hasCreate) {
-            if (!t.track.getPath().equals("track")) {
-                player.sendSystemMessage(Component.translatable("gui.stationbuilder.bad_rail_msg", t.track.getPath()));
-            }else{
-                railState = CreateIntegration.getTrackBlockState(facing);
-            }
+        } else if (hasCreate && CreateIntegration.isValidRailType(t.track)) {
+            railState = CreateIntegration.getTrackBlockState(facing, t.track);
         } else {
             try {
                 railState = CommonUtil.getBlockState(t.track).setValue(BlockStateProperties.RAIL_SHAPE, shape);

@@ -4,6 +4,7 @@ import cn.myfrank.stationbuilder.utils.CurveData;
 import cn.myfrank.stationbuilder.utils.TestConnectResult;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -30,6 +31,10 @@ public class CreateIntegration {
         return null;
     }
 
+    public static BlockState getTrackBlockState(Direction facing, ResourceLocation railType) {
+        return null;
+    }
+
     public static boolean isRailNode(Level world, BlockPos pos) {
         return false;
     }
@@ -38,7 +43,11 @@ public class CreateIntegration {
         return null;
     }
 
-    public static void placeRailNode(ServerLevel world, BlockPos pos, float angle) {
+    public static BlockState getTrackBlockState(float angle, ResourceLocation railType) {
+        return null;
+    }
+
+    public static void placeRailNode(ServerLevel world, BlockPos pos, float angle, ResourceLocation railType) {
 
     }
 
@@ -50,13 +59,13 @@ public class CreateIntegration {
 
     }
 
-    public static CurveData connectRailNodes(Player player, ServerLevel world, BlockPos s, BlockPos e) {
+    public static CurveData connectRailNodes(Player player, ServerLevel world, BlockPos s, BlockPos e, ResourceLocation railType) {
         return null;
     }
 
     public static TestConnectResult testConnectRailNodes(
             BlockPos startPos, float startAngle,
-            BlockPos endPos, float endAngle) {
+            BlockPos endPos, float endAngle, ResourceLocation railType) {
         return TestConnectResult.fail();
     }
 

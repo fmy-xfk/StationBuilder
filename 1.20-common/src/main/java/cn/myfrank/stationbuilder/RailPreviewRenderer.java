@@ -223,7 +223,7 @@ public final class RailPreviewRenderer {
 				else if (railType == RailGenerator.RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
 					preview = CreatePreviewCache.get(lastNode, lastAngle, node, angle);
 					if (preview == null) {
-						preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle);
+						preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle, config.railType);
 						CreatePreviewCache.put(lastNode, lastAngle, node, angle, preview);
 					}
 				}
