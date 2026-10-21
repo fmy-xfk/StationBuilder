@@ -5,6 +5,7 @@ import cn.myfrank.stationbuilder.utils.TestConnectResult;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
@@ -27,13 +28,16 @@ public class CreateIntegration {
     }
 
     public static BlockState getTrackBlockState(Direction facing) { return null; }
+    public static BlockState getTrackBlockState(Direction facing, Identifier railType) { return null; }
     public static boolean isRailNode(World world, BlockPos pos) { return false; }
+    public static boolean isValidRailType(Identifier railType) { return false; }
     public static BlockState getTrackBlockState(float angle) { return null; }
-    public static void placeRailNode(ServerWorld world, BlockPos pos, float angle) {}
+    public static BlockState getTrackBlockState(float angle, Identifier railType) { return null; }
+    public static void placeRailNode(ServerWorld world, BlockPos pos, float angle, Identifier railType) {}
     public static Vec3d getRailCenter(BlockPos pos) { return Vec3d.ofCenter(pos).add(0, 0.125, 0); }
     public static void carveTunnelAndBuildBridge(ServerWorld world, CurveData curveData, BlockPos startPos, BlockPos endPos, int tunnelRadius) {}
-    public static CurveData connectRailNodes(PlayerEntity player, ServerWorld world, BlockPos s, BlockPos e) { return null; }
-    public static TestConnectResult testConnectRailNodes(BlockPos startPos, float startAngle, BlockPos endPos, float endAngle) {
+    public static CurveData connectRailNodes(PlayerEntity player, ServerWorld world, BlockPos s, BlockPos e, Identifier railType) { return null; }
+    public static TestConnectResult testConnectRailNodes(BlockPos startPos, float startAngle, BlockPos endPos, float endAngle, Identifier railType) {
         return TestConnectResult.fail();
     }
 }

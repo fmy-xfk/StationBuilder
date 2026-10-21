@@ -3,6 +3,7 @@ package cn.myfrank.stationbuilder.create;
 import java.util.*;
 
 import cn.myfrank.stationbuilder.mixin.create.PlacementInfoAccessor;
+import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.CurveData;
 import cn.myfrank.stationbuilder.utils.PointProvider;
 import cn.myfrank.stationbuilder.utils.TestConnectResult;
@@ -13,6 +14,8 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemUsageContext;
 import net.minecraft.registry.Registries;
@@ -58,8 +61,43 @@ public class CreateIntegration {
         return state;
     }
 
+    public static BlockState getTrackBlockState(Direction facing, Identifier railType) {
+        Block block = CommonUtil.getBlock(railType);
+        if (!(block instanceof ITrackBlock)) {
+            block = TRACK_BLOCK; // 回退到默认铁轨
+        }
+        BlockState state = block.getDefaultState();
+        TrackShape shape = switch (facing) {
+            case NORTH, SOUTH -> TrackShape.ZO;
+            case EAST, WEST -> TrackShape.XO;
+            default -> TrackShape.NONE;
+        };
+        if (shape != TrackShape.NONE && state.contains(TrackBlock.SHAPE)) {
+            state = state.with(TrackBlock.SHAPE, shape);
+        }
+        return state;
+    }
+
     public static boolean isRailNode(World world, BlockPos pos) {
-        return world.getBlockState(pos).getBlock() instanceof com.simibubi.create.content.trains.track.ITrackBlock;
+        return world.getBlockState(pos).getBlock() instanceof ITrackBlock;
+    }
+
+    public static boolean isValidRailType(Identifier railType) {
+        if (railType == null) return false;
+
+        // 1. 尝试直接获取方块，检查是否实现了 ITrackBlock 接口
+        Block block = CommonUtil.getBlock(railType);
+        if (block instanceof ITrackBlock) {
+            return true;
+        }
+
+        // 2. 容错处理：若传入的是物品 ID（如 BlockItem），获取其绑定的方块进行判定
+        Item item = CommonUtil.getItem(railType);
+        if (item instanceof BlockItem blockItem && blockItem.getBlock() instanceof ITrackBlock) {
+            return true;
+        }
+
+        return false;
     }
 
     public static BlockState getTrackBlockState(float angle) {
@@ -78,8 +116,28 @@ public class CreateIntegration {
         return state;
     }
 
-    public static void placeRailNode(ServerWorld world, BlockPos pos, float angle) {
-        var state = getTrackBlockState(angle);
+    public static BlockState getTrackBlockState(float angle, Identifier railType) {
+        Block block = CommonUtil.getBlock(railType);
+        if (!(block instanceof ITrackBlock)) {
+            block = TRACK_BLOCK;
+        }
+        BlockState state = block.getDefaultState();
+        int sector = Math.floorMod((int) Math.floor(angle / 45.0F + 0.5F), 8);
+        TrackShape shape = switch (sector) {
+            case 0, 4 -> TrackShape.ZO;
+            case 2, 6 -> TrackShape.XO;
+            case 1, 5 -> TrackShape.ND;
+            case 3, 7 -> TrackShape.PD;
+            default -> TrackShape.NONE;
+        };
+        if (shape != TrackShape.NONE && state.contains(TrackBlock.SHAPE)) {
+            state = state.with(TrackBlock.SHAPE, shape);
+        }
+        return state;
+    }
+
+    public static void placeRailNode(ServerWorld world, BlockPos pos, float angle, Identifier railType) {
+        var state = getTrackBlockState(angle, railType);
         world.setBlockState(pos, state, 3);
     }
 
@@ -128,7 +186,7 @@ public class CreateIntegration {
     /**
      * 单段标准 Create 原生连接（两点距离在限制内时调用）
      */
-    public static CurveData connectRailNodes(PlayerEntity player, ServerWorld world, BlockPos s, BlockPos e) {
+    public static CurveData connectRailNodes(PlayerEntity player, ServerWorld world, BlockPos s, BlockPos e, Identifier railType) {
         System.out.printf("Connect: %s %s\n", s, e);
         BlockState state1 = world.getBlockState(s);
         BlockState state2 = world.getBlockState(e);
@@ -137,7 +195,10 @@ public class CreateIntegration {
             return null;
         }
 
-        ItemStack trackStack = new ItemStack(TRACK_BLOCK.asItem());
+        ItemStack trackStack = CommonUtil.getItemStack(railType);
+        if (trackStack.isEmpty() || !(trackStack.getItem() instanceof BlockItem bi && bi.getBlock() instanceof ITrackBlock)) {
+            trackStack = new ItemStack(TRACK_BLOCK.asItem());
+        }
 
         BlockHitResult hitStart = new BlockHitResult(Vec3d.ofCenter(s), Direction.UP, s, false);
         ItemUsageContext startContext = new ItemUsageContext(world, player, Hand.MAIN_HAND, trackStack, hitStart);
@@ -185,7 +246,7 @@ public class CreateIntegration {
         return curveData;
     }
 
-    public static TestConnectResult testConnectRailNodes(BlockPos startPos, float startAngle, BlockPos endPos, float endAngle) {
+    public static TestConnectResult testConnectRailNodes(BlockPos startPos, float startAngle, BlockPos endPos, float endAngle, Identifier railType) {
         MinecraftClient client = MinecraftClient.getInstance();
 
         if (client.world == null || client.player == null) {
@@ -205,7 +266,10 @@ public class CreateIntegration {
             stateEnd = getTrackBlockState(endAngle);
         }
 
-        ItemStack trackStack = new ItemStack(TRACK_BLOCK.asItem());
+        ItemStack trackStack = CommonUtil.getItemStack(railType);
+        if (trackStack.isEmpty() || !(trackStack.getItem() instanceof BlockItem bi && bi.getBlock() instanceof ITrackBlock)) {
+            trackStack = new ItemStack(TRACK_BLOCK.asItem());
+        }
 
         BlockHitResult hitStart = new BlockHitResult(
                 Vec3d.ofCenter(startPos),

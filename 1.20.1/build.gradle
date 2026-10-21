@@ -20,12 +20,19 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
     modImplementation "maven.modrinth:minecraft-transit-railway:FABRIC-${project.mtr_version}+${project.minecraft_version}"
 
+    // Joban Client Mod 2.2.6 + 1.20.1
+    //modCompileOnly "maven.modrinth:lQqKCDhg:OCgFaq67"
+    //rawRuntimeMods "maven.modrinth:lQqKCDhg:OCgFaq67"
+
     // MSD FABRIC for MTR 4.0.0 + Minecraft 1.20.1
     modImplementation "curse.maven:station-decoration-790307:6893835"
 
     // Create Fabric 1.20.1
     modCompileOnly "maven.modrinth:create-fabric:6.0.8.1+build.1744-mc${project.minecraft_version}"
     rawRuntimeMods "maven.modrinth:create-fabric:6.0.8.1+build.1744-mc${project.minecraft_version}"
+
+    // Steam 'n' rails 1.20.1
+    rawRuntimeMods "maven.modrinth:create-steam-n-rails:1.7.3+fabric-mc${project.minecraft_version}"
 }
 
 tasks.register('deployModsToRunDir', Copy) {

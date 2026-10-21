@@ -72,7 +72,7 @@ public class RailGenerator {
         if (CommonUtil.isMTRLoaded() && MTRIntegration.isValidRailType(config.railType)) {
             return RailNodeType.MTR;
         }
-        if (CommonUtil.isCreateLoaded() && config.railType.getNamespace().equals("create") && config.railType.getPath().equals("track")) {
+        if (CommonUtil.isCreateLoaded() && CreateIntegration.isValidRailType(config.railType)) {
             return RailNodeType.CREATE;
         }
         if (config.railType.getNamespace().equals("minecraft") && config.railType.getPath().contains("rail")) {
@@ -89,7 +89,7 @@ public class RailGenerator {
                 if(showInfo) System.out.println("Position is already a rail node: " + pos);
             }
         } else if (railNodeType == RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
-            CreateIntegration.placeRailNode(world, pos, player.getYaw());
+            CreateIntegration.placeRailNode(world, pos, player.getYaw(), config.railType);
         } else if (railNodeType == RailNodeType.VANILLA) {
             VanillaIntegration.placeRailNode(world, pos, player.getYaw(), config.railType);
         } else {
@@ -578,7 +578,7 @@ public class RailGenerator {
             if (nodeType == RailNodeType.MTR) {
                 rails[i] = MTRIntegration.connectRailNodes(uuid, world, pos1, pos2, config.railType);
             } else if (nodeType == RailNodeType.CREATE) {
-                rails[i] = CreateIntegration.connectRailNodes(player, world, pos1, pos2);
+                rails[i] = CreateIntegration.connectRailNodes(player, world, pos1, pos2, config.railType);
             } else {
                 rails[i] = VanillaIntegration.preconnectRailNodes(player, world, pos1, pos2);
             }

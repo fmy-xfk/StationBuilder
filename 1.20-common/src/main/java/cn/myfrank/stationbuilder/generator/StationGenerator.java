@@ -5,12 +5,13 @@ import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.BlockRotationUtil;
 import cn.myfrank.stationbuilder.utils.TickScheduler;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
-
+import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.elements.*;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.SlabBlock;
+import net.minecraft.block.enums.RailShape;
 import net.minecraft.block.enums.SlabType;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -449,22 +450,21 @@ public class StationGenerator {
                                       Direction facing, Direction right, int length, TrackElement t) {
         BlockState ballast = CommonUtil.getBlockState(t.ballastBlock);
         boolean hasMTR = CommonUtil.isMtrLoaded();
-        net.minecraft.block.enums.RailShape shape =
-                (facing.getAxis() == Direction.Axis.X)
-                        ? net.minecraft.block.enums.RailShape.EAST_WEST
-                        : net.minecraft.block.enums.RailShape.NORTH_SOUTH;
+        boolean hasCreate = CommonUtil.isCreateLoaded();
+        RailShape shape = (facing.getAxis() == Direction.Axis.X)
+                ? RailShape.EAST_WEST
+                : RailShape.NORTH_SOUTH;
 
-        BlockState railState;
+        BlockState railState = Blocks.RAIL.getDefaultState().with(Properties.RAIL_SHAPE, shape);
         if (hasMTR && MTRIntegration.isValidRailType(t.track)) {
             railState = null;
+        } else if (hasCreate && CreateIntegration.isValidRailType(t.track)) {
+            railState = CreateIntegration.getTrackBlockState(facing, t.track);
         } else {
-            railState = CommonUtil.getBlockState(t.track);
-            if (railState.isAir() && !new Identifier("minecraft", "air").equals(t.track)) {
-                player.sendMessage(Text.translatable("gui.stationbuilder.bad_rail_msg", t.track.getPath()), false);
-                railState = Blocks.RAIL.getDefaultState();
-            }
-            if (railState.contains(net.minecraft.state.property.Properties.RAIL_SHAPE)) {
-                railState = railState.with(net.minecraft.state.property.Properties.RAIL_SHAPE, shape);
+            try {
+                railState = CommonUtil.getBlockState(t.track).with(Properties.RAIL_SHAPE, shape);
+            } catch (Exception e) {
+                player.sendMessage(Text.translatable("gui.stationbuilder.bad_rail_msg", t.track.getPath()));
             }
         }
 
