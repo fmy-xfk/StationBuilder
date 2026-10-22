@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.UUID;
 
 import cn.myfrank.stationbuilder.create.CreateIntegration;
-import cn.myfrank.stationbuilder.mtr.MSDIntegration;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
 import cn.myfrank.stationbuilder.utils.*;
 import cn.myfrank.stationbuilder.vanilla.VanillaIntegration;
@@ -21,6 +20,8 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.Heightmap;
+import net.minecraft.world.World;
+
 import org.jetbrains.annotations.Nullable;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -56,7 +57,7 @@ public class RailGenerator {
         }
     }
 
-    public static boolean isRailNode(ServerWorld world, BlockPos pos) {
+    public static boolean isRailNode(World world, BlockPos pos) {
         if (CommonUtil.isMtrLoaded()) {
             if (MTRIntegration.isRailNode(world, pos)) return true;
         }
@@ -720,16 +721,16 @@ public class RailGenerator {
                                 lastCatenaryNode, config.tunnelHeight - 1,
                                 thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar,
                                 config.catenaryBlock);
-                    } else {
+                    } else if (CommonUtil.isMtrLoaded() && CommonUtil.isMsdLoaded()) {
                         if (isLeftest[i] || isRightest[i]) {
                             CatenaryTypeMapping type = CatenaryTypeMapping.values()[config.catenaryModeIndex];
                             Identifier pillarBlock = thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar;
 
                             if (type == CatenaryTypeMapping.Auto) {
                                 if (thisUbm == BuildingMode.Up.Tunnel) {
-                                    pillarBlock = new Identifier("msd", "rigid_catenary_node");
+                                    pillarBlock = Identifier.of("msd", "rigid_catenary_node");
                                 } else {
-                                    pillarBlock = new Identifier("msd", "catenary_with_long");
+                                    pillarBlock = Identifier.of("msd", "catenary_with_long");
                                 }
 
                                 if (lastUbm != null) {
@@ -743,7 +744,7 @@ public class RailGenerator {
                                 }
                             }
 
-                            lastCatenaryNode = addCatenaryNode(world, center, tangent, isLeftest[i], isRightest[i],
+                            lastCatenaryNode = MTRIntegration.addCatenaryNode(world, center, tangent, isLeftest[i], isRightest[i],
                                     lastCatenaryNode, pillarBlock, type, config.tunnelHeight - 1);
                             if (lastCatenaryNode == null) {
                                 failToPlaceCatenaryNode = true;
@@ -755,39 +756,5 @@ public class RailGenerator {
             }
         }
         return failToPlaceCatenaryNode;
-    }
-
-    private static BlockPos addCatenaryNode(
-            ServerWorld world, Vec3d center, Vec3d tangent, boolean isLeftest, boolean isRightest,
-            @Nullable BlockPos lastCatenaryNode, Identifier block, CatenaryTypeMapping type, int height
-    ) {
-        Direction dir = horizontalDirectionFromVec(tangent);
-        double dirAngle = MTRIntegration.getAngleFromVec3d(tangent);
-        int blockY = (int) Math.floor(center.getY());
-        var catenaryPos = new BlockPos((int) Math.floor(center.x), blockY + height, (int) Math.floor(center.z));
-        if (isLeftest || isRightest) {
-            if (isLeftest) {
-                dir = dir.rotateYClockwise();
-            } else {
-                dir = dir.rotateYCounterclockwise();
-            }
-            if (!MSDIntegration.placeCatenaryNode(world, catenaryPos, dir, dirAngle, block)){
-                return null;
-            }
-            if (lastCatenaryNode != null) {
-                MSDIntegration.connectCatenary(world, lastCatenaryNode, catenaryPos, type);
-            }
-            return catenaryPos;
-        }
-        return null;
-    }
-
-    public static Direction horizontalDirectionFromVec(Vec3d v) {
-        double x = v.x, z = v.z;
-        if (Math.abs(x) > Math.abs(z)) {
-            return x > 0 ? Direction.EAST : Direction.WEST;
-        } else {
-            return z > 0 ? Direction.SOUTH : Direction.NORTH;
-        }
     }
 }

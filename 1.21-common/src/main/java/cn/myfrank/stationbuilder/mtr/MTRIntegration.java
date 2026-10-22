@@ -329,4 +329,11 @@ public class MTRIntegration {
     private static Vec3d toVec3d(Vector v) {
         return new Vec3d(v.x(), v.y(), v.z());
     }
+
+    public static BlockPos addCatenaryNode(
+            ServerWorld world, Vec3d center, Vec3d tangent, boolean isLeftest, boolean isRightest,
+            @Nullable BlockPos lastCatenaryNode, Identifier block, CatenaryTypeMapping type, int height
+    ) {
+        return null;
+    }
 }

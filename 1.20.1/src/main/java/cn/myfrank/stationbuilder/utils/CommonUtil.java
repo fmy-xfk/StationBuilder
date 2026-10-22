@@ -107,4 +107,12 @@ public final class CommonUtil {
         }
         return block;
     }
+
+    public static Identifier identifierOf(String namespace, String path) {
+        return Identifier.of(namespace, path);
+    }
+
+    public static Identifier identifierOf(String identifierString) {
+        return new Identifier(identifierString);
+    }
 }

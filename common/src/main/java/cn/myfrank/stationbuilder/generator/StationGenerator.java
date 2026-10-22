@@ -1,12 +1,12 @@
 package cn.myfrank.stationbuilder.generator;
 
+import cn.myfrank.stationbuilder.mtr.MTRIntegration;
+import cn.myfrank.stationbuilder.utils.CommonUtil;
+import cn.myfrank.stationbuilder.utils.BlockRotationUtil;
+import cn.myfrank.stationbuilder.utils.TickScheduler;
+import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.elements.*;
-import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
-import cn.myfrank.stationbuilder.mtr.MTRIntegration;
-import cn.myfrank.stationbuilder.utils.BlockRotationUtil;
-import cn.myfrank.stationbuilder.utils.CommonUtil;
-import cn.myfrank.stationbuilder.utils.TickScheduler;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -86,7 +86,7 @@ public class StationGenerator {
             if (element instanceof TrackElement track) {
                 StationElement leftNeighbor = (i > 0) ? elements.get(i - 1) : null;
                 if (leftNeighbor instanceof TrackElement) {
-                    fillTrackGap(world, currentLeftEdge, facing, right, length, track);
+                    fillTrackGap(world, currentLeftEdge, facing, length, track);
                     currentLeftEdge = currentLeftEdge.offset(right);
                 }
                 generateTrack(player, world, currentLeftEdge, facing, right, length, track);
@@ -109,7 +109,7 @@ public class StationGenerator {
         if (template == null) {
             StructureTemplateManager manager = world.getStructureTemplateManager();
             Identifier templateId = element.presetName.contains(":") ? 
-                    Identifier.of(element.presetName) : Identifier.of("stationbuilder", element.presetName);
+                    CommonUtil.identifierOf(element.presetName) : CommonUtil.identifierOf("stationbuilder", element.presetName);
             template = manager.getTemplate(templateId).orElse(null);
         }
 
@@ -199,7 +199,7 @@ public class StationGenerator {
             template.place(world, placePos, BlockPos.ORIGIN, data, world.random, 2);
         } else {
             // == 找不到模板时的回退火柴盒 ==
-            world.getPlayers().forEach(p -> p.sendMessage(net.minecraft.text.Text.literal("Template not found: " + element.presetName + ", building matchbox.").formatted(net.minecraft.util.Formatting.RED), false));
+            world.getPlayers().forEach(p -> p.sendMessage(net.minecraft.text.Text.translatable("message.stationbuilder.template_not_found", element.presetName).formatted(net.minecraft.util.Formatting.RED), false));
 
             int buildingWidth = 8; // 沿 right 方向
             int buildingDepth = 12; // 沿 facing 方向
@@ -285,7 +285,7 @@ public class StationGenerator {
                 } else {
                     world.setBlockState(pos, getRandomMixBlock(p));
                 }
-                if (CommonUtil.isMTRLoaded() && p.hasShieldDoors) {
+                if (CommonUtil.isMtrLoaded() && p.hasShieldDoors) {
                     // 检查是否在起止偏移范围内
                     int mod = (l - p.doorStartOffset) % (p.doorSpacing + 2);
                     if (mod == 0 || mod == 1) {
@@ -329,7 +329,7 @@ public class StationGenerator {
                     }
                 }
                 //放置PIDS
-                if (p.hasPids && l > 0 && l < length - 1 && pillarHere && CommonUtil.isMTRLoaded()) {
+                if (p.hasPids && l > 0 && l < length - 1 && pillarHere && CommonUtil.isMtrLoaded()) {
                     var basePos = start.offset(facing, l).offset(Direction.UP, 4);
                     if (leftN instanceof TrackElement) {
                         var pos = basePos.offset(right, 1);
@@ -437,19 +437,19 @@ public class StationGenerator {
         }
     }
 
-    private static void fillTrackGap(ServerWorld world, BlockPos start, Direction facing, Direction right, int length, TrackElement t) {
-        BlockState ballast = net.minecraft.registry.Registries.BLOCK.get(t.ballastBlock).getDefaultState();
+    private static void fillTrackGap(ServerWorld world, BlockPos start, Direction facing, int length, TrackElement t) {
+        BlockState ballast = CommonUtil.getBlockState(t.ballastBlock);
         for (int l = 0; l < length; l++) {
-            BlockPos P = start.offset(facing, l);
-            world.setBlockState(P, Blocks.AIR.getDefaultState());
-            world.setBlockState(P.down(), ballast);
+            BlockPos pos = start.offset(facing, l);
+            world.setBlockState(pos, Blocks.AIR.getDefaultState());
+            world.setBlockState(pos.down(), ballast);
         }
     }
 
     private static void generateTrack(ServerPlayerEntity player, ServerWorld world, BlockPos start,
-              Direction facing, Direction right, int length, TrackElement t) {
-        BlockState ballast = net.minecraft.registry.Registries.BLOCK.get(t.ballastBlock).getDefaultState();
-        boolean hasMTR = CommonUtil.isMTRLoaded();
+                                      Direction facing, Direction right, int length, TrackElement t) {
+        BlockState ballast = CommonUtil.getBlockState(t.ballastBlock);
+        boolean hasMTR = CommonUtil.isMtrLoaded();
         boolean hasCreate = CommonUtil.isCreateLoaded();
         RailShape shape = (facing.getAxis() == Direction.Axis.X)
                 ? RailShape.EAST_WEST
@@ -467,6 +467,7 @@ public class StationGenerator {
                 player.sendMessage(Text.translatable("gui.stationbuilder.bad_rail_msg", t.track.getPath()));
             }
         }
+
         for (int l = 0; l < length; l++) {
             BlockPos L = start.offset(facing, l);
             BlockPos M = L.offset(right);
@@ -479,14 +480,13 @@ public class StationGenerator {
             world.setBlockState(M.down(), ballast);
             world.setBlockState(R, Blocks.AIR.getDefaultState());
             world.setBlockState(R.down(), ballast);
-
         }
+
         if (railState == null && hasMTR) {
-            BlockPos nodeStart = start.offset(right, 1);
+            BlockPos nodeStart = start.offset(right);
             BlockPos nodeEnd = nodeStart.offset(facing, length - 1);
             var playerUuid = player.getUuid();
             TickScheduler.schedule(1, () -> {
-                // 延迟一个tick，以确保其他方块onBreak能被正确执行
                 MTRIntegration.placeRailNode(world, nodeStart, facing);
                 MTRIntegration.placeRailNode(world, nodeEnd, facing);
                 MTRIntegration.connectRailNodes(playerUuid, world, nodeStart, nodeEnd, t.track);

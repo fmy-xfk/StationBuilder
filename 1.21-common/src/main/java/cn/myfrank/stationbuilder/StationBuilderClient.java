@@ -257,7 +257,7 @@ public class StationBuilderClient implements ClientModInitializer {
 			drawBox(matrices, consumer, lastNode, cam, 0f, 1f, 1f, 0.6f);
 			drawBox(matrices, consumer, node, cam, 0f, 1f, 1f, 0.6f);
 			TestConnectResult preview = null;
-			if (railType == RailGenerator.RailNodeType.MTR && CommonUtil.isMTRLoaded()) {
+			if (railType == RailGenerator.RailNodeType.MTR && CommonUtil.isMtrLoaded()) {
 				preview = MTRPreviewCache.get(
 						lastNode, MTRIntegration.parseAngle(lastAngle),
 						node, MTRIntegration.parseAngle(angle)
@@ -330,7 +330,7 @@ public class StationBuilderClient implements ClientModInitializer {
 			var lastNode = lastNodes.get(i);
 			var node = nodes.get(i);
 			TestConnectResult preview = null;
-			if (railType == RailGenerator.RailNodeType.MTR && CommonUtil.isMTRLoaded()) {
+			if (railType == RailGenerator.RailNodeType.MTR && CommonUtil.isMtrLoaded()) {
 				preview = MTRPreviewCache.get(
 						lastNode, MTRIntegration.parseAngle(lastAngle),
 						node, MTRIntegration.parseAngle(angle)

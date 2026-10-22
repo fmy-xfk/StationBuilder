@@ -1,5 +1,6 @@
 package cn.myfrank.stationbuilder.mtr;
 
+import cn.myfrank.stationbuilder.utils.CatenaryTypeMapping;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.TestConnectResult;
 import cn.myfrank.stationbuilder.mixin.mtr.EnumPSDAPGItemAccessor;
@@ -20,6 +21,8 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.mtr.core.data.Position;
@@ -49,7 +52,7 @@ public class MTRIntegration {
         return new Identifier("mtr", "rail_connector_160");
     }
 
-    public static boolean isRailNode(ServerWorld world, BlockPos pos) {
+    public static boolean isRailNode(World world, BlockPos pos) {
         var block = world.getBlockState(pos).getBlock();
         return block == org.mtr.mod.Blocks.RAIL_NODE.get().data;
     }
@@ -358,5 +361,39 @@ public class MTRIntegration {
 
     private static Vec3d toVec3d(Vector v) {
         return new Vec3d(v.x, v.y, v.z);
+    }
+
+    public static Direction horizontalDirectionFromVec(Vec3d v) {
+        double x = v.x, z = v.z;
+        if (Math.abs(x) > Math.abs(z)) {
+            return x > 0 ? Direction.EAST : Direction.WEST;
+        } else {
+            return z > 0 ? Direction.SOUTH : Direction.NORTH;
+        }
+    }
+
+    public static BlockPos addCatenaryNode(
+            ServerWorld world, Vec3d center, Vec3d tangent, boolean isLeftest, boolean isRightest,
+            @Nullable BlockPos lastCatenaryNode, Identifier block, CatenaryTypeMapping type, int height
+    ) {
+        Direction dir = horizontalDirectionFromVec(tangent);
+        double dirAngle = MTRIntegration.getAngleFromVec3d(tangent);
+        int blockY = (int) Math.floor(center.getY());
+        var catenaryPos = new BlockPos((int) Math.floor(center.x), blockY + height, (int) Math.floor(center.z));
+        if (isLeftest || isRightest) {
+            if (isLeftest) {
+                dir = dir.rotateYClockwise();
+            } else {
+                dir = dir.rotateYCounterclockwise();
+            }
+            if (!MSDIntegration.placeCatenaryNode(world, catenaryPos, dir, dirAngle, block)){
+                return null;
+            }
+            if (lastCatenaryNode != null) {
+                MSDIntegration.connectCatenary(world, lastCatenaryNode, catenaryPos, type);
+            }
+            return catenaryPos;
+        }
+        return null;
     }
 }

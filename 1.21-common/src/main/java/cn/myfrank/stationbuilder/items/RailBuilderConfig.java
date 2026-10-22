@@ -15,7 +15,7 @@ public class RailBuilderConfig {
     public double ballastBottomWidth = 11.0;
     public int ballastMaxThickness = 4;
     public Identifier ballastBlock = Identifier.of("minecraft", "andesite");
-    public Identifier railType = CommonUtil.isMTRLoaded() ?
+    public Identifier railType = CommonUtil.isMtrLoaded() ?
             Identifier.of("mtr", "rail_connector_160") :
             Identifier.of("minecraft", "rail");
 

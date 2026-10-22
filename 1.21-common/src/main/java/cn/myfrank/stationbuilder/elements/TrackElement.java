@@ -11,7 +11,7 @@ public class TrackElement extends StationElement {
     public static Identifier getDefaultTrack() {
         if (CommonUtil.isCreateLoaded()) {
             return Identifier.of("create", "track");
-        } else if (CommonUtil.isMTRLoaded()) {
+        } else if (CommonUtil.isMtrLoaded()) {
             return Identifier.of("mtr", "rail_connector_platform");
         } else {
             return Identifier.of("minecraft", "rail");

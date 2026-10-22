@@ -87,11 +87,11 @@ public final class CommonUtil {
         return new CustomModelDataComponent(value);
     }
 
-    private static final boolean hasMTR = FabricLoader.getInstance().isModLoaded("mtr");
+    private static final boolean hasMtr = FabricLoader.getInstance().isModLoaded("mtr");
     private static final boolean hasCreate = FabricLoader.getInstance().isModLoaded("create");
     private static final boolean hasMSD = FabricLoader.getInstance().isModLoaded("msd");
 
-    public static boolean isMTRLoaded() { return hasMTR; }
+    public static boolean isMtrLoaded() { return hasMtr; }
     public static boolean isCreateLoaded() { return hasCreate; }
     public static boolean isMsdLoaded() { return hasMSD; }
 
@@ -119,5 +119,13 @@ public final class CommonUtil {
 
     public static Direction fromRotation(float angle) {
         return Direction.fromRotation(angle);
+    }
+
+    public static Identifier identifierOf(String namespace, String path) {
+        return Identifier.of(namespace, path);
+    }
+
+    public static Identifier identifierOf(String identifierString) {
+        return Identifier.of(identifierString);
     }
 }

@@ -9,7 +9,7 @@ import net.minecraft.util.Identifier;
 public class PlatformElement extends StationElement {
     public static final int MAX_BLOCK_COUNT = 5;
     public int width = 9;
-    public Identifier safetyBlock = CommonUtil.isMTRLoaded() ?
+    public Identifier safetyBlock = CommonUtil.isMtrLoaded() ?
             Identifier.of("mtr", "platform") :
             Identifier.of("minecraft", "yellow_concrete");
 
