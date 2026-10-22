@@ -1,5 +1,6 @@
 package cn.myfrank.stationbuilder.mtr;
 
+import cn.myfrank.stationbuilder.utils.CatenaryTypeMapping;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.CurveData;
 import cn.myfrank.stationbuilder.mixin.mtr.EnumPSDAPGItemAccessor;
@@ -336,5 +337,12 @@ public class MTRIntegration {
         } else {
             return z > 0 ? Direction.SOUTH : Direction.NORTH;
         }
+    }
+
+    public static BlockPos addCatenaryNode(
+            ServerLevel world, Vec3 center, Vec3 tangent, boolean isLeftest, boolean isRightest,
+            @Nullable BlockPos lastCatenaryNode, ResourceLocation block, CatenaryTypeMapping type, int height
+    ) {
+        return null;
     }
 }
