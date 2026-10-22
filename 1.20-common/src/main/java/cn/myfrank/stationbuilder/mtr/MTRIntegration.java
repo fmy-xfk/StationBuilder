@@ -26,6 +26,7 @@ import org.mtr.core.tool.Angle;
 import org.mtr.core.tool.Vector;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.mtr.mapping.holder.ServerWorld;
+import org.mtr.mapping.holder.WorldAccess;
 import org.mtr.mod.block.*;
 import org.mtr.mod.data.RailType;
 import org.mtr.mod.item.ItemPSDAPGBase;
@@ -113,57 +114,89 @@ public class MTRIntegration {
     }
 
     public static boolean placePsdItem(ServerLevel world, BlockPos pos, Direction facing, ResourceLocation blockId) {
-        var itemRaw = BuiltInRegistries.ITEM.get(blockId);
+        var itemRaw = CommonUtil.getItem(blockId);
+        BlockState baseState = null;
+        boolean isDoor = false;
+        boolean isOdd = false;
+        boolean isPSD = false;
+
+        // 路径 1: MTR 原生物品 (ItemPSDAPGBase)
         if (itemRaw instanceof ItemPSDAPGBase item) {
             ItemPSDAPGBaseAccessor accessor = (ItemPSDAPGBaseAccessor) item;
-            var psdItem = accessor.item_();
-            var thisItem = (EnumPSDAPGItemAccessor) (Object) psdItem;
-            assert thisItem != null;
-            var psdType = accessor.type_();
-            var thisType = (EnumPSDAPGTypeAccessor) (Object) psdType;
+            baseState = accessor.getBlockStateFromItem_().data;
+            var psdItem = (EnumPSDAPGItemAccessor) (Object) accessor.item_();
+            var psdType = (EnumPSDAPGTypeAccessor) (Object) accessor.type_();
+            isDoor = psdItem != null && psdItem.isDoor();
+            isOdd = psdType != null && psdType.isOdd();
+            isPSD = psdType != null && psdType.isPSD();
+        } 
+        // 路径 2: 第三方 MTR 模组 (以 BlockItem 或常规 Block 形式注册)
+        else {
+            net.minecraft.world.level.block.Block block = null;
+            if (itemRaw instanceof net.minecraft.world.item.BlockItem bi) {
+                block = bi.getBlock();
+            } else if (CommonUtil.hasBlock(blockId)) {
+                block = CommonUtil.getBlock(blockId);
+            }
 
-            int horizontalBlocks = thisItem.isDoor() ? (thisType.isOdd() ? 3 : 2) : 1;
+            if (block != null && block != net.minecraft.world.level.block.Blocks.AIR) {
+                baseState = block.defaultBlockState();
+                // 门体判定：包含 SIDE 属性或者 ID 包含 "door"
+                isDoor = baseState.hasProperty(SIDE.data) || blockId.getPath().contains("door");
+                // 三格门判定：包含 CENTER 属性
+                isOdd = baseState.hasProperty(TripleHorizontalBlock.CENTER.data);
+                // 全高 PSD 判定：ID 或类名中包含 "psd"（半高 APG 则不包含 psd）
+                isPSD = blockId.getPath().contains("psd") || block.getClass().getSimpleName().toLowerCase().contains("psd");
+            }
+        }
 
-            for (int x = 0; x < horizontalBlocks; ++x) {
-                // 计算横向偏移位置：沿站台边缘延伸
-                var newPos = pos.relative(facing.getClockWise(), x);
+        if (baseState == null) {
+            return false;
+        }
 
-                for (int y = 0; y < 2; ++y) {
-                    // 获取基础 State 并手动设置属性
-                    var state = accessor.getBlockStateFromItem_().data
-                            .setValue(BlockStateProperties.HORIZONTAL_FACING, facing)
-                            .setValue(HALF.data, y == 1 ? IBlock.DoubleBlockHalf.UPPER : IBlock.DoubleBlockHalf.LOWER);
+        int horizontalBlocks = isDoor ? (isOdd ? 3 : 2) : 1;
 
-                    if (thisItem.isDoor()) {
-                        var neighborState = state
-                                .setValue(SIDE.data, x == 0 ? IBlock.EnumSide.LEFT : IBlock.EnumSide.RIGHT);
-                        if (thisType.isOdd()) {
-                            neighborState = neighborState.setValue(TripleHorizontalBlock.CENTER.data,
-                                    x > 0 && x < horizontalBlocks - 1);
-                        }
+        for (int x = 0; x < horizontalBlocks; ++x) {
+            var newPos = pos.relative(facing.getClockWise(), x);
 
-                        world.setBlock(newPos.above(y), neighborState, 3);
-                    } else {
-                        world.setBlock(newPos.above(y), state.setValue(SIDE_EXTENDED.data, IBlock.EnumSide.SINGLE), 3);
+            for (int y = 0; y < 2; ++y) {
+                var state = baseState;
+                if (state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
+                    state = state.setValue(BlockStateProperties.HORIZONTAL_FACING, facing);
+                }
+                if (state.hasProperty(HALF.data)) {
+                    state = state.setValue(HALF.data, y == 1 ? IBlock.DoubleBlockHalf.UPPER : IBlock.DoubleBlockHalf.LOWER);
+                }
+
+                if (isDoor) {
+                    if (state.hasProperty(SIDE.data)) {
+                        state = state.setValue(SIDE.data, x == 0 ? IBlock.EnumSide.LEFT : IBlock.EnumSide.RIGHT);
+                    }
+                    if (isOdd && state.hasProperty(TripleHorizontalBlock.CENTER.data)) {
+                        state = state.setValue(TripleHorizontalBlock.CENTER.data, x > 0 && x < horizontalBlocks - 1);
+                    }
+                } else {
+                    if (state.hasProperty(SIDE_EXTENDED.data)) {
+                        state = state.setValue(SIDE_EXTENDED.data, IBlock.EnumSide.SINGLE);
+                    } else if (state.hasProperty(SIDE.data)) {
+                        state = state.setValue(SIDE.data, IBlock.EnumSide.SINGLE);
                     }
                 }
 
-                if (thisType.isPSD()) {
-                    var newPos2 = newPos.above(2);
-                    var mappedWorldAccess = new org.mtr.mapping.holder.WorldAccess(world);
-                    var mappedPos = new org.mtr.mapping.holder.BlockPos(newPos2);
-                    var mappedState = BlockPSDTop.getActualState(mappedWorldAccess, mappedPos);
-                    world.setBlock(
-                            newPos.above(2),
-                            mappedState.data,
-                            3
-                    );
-                }
+                world.setBlock(newPos.above(y), state, 3);
             }
-            return true;
-        } else {
-            return false;
+
+            // 如果是全高 PSD，在上方补齐顶盖
+            if (isPSD) {
+                var newPos2 = newPos.above(2);
+                world.setBlock(
+                        newPos2,
+                        BlockPSDTop.getActualState(new WorldAccess(world), new org.mtr.mapping.holder.BlockPos(newPos2)).data,
+                        3
+                );
+            }
         }
+        return true;
     }
 
     public static Rail connectRailNodes(

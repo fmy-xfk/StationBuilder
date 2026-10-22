@@ -86,7 +86,7 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 tasks.named('jar', Jar) {
-    archiveFileName = "${mod_id}-${mod_version}+${minecraft_version}.jar"
+    archiveFileName = "${mod_id}-NEOFORGE-${mod_version}+${minecraft_version}.jar"
 }
 
 idea {
