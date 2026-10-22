@@ -38,6 +38,10 @@ public class CreateIntegration {
     public static boolean isRailNode(Level world, BlockPos pos) {
         return false;
     }
+    
+    public static boolean isValidRailType(ResourceLocation railType) {
+        return false;
+    }
 
     public static BlockState getTrackBlockState(float angle) {
         return null;

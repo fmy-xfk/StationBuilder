@@ -20,6 +20,27 @@ public abstract class StationElement {
                     track.ballastBlock = ResourceLocation.parse(nbt.getString("ballast"));
                     track.track = ResourceLocation.parse(nbt.getString("track"));
                 }
+                if (nbt.contains("hasCatenary")) {
+                    track.hasCatenary = nbt.getBoolean("hasCatenary");
+                }
+                if (nbt.contains("catenaryState")) {
+                    track.catenaryState = nbt.getInt("catenaryState");
+                }
+                if (nbt.contains("catenarySpacing")) {
+                    track.catenarySpacing = nbt.getInt("catenarySpacing");
+                }
+                if (nbt.contains("catenaryHeight")) {
+                    track.catenaryHeight = nbt.getInt("catenaryHeight");
+                }
+                if (nbt.contains("catenaryModeIndex")) {
+                    track.catenaryModeIndex = nbt.getInt("catenaryModeIndex");
+                }
+                if (nbt.contains("catenaryBlock")) {
+                    track.catenaryBlock = ResourceLocation.parse(nbt.getString("catenaryBlock"));
+                }
+                if (nbt.contains("catenaryPillarBlock")) {
+                    track.catenaryPillarBlock = ResourceLocation.parse(nbt.getString("catenaryPillarBlock"));
+                }
                 return track;
 
             case PLATFORM:
@@ -28,7 +49,7 @@ public abstract class StationElement {
                 p.safetyBlock = ResourceLocation.parse(nbt.getString("safety"));
 
                 if (nbt.contains("mix")) {
-                    ListTag mixList = nbt.getList("mix", 10); // 10 是 COMPOUND 的类型 ID
+                    ListTag mixList = nbt.getList("mix", 10);
                     for (int i = 0; i < Math.min(mixList.size(), 5); i++) {
                         CompoundTag slotNbt = mixList.getCompound(i);
                         p.mixSlots[i].blockId = ResourceLocation.parse(slotNbt.getString("id"));
@@ -78,7 +99,6 @@ public abstract class StationElement {
 
     public abstract Type getType();
     public abstract int getWidth();
-
     public abstract void write(FriendlyByteBuf buf);
 
     public static StationElement read(FriendlyByteBuf buf) {
@@ -88,6 +108,13 @@ public abstract class StationElement {
                 TrackElement track = new TrackElement();
                 track.ballastBlock = buf.readResourceLocation();
                 track.track = buf.readResourceLocation();
+                track.hasCatenary = buf.readBoolean();
+                track.catenaryState = buf.readInt();
+                track.catenarySpacing = buf.readInt();
+                track.catenaryHeight = buf.readInt();
+                track.catenaryModeIndex = buf.readInt();
+                track.catenaryBlock = buf.readResourceLocation();
+                track.catenaryPillarBlock = buf.readResourceLocation();
                 yield track;
             }
             case PLATFORM -> {

@@ -39,6 +39,10 @@ public class CreateIntegration {
         return false;
     }
 
+    public static boolean isValidRailType(ResourceLocation railType) {
+        return false;
+    }
+
     public static BlockState getTrackBlockState(float angle) {
         return null;
     }

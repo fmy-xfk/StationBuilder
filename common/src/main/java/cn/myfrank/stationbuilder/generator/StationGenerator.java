@@ -3,8 +3,10 @@ package cn.myfrank.stationbuilder.generator;
 import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.elements.*;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
+import cn.myfrank.stationbuilder.mtr.MSDIntegration;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
 import cn.myfrank.stationbuilder.utils.BlockRotationUtil;
+import cn.myfrank.stationbuilder.utils.CatenaryTypeMapping;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.TickScheduler;
 import net.minecraft.ChatFormatting;
@@ -20,10 +22,12 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.SlabBlock;
+import net.minecraft.world.level.block.WallBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.RailShape;
 import net.minecraft.world.level.block.state.properties.SlabType;
+import net.minecraft.world.level.block.state.properties.WallSide;
 import net.minecraft.world.level.levelgen.structure.templatesystem.BlockIgnoreProcessor;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessor;
@@ -36,11 +40,105 @@ import java.util.List;
 import java.util.Optional;
 
 public class StationGenerator {
+
+    private static void setBlockIfEmpty(ServerLevel world, BlockPos pos, BlockState state) {
+        if (world.getBlockState(pos).isAir() || CommonUtil.isSoftTransparent(world.getBlockState(pos))) {
+            world.setBlock(pos, state, 3);
+        }
+    }
+
+    private static void drawLineForced(ServerLevel world, BlockPos a, BlockPos b, ResourceLocation blockId, List<BlockPos> recordedBlocks) {
+        BlockState state = CommonUtil.getBlockState(blockId);
+        int x1 = a.getX(), y1 = a.getY(), z1 = a.getZ();
+        int x2 = b.getX(), y2 = b.getY(), z2 = b.getZ();
+
+        int dx = Math.abs(x2 - x1);
+        int dy = Math.abs(y2 - y1);
+        int dz = Math.abs(z2 - z1);
+
+        int xs = x1 < x2 ? 1 : -1;
+        int ys = y1 < y2 ? 1 : -1;
+        int zs = z1 < z2 ? 1 : -1;
+
+        int x = x1;
+        int y = y1;
+        int z = z1;
+
+        BlockPos p0 = new BlockPos(x, y, z);
+        world.setBlock(p0, state, Block.UPDATE_ALL);
+        recordedBlocks.add(p0);
+
+        int max = Math.max(dx, Math.max(dy, dz));
+        if (max == 0) return;
+
+        for (int i = 1; i <= max; i++) {
+            int curX = x1 + Math.round((float) (i * (x2 - x1)) / max);
+            int curY = y1 + Math.round((float) (i * (y2 - y1)) / max);
+            int curZ = z1 + Math.round((float) (i * (z2 - z1)) / max);
+            while (x != curX || y != curY || z != curZ) {
+                if (x != curX) x += xs;
+                else if (z != curZ) z += zs;
+                else if (y != curY) y += ys;
+                BlockPos p = new BlockPos(x, y, z);
+                world.setBlock(p, state, Block.UPDATE_ALL);
+                recordedBlocks.add(p);
+            }
+        }
+    }
+
+    private static void drawBeamContinuous(ServerLevel world, BlockPos startPos, Direction right, int blockCount, ResourceLocation blockId, List<BlockPos> recordedBlocks) {
+        BlockState state = CommonUtil.getBlockState(blockId);
+        BlockPos cur = startPos;
+        for (int i = 0; i < blockCount; i++) {
+            world.setBlock(cur, state, Block.UPDATE_ALL);
+            recordedBlocks.add(cur);
+            cur = cur.relative(right);
+        }
+    }
+
+    private static void buildPillarDownForced(ServerLevel world, BlockPos topPos, ResourceLocation pillarBlock, List<BlockPos> recordedBlocks) {
+        BlockState state = CommonUtil.getBlockState(pillarBlock);
+        BlockPos pos = topPos;
+        while (!world.isOutsideBuildHeight(pos) && CommonUtil.isSoftTransparent(world.getBlockState(pos))) {
+            world.setBlock(pos, state, Block.UPDATE_ALL);
+            recordedBlocks.add(pos);
+            pos = pos.relative(Direction.DOWN);
+        }
+    }
+
+    private static void ensureDoubleSlab(ServerLevel world, BlockPos pos) {
+        BlockState state = world.getBlockState(pos);
+        if (state.getBlock() instanceof SlabBlock && state.hasProperty(SlabBlock.TYPE)) {
+            world.setBlock(pos, state.setValue(SlabBlock.TYPE, SlabType.DOUBLE), 3);
+        }
+    }
+
+    private static void fixWallConnections(ServerLevel world, List<BlockPos> wallPositions) {
+        for (BlockPos pos : wallPositions) {
+            BlockState state = world.getBlockState(pos);
+            if (state.getBlock() instanceof WallBlock) {
+                if (world.getBlockState(pos.relative(Direction.NORTH)).getBlock() instanceof WallBlock) {
+                    state = state.setValue(BlockStateProperties.NORTH_WALL, WallSide.LOW);
+                }
+                if (world.getBlockState(pos.relative(Direction.SOUTH)).getBlock() instanceof WallBlock) {
+                    state = state.setValue(BlockStateProperties.SOUTH_WALL, WallSide.LOW);
+                }
+                if (world.getBlockState(pos.relative(Direction.EAST)).getBlock() instanceof WallBlock) {
+                    state = state.setValue(BlockStateProperties.EAST_WALL, WallSide.LOW);
+                }
+                if (world.getBlockState(pos.relative(Direction.WEST)).getBlock() instanceof WallBlock) {
+                    state = state.setValue(BlockStateProperties.WEST_WALL, WallSide.LOW);
+                }
+                world.setBlock(pos, state, 3 | 16);
+            }
+        }
+    }
+
     public static void build(ServerPlayer player, ServerLevel world, BlockPos origin, Direction facing, int length, List<StationElement> elements) {
         Direction right = facing.getClockWise();
 
         int totalWidth = 0;
-        int maxConstHeight = 6; // 默认站房火柴盒高度为 6
+        int maxConstHeight = 10;
         for (int i = 0; i < elements.size(); i++) {
             StationElement e = elements.get(i);
             StationElement eLeft = i > 0 ? elements.get(i - 1) : null;
@@ -49,8 +147,10 @@ public class StationGenerator {
                 totalWidth++;
             }
             if (e instanceof PlatformElement p && p.hasCanopy) {
-                // 雨棚最高点偏移通常为 1格(2个半砖)，再预留 1-2 格空间
-                maxConstHeight = Math.max(maxConstHeight, p.canopyHeight + 2);
+                maxConstHeight = Math.max(maxConstHeight, p.canopyHeight + 4);
+            }
+            if (e instanceof TrackElement t && t.hasCatenary) {
+                maxConstHeight = Math.max(maxConstHeight, t.catenaryHeight + 4);
             }
         }
 
@@ -68,7 +168,6 @@ public class StationGenerator {
                     if (id.getNamespace().equals("mtr") && id.getPath().contains("rail")) {
                         mtrRails.add(p);
                     } else {
-                        // 使用 flag 2 (UPDATE_CLIENTS) 且不包含 flag 1 (UPDATE_NEIGHBORS) 抑制更新，再加 FORCE_STATE 强制覆盖
                         world.setBlock(p, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
                     }
                 }
@@ -85,6 +184,9 @@ public class StationGenerator {
         }
 
         BlockPos currentLeftEdge = origin.relative(facing);
+        List<BlockPos> trackLeftEdges = new ArrayList<>();
+        List<Integer> trackIndices = new ArrayList<>();
+
         for (int i = 0; i < elements.size(); i++) {
             StationElement element = elements.get(i);
             if (element instanceof TrackElement track) {
@@ -93,6 +195,8 @@ public class StationGenerator {
                     fillTrackGap(world, currentLeftEdge, facing, right, length, track);
                     currentLeftEdge = currentLeftEdge.relative(right);
                 }
+                trackLeftEdges.add(currentLeftEdge);
+                trackIndices.add(i);
                 generateTrack(player, world, currentLeftEdge, facing, right, length, track);
             } else if (element instanceof PlatformElement platform) {
                 StationElement leftNeighbor = (i > 0) ? elements.get(i - 1) : null;
@@ -102,6 +206,230 @@ public class StationGenerator {
                 generateBuilding(world, currentLeftEdge, facing, building, length);
             }
             currentLeftEdge = currentLeftEdge.relative(right, element.getWidth());
+        }
+
+        // --- 生成接触网 ---
+        generateCatenaries(world, origin, facing, right, length, elements, trackLeftEdges, trackIndices);
+    }
+
+    private static void generateCatenaries(
+            ServerLevel world, BlockPos origin, Direction facing, Direction right, int length,
+            List<StationElement> elements, List<BlockPos> trackLeftEdges, List<Integer> trackIndices
+    ) {
+        if (trackIndices.isEmpty()) return;
+
+        int groupStart = 0;
+        while (groupStart < trackIndices.size()) {
+            int groupEnd = groupStart;
+            while (groupEnd + 1 < trackIndices.size() &&
+                    trackIndices.get(groupEnd + 1) == trackIndices.get(groupEnd) + 1) {
+                groupEnd++;
+            }
+
+            int startElemIdx = trackIndices.get(groupStart);
+            int endElemIdx = trackIndices.get(groupEnd);
+            int trackCountInGroup = groupEnd - groupStart + 1;
+
+            StationElement leftNeighbor = (startElemIdx > 0) ? elements.get(startElemIdx - 1) : null;
+            StationElement rightNeighbor = (endElemIdx < elements.size() - 1) ? elements.get(endElemIdx + 1) : null;
+
+            PlatformElement pL = (leftNeighbor instanceof PlatformElement p) ? p : null;
+            PlatformElement pR = (rightNeighbor instanceof PlatformElement p) ? p : null;
+
+            TrackElement representativeTrack = (TrackElement) elements.get(startElemIdx);
+
+            if (representativeTrack.hasCatenary && representativeTrack.catenaryState != 0) {
+                buildCatenaryForGroup(
+                        world, origin, facing, right, length,
+                        trackCountInGroup, groupStart, groupEnd, trackLeftEdges,
+                        representativeTrack, pL, pR
+                );
+            }
+
+            groupStart = groupEnd + 1;
+        }
+    }
+
+    private static void buildCatenaryForGroup(
+            ServerLevel world, BlockPos origin, Direction facing, Direction right, int length,
+            int trackCount, int groupStart, int groupEnd, List<BlockPos> trackLeftEdges,
+            TrackElement trackCfg, PlatformElement pL, PlatformElement pR
+    ) {
+        int spacing = Math.max(6, trackCfg.catenarySpacing);
+        int wireHeight = Math.max(4, trackCfg.catenaryHeight); // 接触线默认高度 6
+
+        boolean useMsd = trackCfg.catenaryState == 2 && CommonUtil.isMsdLoaded();
+        CatenaryTypeMapping msdType = CatenaryTypeMapping.values()[Math.min(trackCfg.catenaryModeIndex, CatenaryTypeMapping.values().length - 1)];
+
+        // soft catenary 时横梁提高一格
+        boolean isSoftCatenary = (!useMsd) || (msdType != CatenaryTypeMapping.MSDRigidCatenary);
+        int trussHeight = isSoftCatenary ? (wireHeight + 2) : (wireHeight + 1);
+
+        boolean leftHasCanopy = (pL != null && pL.hasCanopy);
+        boolean rightHasCanopy = (pR != null && pR.hasCanopy);
+        boolean leftIsPlatform = (pL != null);
+        boolean rightIsPlatform = (pR != null);
+
+        BlockPos firstTrackLeft = trackLeftEdges.get(groupStart);
+        BlockPos lastTrackLeft = trackLeftEdges.get(groupEnd);
+
+        BlockPos[] lastMsdNodes = new BlockPos[trackCount];
+        List<BlockPos> placedWallBlocks = new ArrayList<>();
+
+        // MSD 接触网且相邻有站台时，支柱向站台侧内凹一格
+        int leftOffsetDist = (useMsd && leftIsPlatform) ? 2 : 1;
+        int rightOffsetDist = (useMsd && rightIsPlatform) ? 2 : 1;
+
+        for (int l = 0; l < length; l++) {
+            boolean isPillarFrame = (l % spacing == 0) || (l == length - 1);
+
+            if (isPillarFrame) {
+                int leftCanopyY = 0;
+                if (leftHasCanopy) {
+                    int wIndex = Math.max(0, pL.width - leftOffsetDist);
+                    int halfYOffset = calculateCanopyHalfY(wIndex, pL.width, pL.canopyStyle);
+                    leftCanopyY = ((pL.canopyHeight + 1) * 2 + halfYOffset) / 2;
+                }
+                int rightCanopyY = 0;
+                if (rightHasCanopy) {
+                    int wIndex = Math.min(pR.width - 1, rightOffsetDist - 1);
+                    int halfYOffset = calculateCanopyHalfY(wIndex, pR.width, pR.canopyStyle);
+                    rightCanopyY = ((pR.canopyHeight + 1) * 2 + halfYOffset) / 2;
+                }
+
+                BlockPos baseLeft = firstTrackLeft.relative(facing, l);
+                BlockPos baseRight = lastTrackLeft.relative(facing, l).relative(right, 2);
+
+                BlockPos leftEdgePos = baseLeft.relative(right.getOpposite(), leftOffsetDist);
+                BlockPos rightEdgePos = baseRight.relative(right, rightOffsetDist);
+
+                BlockPos leftSupport = leftEdgePos.above(trussHeight);
+                BlockPos rightSupport = rightEdgePos.above(trussHeight);
+
+                boolean armFromLeft = true;
+
+                if (trackCount == 1) {
+                    // ==========================================
+                    //               单线侧架 (L 架)
+                    // ==========================================
+                    BlockPos trackCenterTruss = baseLeft.relative(right, 1).above(trussHeight);
+
+                    if (leftHasCanopy && !rightIsPlatform) {
+                        armFromLeft = true;
+                        drawLineForced(world, leftSupport, trackCenterTruss, trackCfg.catenaryPillarBlock, placedWallBlocks);
+                        connectToCanopy(world, leftEdgePos, trussHeight, leftCanopyY, trackCfg.catenaryPillarBlock, placedWallBlocks);
+                    } else if (rightHasCanopy && !leftIsPlatform) {
+                        armFromLeft = false;
+                        drawLineForced(world, rightSupport, trackCenterTruss, trackCfg.catenaryPillarBlock, placedWallBlocks);
+                        connectToCanopy(world, rightEdgePos, trussHeight, rightCanopyY, trackCfg.catenaryPillarBlock, placedWallBlocks);
+                    } else if (leftHasCanopy && rightHasCanopy) {
+                        armFromLeft = true;
+                        drawLineForced(world, leftSupport, rightSupport, trackCfg.catenaryPillarBlock, placedWallBlocks);
+                        connectToCanopy(world, leftEdgePos, trussHeight, leftCanopyY, trackCfg.catenaryPillarBlock, placedWallBlocks);
+                        connectToCanopy(world, rightEdgePos, trussHeight, rightCanopyY, trackCfg.catenaryPillarBlock, placedWallBlocks);
+                    } else {
+                        // 远离站台建立地立柱
+                        if (rightIsPlatform && !leftIsPlatform) {
+                            armFromLeft = true;
+                            drawLineForced(world, leftSupport, trackCenterTruss, trackCfg.catenaryPillarBlock, placedWallBlocks);
+                            buildPillarDownForced(world, leftSupport.below(), trackCfg.catenaryPillarBlock, placedWallBlocks);
+                        } else {
+                            armFromLeft = false;
+                            drawLineForced(world, rightSupport, trackCenterTruss, trackCfg.catenaryPillarBlock, placedWallBlocks);
+                            buildPillarDownForced(world, rightSupport.below(), trackCfg.catenaryPillarBlock, placedWallBlocks);
+                        }
+                    }
+                } else {
+                    // ==========================================
+                    //               多线并排 (龙门架)
+                    // ==========================================
+                    int spanBlocks = (groupEnd - groupStart + 1) * 3 + (groupEnd - groupStart) + leftOffsetDist + rightOffsetDist;
+                    drawBeamContinuous(world, leftSupport, right, spanBlocks, trackCfg.catenaryPillarBlock, placedWallBlocks);
+
+                    if (leftHasCanopy) {
+                        connectToCanopy(world, leftEdgePos, trussHeight, leftCanopyY, trackCfg.catenaryPillarBlock, placedWallBlocks);
+                    } else {
+                        buildPillarDownForced(world, leftSupport.below(), trackCfg.catenaryPillarBlock, placedWallBlocks);
+                    }
+
+                    if (rightHasCanopy) {
+                        connectToCanopy(world, rightEdgePos, trussHeight, rightCanopyY, trackCfg.catenaryPillarBlock, placedWallBlocks);
+                    } else {
+                        buildPillarDownForced(world, rightSupport.below(), trackCfg.catenaryPillarBlock, placedWallBlocks);
+                    }
+                }
+
+                // --- 2. 在支架处处理接触线悬挂节点 ---
+                for (int t = 0; t < trackCount; t++) {
+                    BlockPos centerLine = trackLeftEdges.get(groupStart + t).relative(facing, l).relative(right, 1);
+                    BlockPos catenaryPos = centerLine.above(wireHeight);
+
+                    if (useMsd) {
+                        // === MSD 接触网（柔性网不要中间多余石砖吊柱） ===
+                        CatenaryTypeMapping type = msdType;
+                        ResourceLocation msdNodeBlock = trackCfg.catenaryBlock;
+
+                        if (type == CatenaryTypeMapping.Auto || (msdNodeBlock.getPath().contains("catenary_with_long") && !msdNodeBlock.getPath().contains("top"))) {
+                            msdNodeBlock = ResourceLocation.fromNamespaceAndPath("msd", "catenary_with_long_top");
+                        }
+                        if (type == CatenaryTypeMapping.Auto) {
+                            type = CatenaryTypeMapping.MSDCatenary;
+                        }
+
+                        Direction nodeFacing;
+                        if (trackCount == 1) {
+                            nodeFacing = armFromLeft ? right : right.getOpposite();
+                        } else {
+                            nodeFacing = (t < trackCount / 2) ? right : right.getOpposite();
+                        }
+
+                        double dirAngle = (nodeFacing.getAxis() == Direction.Axis.X)
+                                ? (nodeFacing == Direction.EAST ? 90.0 : -90.0)
+                                : (nodeFacing == Direction.SOUTH ? 0.0 : 180.0);
+
+                        boolean placed = MSDIntegration.placeCatenaryNode(world, catenaryPos, nodeFacing, dirAngle, msdNodeBlock);
+                        if (placed) {
+                            if (lastMsdNodes[t] != null) {
+                                MSDIntegration.connectCatenary(world, lastMsdNodes[t], catenaryPos, type);
+                            }
+                            lastMsdNodes[t] = catenaryPos;
+                        }
+                    } else {
+                        // === 原版接触网 ===
+                        for (int y = wireHeight + 1; y < trussHeight; y++) {
+                            BlockPos fillPos = centerLine.above(y);
+                            world.setBlock(fillPos, CommonUtil.getBlockState(trackCfg.catenaryPillarBlock), Block.UPDATE_ALL);
+                            placedWallBlocks.add(fillPos);
+                        }
+                        world.setBlock(catenaryPos, CommonUtil.getBlockState(trackCfg.catenaryBlock), Block.UPDATE_ALL);
+                    }
+                }
+            }
+
+            // --- 3. 原版接触网沿轨道铺设连续导线 ---
+            if (!useMsd) {
+                BlockState wireState = CommonUtil.getBlockState(trackCfg.catenaryBlock);
+                for (int t = 0; t < trackCount; t++) {
+                    BlockPos centerWire = trackLeftEdges.get(groupStart + t).relative(facing, l).relative(right, 1).above(wireHeight);
+                    setBlockIfEmpty(world, centerWire, wireState);
+                }
+            }
+        }
+
+        // --- 4. 彻底消除墙体方块缝隙 ---
+        fixWallConnections(world, placedWallBlocks);
+    }
+
+    private static void connectToCanopy(ServerLevel world, BlockPos edgePos, int trussHeight, int canopyY, ResourceLocation pillarBlock, List<BlockPos> recordedBlocks) {
+        BlockPos canopyTopPos = edgePos.above(canopyY);
+        ensureDoubleSlab(world, canopyTopPos);
+        recordedBlocks.add(canopyTopPos);
+
+        BlockState pillarState = CommonUtil.getBlockState(pillarBlock);
+        for (int y = canopyY + 1; y <= trussHeight; y++) {
+            BlockPos fillPos = edgePos.above(y);
+            world.setBlock(fillPos, pillarState, Block.UPDATE_ALL);
+            recordedBlocks.add(fillPos);
         }
     }
 
@@ -114,7 +442,6 @@ public class StationGenerator {
         }
     }
 
-    // --- 站房生成逻辑 ---
     private static void generateBuilding(ServerLevel world, BlockPos pos, Direction facing, BuildingElement element, int length) {
         Optional<StructureTemplate> custom = BuildingTemplateManager.getTemplate(element.presetName);
         StructureTemplate template = null;
@@ -146,7 +473,6 @@ public class StationGenerator {
                 data.addProcessor(BlockIgnoreProcessor.AIR);
             }
 
-            // 注册强行旋转处理器（提供零 MTR 依赖的完美朝向偏转）
             data.addProcessor(new StructureProcessor() {
                 @Override
                 public StructureTemplate.StructureBlockInfo processBlock(
@@ -171,7 +497,6 @@ public class StationGenerator {
             int sx = size.getX();
             int sz = size.getZ();
 
-            // 1. 模拟旋转，计算结构旋转后的四个角落 (在局部坐标系下)
             int[][] corners = {
                     {0, 0},
                     {sx, 0},
@@ -186,7 +511,6 @@ public class StationGenerator {
                 int cx = corner[0];
                 int cz = corner[1];
                 int rx = cx, rz = cz;
-                // 原版 StructureTemplate.transform 的旋转矩阵规律
                 switch(finalRot) {
                     case CLOCKWISE_90:  rx = -cz; rz = cx;  break;
                     case CLOCKWISE_180: rx = -cx; rz = -cz; break;
@@ -200,37 +524,29 @@ public class StationGenerator {
                 if (rz > maxZ_raw) maxZ_raw = rz;
             }
 
-            // 2. 引入极值 +1 偏移算法，精确修正负向偏转带来的 AABB 坐标偏差
             double realMinX = minX_raw + (minX_raw < 0 ? 1 : 0);
             double realMaxX = maxX_raw + (minX_raw < 0 ? 1 : 0);
             double realMinZ = minZ_raw + (minZ_raw < 0 ? 1 : 0);
             double realMaxZ = maxZ_raw + (minZ_raw < 0 ? 1 : 0);
 
-            // 3. 找到分配给该建筑的真实目标中心点 (Level Coordinate)
-            // 修正：(W - 1) / 2.0 是准确获取分配空间正中心点的公式
             double targetX = pos.getX() + 0.5 + right.getStepX() * (element.getWidth() - 1) / 2.0 + facing.getStepX() * (length - 1) / 2.0;
             double targetZ = pos.getZ() + 0.5 + right.getStepZ() * (element.getWidth() - 1) / 2.0 + facing.getStepZ() * (length - 1) / 2.0;
 
-            // 4. 反推起始放置点：使用修正后的物理 AABB 中心
             double placeX = targetX - (realMinX + realMaxX) / 2.0;
             double placeZ = targetZ - (realMinZ + realMaxZ) / 2.0;
 
             BlockPos placePos = BlockPos.containing(placeX, pos.getY(), placeZ);
-
-            // 4. 放置结构：传入 BlockPos.ZERO 作为 pivot，让游戏底层乖乖绕 (0,0,0) 旋转，我们外部在坐标上完全补偿它
             template.placeInWorld(world, placePos, BlockPos.ZERO, data, world.random, 2);
         } else {
-            // == 找不到模板时的回退火柴盒 ==
             world.players().forEach(p -> p.displayClientMessage(Component.translatable("message.stationbuilder.template_not_found", element.presetName).withStyle(ChatFormatting.RED), false));
 
-            int buildingWidth = 8; // 沿 right 方向
-            int buildingDepth = 12; // 沿 facing 方向
+            int buildingWidth = 8;
+            int buildingDepth = 12;
             int buildingHeight = 6;
 
             int depthOffset = (length - buildingDepth) / 2;
             int widthOffset = (element.getWidth() - buildingWidth) / 2;
 
-            // 将手工生成的火柴盒也进行居中（加上了之前遗漏的 widthOffset）
             BlockPos centeredPos = pos.relative(facing, depthOffset).relative(right, widthOffset);
 
             for (int w = 0; w < buildingWidth; w++) {
@@ -266,15 +582,12 @@ public class StationGenerator {
     }
 
     private static BlockState applySmartFacing(BlockState state, Direction toTrack) {
-        // 检查是否具有水平朝向属性
         if (state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
             return state.setValue(BlockStateProperties.HORIZONTAL_FACING, toTrack);
         }
-        // 检查是否具有通用朝向属性 (针对某些特殊的 6 面朝向方块)
         if (state.hasProperty(BlockStateProperties.FACING)) {
             return state.setValue(BlockStateProperties.FACING, toTrack);
         }
-        // 如果没有朝向属性（如混凝土），直接返回原样
         return state;
     }
 
@@ -284,13 +597,11 @@ public class StationGenerator {
         int minW = 0;
         int maxW = p.width - 1;
         if (p.hasCanopy && p.pillarStyle == PlatformElement.PillarStyle.NONE) {
-            // 无柱雨棚：如果旁边有轨道，覆盖轨道(3格)并向外延伸1格放柱子
             if (leftN instanceof TrackElement) minW = -4;
             if (rightN instanceof TrackElement) maxW = p.width + 3;
         }
 
         for (int l = 0; l < length; l++) {
-            // 站台基础方块生成（仅在站台宽度内）
             for (int w = 0; w < p.width; w++) {
                 BlockPos pos = start.relative(right, w).relative(facing, l);
                 boolean isLeftEdge = (w == 0);
@@ -308,7 +619,6 @@ public class StationGenerator {
                     world.setBlock(pos, getRandomMixBlock(p), 3);
                 }
                 if (CommonUtil.isMtrLoaded() && p.hasShieldDoors) {
-                    // 检查是否在起止偏移范围内
                     int mod = (l - p.doorStartOffset) % (p.doorSpacing + 2);
                     if (mod == 0 || mod == 1) {
                         var blockId = p.psdDoorId;
@@ -318,7 +628,6 @@ public class StationGenerator {
                             if(!MTRIntegration.placePsdItem(world, pos.above(), right, blockId)) psdFail = true;
                         }
                     } else {
-                        //Glass or End
                         var blockId = (l == 0 || l == length - 1)? p.psdEndId : p.psdGlassId;
                         if (isLeftEdge && leftN instanceof TrackElement) {
                             if(!MTRIntegration.placePsdItem(world, pos.above(), right.getOpposite(), blockId)) psdFail = true;
@@ -329,28 +638,23 @@ public class StationGenerator {
                 }
             }
 
-            // 雨棚与支柱生成（使用扩展后的范围 minW 到 maxW）
             if (p.hasCanopy) {
                 boolean pillarHere = (l - p.firstPillarOffset) % (p.pillarSpacing + 1) == 0;
                 for (int w = minW; w <= maxW; w++) {
                     BlockPos basePos = start.relative(right, w).relative(facing, l);
-                    // 计算高度偏移
                     int halfYOffset = calculateCanopyHalfY(w, p.width, p.canopyStyle);
                     int totalHalfY = (p.canopyHeight + 1) * 2 + halfYOffset;
 
-                    // 2. 放置顶棚方块 (如果是“仅支柱”则跳过放置方块，但支柱逻辑仍需运行)
                     if (p.canopyStyle != PlatformElement.CanopyStyle.PILLAR_ONLY) {
                         BlockState slabState = getSlabState(p.canopySlabId, totalHalfY);
                         world.setBlock(basePos.above(totalHalfY / 2), slabState, 3);
                     }
 
-                    // 3. 生成支柱：传递 totalHalfY 以便支柱自动对齐高度
                     if (pillarHere) {
                         generatePillars(world, facing, basePos, w, p, leftN, rightN, totalHalfY,
                                 p.hasLighting && l < length - 1, p.hasLighting && l > 0);
                     }
                 }
-                //放置PIDS
                 if (p.hasPids && l > 0 && l < length - 1 && pillarHere && CommonUtil.isMtrLoaded()) {
                     var basePos = start.relative(facing, l).relative(Direction.UP, 4);
                     if (leftN instanceof TrackElement) {
@@ -406,37 +710,28 @@ public class StationGenerator {
     }
 
     private static int calculateCanopyHalfY(int w, int platformW, PlatformElement.CanopyStyle style) {
-        // 仅支柱或平板式，高度偏移均为 0
         if (style == PlatformElement.CanopyStyle.FLAT || style == PlatformElement.CanopyStyle.PILLAR_ONLY) {
             return 0;
         }
 
-        // 计算相对于站台中心的位置
-        // 例如宽度为 9，中心是 4.0；宽度为 10，中心是 4.5
         float center = (platformW - 1) / 2.0f;
         float relW = w - center;
-
-        // 站台边缘距离中心的距离（用于归一化计算，防止除以0）
         float maxRelW = Math.max(0.5f, center);
 
         return switch (style) {
             case V_SHAPE -> {
-                // V字形 (Concave \/)：中心最低(0)，边缘最高(2个半砖)
                 float factor = Math.abs(relW) / maxRelW;
                 yield Math.round(factor * 2);
             }
             case INVERTED_V -> {
-                // 倒V字形 (Convex /\)：中心最高(2个半砖)，边缘最低(0)
                 float factor = 1.0f - (Math.abs(relW) / maxRelW);
                 yield Math.round(factor * 2);
             }
             case SLANT_RIGHT -> {
-                // 右上倾斜 (/)：左边缘(w=0)最低(0)，右边缘(w=platformW-1)最高(2个半砖)
                 float denom = Math.max(1, platformW - 1);
                 yield Math.round((w / denom) * 2);
             }
             case SLANT_LEFT -> {
-                // 左上倾斜 (\)：左边缘(w=0)最高(2个半砖)，右边缘(w=platformW-1)最低(0)
                 float denom = Math.max(1, platformW - 1);
                 yield Math.round(((platformW - 1 - w) / denom) * 2);
             }
@@ -447,11 +742,9 @@ public class StationGenerator {
     private static BlockState getSlabState(ResourceLocation slabId, int halfY) {
         BlockState state = CommonUtil.getBlockState(slabId);
         if (!state.hasProperty(BlockStateProperties.SLAB_TYPE)) {
-            return state; // 如果不是半砖，原样返回
+            return state;
         }
 
-        // 如果 halfY 是偶数（如 10），对应整格高度 (5.0)，方块在 Y=5，属性为 BOTTOM
-        // 如果 halfY 是奇数（如 11），对应高度 (5.5)，方块在 Y=5，属性为 TOP
         if (halfY % 2 == 0) {
             return state.setValue(BlockStateProperties.SLAB_TYPE, SlabType.BOTTOM);
         } else {
@@ -500,7 +793,6 @@ public class StationGenerator {
             BlockPos nodeEnd = nodeStart.relative(facing, length - 1);
             var playerUuid = player.getUUID();
             TickScheduler.schedule(1, () -> {
-                // 延迟一个tick，以确保其他方块onBreak能被正确执行
                 MTRIntegration.placeRailNode(world, nodeStart, facing);
                 MTRIntegration.placeRailNode(world, nodeEnd, facing);
                 MTRIntegration.connectRailNodes(playerUuid, world, nodeStart, nodeEnd, t.track);
@@ -534,10 +826,6 @@ public class StationGenerator {
     private static void generatePillars(ServerLevel world, Direction facing, BlockPos pos, int w,
                                         PlatformElement p, StationElement leftN, StationElement rightN, int totalHalfY, boolean frontLight, boolean backLight) {
         BlockState pillarState = CommonUtil.getBlockState(p.pillarBlockId);
-
-        // 计算支柱顶部的 Y 偏移量（相对于站台表面）
-        // 逻辑：如果 totalHalfY 是 10 (5.0格, 下半砖)，支柱应到 4格处；
-        //      如果 totalHalfY 是 11 (5.5格, 上半砖)，支柱应到 5格处以顶住上半砖。
         int pillarTopRelY = (totalHalfY - 1) / 2;
         boolean buildHere = false;
 
@@ -545,7 +833,6 @@ public class StationGenerator {
             case SINGLE -> {
                 boolean isCenter = (p.width % 2 != 0) ? (w == p.width / 2) : (w == p.width / 2 || w == p.width / 2 - 1);
                 if (isCenter) {
-                    // 从站台表面 (Y+1) 开始到 pillarTopRelY
                     buildPillarColumn(world, pos, 1, pillarTopRelY, pillarState);
                     buildHere = true;
                 }
@@ -559,10 +846,7 @@ public class StationGenerator {
                 }
             }
             case NONE -> {
-                // 无柱雨棚：支柱在轨道外侧的地面上
                 if ((w == -4 && leftN instanceof TrackElement) || (w == p.width + 3 && rightN instanceof TrackElement)) {
-                    // 从地面 (站台下一格, 即 Y=0) 开始，到指定的雨棚高度
-                    // 因为是从表面下一格起跳，所以起始偏移是 0，高度加上 1 格深度
                     buildPillarColumn(world, pos, 0, pillarTopRelY, pillarState);
                 }
             }
@@ -574,12 +858,6 @@ public class StationGenerator {
         }
     }
 
-    /**
-     * 构建支柱列
-     * @param basePos 所在的水平位置 (Y坐标为站台表面高度)
-     * @param startRelY 起始 Y 偏移
-     * @param endRelY 结束 Y 偏移（包含）
-     */
     private static void buildPillarColumn(ServerLevel world, BlockPos basePos, int startRelY, int endRelY, BlockState state) {
         for (int y = startRelY; y <= endRelY; y++) {
             world.setBlock(basePos.above(y), state, 3);

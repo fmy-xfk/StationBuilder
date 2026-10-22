@@ -2,6 +2,7 @@ package cn.myfrank.stationbuilder.screens;
 
 import cn.myfrank.stationbuilder.PlatformServices;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
+import cn.myfrank.stationbuilder.utils.CatenaryTypeMapping;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.SchematicLoaderUtil;
 import cn.myfrank.stationbuilder.StationBuilder;
@@ -63,6 +64,67 @@ public class StationEditorScreen extends GuiScreen {
             getText("track"), INPUT_WIDTH, INPUT_HEIGHT,
             TrackElement.getDefaultTrack(), false
     );
+
+    // === 接触网配置控件 ===
+    private final GuiButton trackCatenaryStateBtn = new GuiButton(Component.empty(), b -> {
+        int index = canvas.getSelectedIndex();
+        if (index >= 0 && elements.get(index) instanceof TrackElement t) {
+            int maxState = CommonUtil.isMsdLoaded() ? 3 : 2;
+            t.catenaryState = (t.catenaryState + 1) % maxState;
+            t.hasCatenary = (t.catenaryState != 0);
+            syncTrackCatenaryUi(t);
+        }
+    }, BTN_WIDTH_XL, BTN_HEIGHT);
+
+    private final GuiLabelTextField trackCatenarySpacingField = new GuiLabelTextField(
+            getText("catenary_spacing"), INPUT_WIDTH_S, INPUT_HEIGHT, Component.literal("50"));
+
+    private final GuiLabelTextField trackCatenaryHeightField = new GuiLabelTextField(
+            getText("tunnel_height"), INPUT_WIDTH_S, INPUT_HEIGHT, Component.literal("6"));
+
+    private final GuiButton trackCatenaryModeBtn = new GuiButton(Component.empty(), b -> {
+        int index = canvas.getSelectedIndex();
+        if (index >= 0 && elements.get(index) instanceof TrackElement t) {
+            t.catenaryModeIndex = (t.catenaryModeIndex + 1) % CatenaryTypeMapping.values().length;
+            syncTrackCatenaryUi(t);
+        }
+    }, BTN_WIDTH_XL, BTN_HEIGHT);
+
+    private final GuiLabelSlot trackCatenaryLineSlot = new GuiLabelSlot(
+            getText("catenary_line_block"), INPUT_WIDTH, INPUT_HEIGHT,
+            ResourceLocation.fromNamespaceAndPath("msd", "catenary_with_long_top"), false);
+
+    private final GuiLabelSlot trackCatenaryPillarSlot = new GuiLabelSlot(
+            getText("catenary_bridge_pillar"), INPUT_WIDTH, INPUT_HEIGHT,
+            ResourceLocation.fromNamespaceAndPath("minecraft", "stone_brick_wall"), false);
+
+    private void syncTrackCatenaryUi(TrackElement t) {
+        if (t.catenaryState == 0) {
+            trackCatenaryStateBtn.setMessage(getText("catenary_disabled"));
+            trackCatenarySpacingField.setVisible(false);
+            trackCatenaryHeightField.setVisible(false);
+            trackCatenaryModeBtn.setVisible(false);
+            trackCatenaryLineSlot.setVisible(false);
+            trackCatenaryPillarSlot.setVisible(false);
+        } else if (t.catenaryState == 1) {
+            trackCatenaryStateBtn.setMessage(getText("catenary_vanilla"));
+            trackCatenarySpacingField.setVisible(true);
+            trackCatenaryHeightField.setVisible(true);
+            trackCatenaryModeBtn.setVisible(false);
+            trackCatenaryLineSlot.setVisible(true);
+            trackCatenaryPillarSlot.setVisible(true);
+        } else {
+            trackCatenaryStateBtn.setMessage(getText("catenary_msd"));
+            trackCatenarySpacingField.setVisible(true);
+            trackCatenaryHeightField.setVisible(true);
+            trackCatenaryModeBtn.setVisible(true);
+            trackCatenaryLineSlot.setVisible(false);
+            trackCatenaryPillarSlot.setVisible(true);
+            var type = CatenaryTypeMapping.values()[Math.min(t.catenaryModeIndex, CatenaryTypeMapping.values().length - 1)];
+            trackCatenaryModeBtn.setMessage(Component.translatable("gui.stationbuilder." + type.getName()));
+        }
+    }
+
     private final GuiLabel autoRotate = new GuiLabel(getText("auto_rotate"));
     private final GuiLabelTextField platformLengthField = new GuiLabelTextField(getText("width"), INPUT_WIDTH_S,
             INPUT_HEIGHT, Component.literal("9"));
@@ -120,7 +182,6 @@ public class StationEditorScreen extends GuiScreen {
     private final GuiLabelButton pillarStyleBtn = new GuiLabelButton(Component.empty(), b -> {
         int index = canvas.getSelectedIndex();
         if (index >= 0 && elements.get(index) instanceof PlatformElement pe) {
-            // 循环切换枚举
             PlatformElement.PillarStyle[] styles = PlatformElement.PillarStyle.values();
             pe.pillarStyle = styles[(pe.pillarStyle.ordinal() + 1) % styles.length];
             b.setMessage(getText(pe.pillarStyle.name()));
@@ -172,7 +233,7 @@ public class StationEditorScreen extends GuiScreen {
             Rotation[] rots = Rotation.values();
             be.rotation = rots[(be.rotation.ordinal() + 1) % rots.length];
             b.setMessage(Component.translatable("gui.stationbuilder.building_rotation", CommonUtil.getRotName(be.rotation)));
-            SyncCanvasWithElements(); // 触发画布横向块数重绘
+            SyncCanvasWithElements();
         }
     }, 120, BTN_HEIGHT);
 
@@ -225,6 +286,11 @@ public class StationEditorScreen extends GuiScreen {
                 trackProperties.setVisible(true);
                 trackBallastField.setBlockId(t.ballastBlock);
                 trackBlockField.setBlockId(t.track);
+                trackCatenarySpacingField.setText(String.valueOf(t.catenarySpacing));
+                trackCatenaryHeightField.setText(String.valueOf(t.catenaryHeight));
+                trackCatenaryLineSlot.setBlockId(t.catenaryBlock);
+                trackCatenaryPillarSlot.setBlockId(t.catenaryPillarBlock);
+                syncTrackCatenaryUi(t);
             } else if(e instanceof PlatformElement p) {
                 platformProperties.setVisible(true);
                 platformLengthField.setText(String.valueOf(p.width));
@@ -264,6 +330,7 @@ public class StationEditorScreen extends GuiScreen {
             }
         }
     }
+
     @Override
     protected void initControls() {
         int savedIndex = this.canvas != null ? this.canvas.getSelectedIndex() : -1;
@@ -369,7 +436,7 @@ public class StationEditorScreen extends GuiScreen {
     }
 
     private @NotNull GuiPanel getTrackProperties(int propertyPanelWidth, int middlePanelHeight) {
-        GuiPanel trackProperties = new GuiPanel(propertyPanelWidth, middlePanelHeight);
+        GuiPanel trackProperties = new GuiScrollablePanel(propertyPanelWidth, middlePanelHeight);
         initProperties(trackProperties);
 
         trackBallastField.slotChanged.clear();
@@ -388,7 +455,48 @@ public class StationEditorScreen extends GuiScreen {
             }
         });
 
-        trackProperties.addControl(trackBallastField).addControl(trackBlockField);
+        trackCatenarySpacingField.getTextField().setNumberOnly(true);
+        trackCatenarySpacingField.getTextField().textChanged.clear();
+        trackCatenarySpacingField.getTextField().textChanged.addHandler((sender, e) -> {
+            int index = canvas.getSelectedIndex();
+            if (index >= 0 && elements.get(index) instanceof TrackElement t) {
+                try { t.catenarySpacing = Integer.parseInt(e.newText); } catch (Exception ignored) {}
+            }
+        });
+
+        trackCatenaryHeightField.getTextField().setNumberOnly(true);
+        trackCatenaryHeightField.getTextField().textChanged.clear();
+        trackCatenaryHeightField.getTextField().textChanged.addHandler((sender, e) -> {
+            int index = canvas.getSelectedIndex();
+            if (index >= 0 && elements.get(index) instanceof TrackElement t) {
+                try { t.catenaryHeight = Integer.parseInt(e.newText); } catch (Exception ignored) {}
+            }
+        });
+
+        trackCatenaryLineSlot.slotChanged.clear();
+        trackCatenaryLineSlot.slotChanged.addHandler((sender, e) -> {
+            int index = canvas.getSelectedIndex();
+            if (index >= 0 && elements.get(index) instanceof TrackElement t) {
+                t.catenaryBlock = e.newId;
+            }
+        });
+
+        trackCatenaryPillarSlot.slotChanged.clear();
+        trackCatenaryPillarSlot.slotChanged.addHandler((sender, e) -> {
+            int index = canvas.getSelectedIndex();
+            if (index >= 0 && elements.get(index) instanceof TrackElement t) {
+                t.catenaryPillarBlock = e.newId;
+            }
+        });
+
+        trackProperties.addControl(trackBallastField)
+                .addControl(trackBlockField)
+                .addControl(trackCatenaryStateBtn)
+                .addControl(trackCatenarySpacingField)
+                .addControl(trackCatenaryHeightField)
+                .addControl(trackCatenaryModeBtn)
+                .addControl(trackCatenaryLineSlot)
+                .addControl(trackCatenaryPillarSlot);
         return trackProperties;
     }
 
@@ -465,7 +573,6 @@ public class StationEditorScreen extends GuiScreen {
             }
         });
 
-        // PIDs 开关
         p.addControl(shieldDoorBtn).addControl(doorOffsetField).addControl(doorSpacingField);
         p.addControl(psdEndSlot).addControl(psdGlassSlot).addControl(psdDoorSlot);
         p.addControl(pidsBtn).addControl(pidBlockSlot).addControl(pidPoleSlot);
@@ -500,9 +607,9 @@ public class StationEditorScreen extends GuiScreen {
         for (int i = 0; i < 5; i++) {
             final int fieldIndex = i;
             weightFields[i] = new GuiLabelSlotInput(
-                    net.minecraft.network.chat.Component.translatable("gui.stationbuilder.platform_blocks", i + 1),
+                    Component.translatable("gui.stationbuilder.platform_blocks", i + 1),
                     INPUT_WIDTH_S, INPUT_HEIGHT, ResourceLocation.fromNamespaceAndPath("minecraft", "stone"),
-                    false, net.minecraft.network.chat.Component.empty()
+                    false, Component.empty()
             );
             weightFields[i].getTextField().textChanged.addHandler((sender, e) -> {
                 int selectedCanvasIndex = canvas.getSelectedIndex();
@@ -514,7 +621,6 @@ public class StationEditorScreen extends GuiScreen {
                     } catch (Exception ignored) {}
                 }
             });
-            // 处理从指针放进去的新方块同步
             weightFields[i].slotChanged.addHandler((sender, e) -> {
                 int selectedCanvasIndex = canvas.getSelectedIndex();
                 if (selectedCanvasIndex >= 0 && elements.get(selectedCanvasIndex) instanceof PlatformElement p) {
@@ -527,7 +633,6 @@ public class StationEditorScreen extends GuiScreen {
         }
         return base;
     }
-
 
     private @NotNull GuiPanel getPlatformPillar(int w0, int h0) {
         GuiPanel p = new GuiScrollablePanel(w0, h0);
@@ -611,13 +716,12 @@ public class StationEditorScreen extends GuiScreen {
             int index = canvas.getSelectedIndex();
             if (index >= 0 && elements.get(index) instanceof BuildingElement b) {
                 b.presetName = e.newText;
-                SyncCanvasWithElements(); // 修改模板名字时，其原本物理大小也可能改变
+                SyncCanvasWithElements();
             }
         });
 
-        // ---- 添加“浏览”按钮（打开列表屏幕） ----
         GuiButton browseButton = new GuiButton(
-                net.minecraft.network.chat.Component.translatable("gui.stationbuilder.browse"),
+                Component.translatable("gui.stationbuilder.browse"),
                 b -> {
                     Minecraft client = Minecraft.getInstance();
                     if (client != null) {
@@ -626,26 +730,23 @@ public class StationEditorScreen extends GuiScreen {
                 },
                 60, INPUT_HEIGHT
         );
-        // ---- 添加“导入文件”按钮 ----
         GuiButton importButton = new GuiButton(
-                net.minecraft.network.chat.Component.translatable("gui.stationbuilder.import_file"),
+                Component.translatable("gui.stationbuilder.import_file"),
                 b -> openFileChooser(),
                 60, INPUT_HEIGHT
         );
         buildingProperties.addControl(buildingPresetField);
         buildingProperties.addControl(browseButton);
         buildingProperties.addControl(importButton);
-        buildingProperties.addControl(buildingRotBtn); // 载入旋转控制器
-        buildingProperties.addControl(buildingAirBtn); // 载入空气阻断控制器
+        buildingProperties.addControl(buildingRotBtn);
+        buildingProperties.addControl(buildingAirBtn);
         return buildingProperties;
     }
 
     public void openFileChooser() {
         String path;
 
-        // 使用 LWJGL 的 MemoryStack 分配内存，避免内存泄漏
         try (org.lwjgl.system.MemoryStack stack = org.lwjgl.system.MemoryStack.stackPush()) {
-            // 分配指针缓冲区来存放过滤规则
             org.lwjgl.PointerBuffer filters = stack.mallocPointer(4);
             filters.put(stack.UTF8("*.nbt"));
             filters.put(stack.UTF8("*.schem"));
@@ -653,41 +754,36 @@ public class StationEditorScreen extends GuiScreen {
             filters.put(stack.UTF8("*.litematic"));
             filters.flip();
 
-            // 调用 TinyFileDialogs 打开原生文件选择器 (注意: 会阻塞当前线程直到对话框关闭)
             path = org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_openFileDialog(
-                    "Select Structure File", // 对话框标题
-                    null,                    // 默认路径
-                    filters,                 // 过滤器
-                    "Structure files (*.nbt, *.schem, *.schematic, *.litematic)", // 过滤器描述
-                    false                    // 是否允许多选
+                    "Select Structure File",
+                    null,
+                    filters,
+                    "Structure files (*.nbt, *.schem, *.schematic, *.litematic)",
+                    false
             );
         }
 
         if (path != null) {
             java.io.File file = new java.io.File(path);
             Minecraft client = Minecraft.getInstance();
-            // 使用异步去加载结构文件，防止卡死主线程太久
             java.util.concurrent.CompletableFuture.supplyAsync(() -> loadStructureFromFile(file))
                     .thenAcceptAsync(template -> {
-
                         if (template != null) {
                             String name = file.getName().replaceFirst("\\.[^.]+$", "");
                             BuildingTemplateManager.addTemplate(name, template);
 
-                            // 更新文本框
                             buildingPresetField.setText(name);
-                            // 更新当前选中的建筑元素
                             int index = canvas.getSelectedIndex();
                             if (index >= 0 && elements.get(index) instanceof BuildingElement b) {
                                 b.presetName = name;
                                 SyncCanvasWithElements();
                             }
                             if (client != null && client.player != null) {
-                                client.player.displayClientMessage(net.minecraft.network.chat.Component.translatable("gui.stationbuilder.import_success", name), false);
+                                client.player.displayClientMessage(Component.translatable("gui.stationbuilder.import_success", name), false);
                             }
                         } else {
                             if (client != null && client.player != null) {
-                                client.player.displayClientMessage(net.minecraft.network.chat.Component.translatable("gui.stationbuilder.import_fail"), true);
+                                client.player.displayClientMessage(Component.translatable("gui.stationbuilder.import_fail"), true);
                             }
                         }
                     }, client::execute);
@@ -702,7 +798,6 @@ public class StationEditorScreen extends GuiScreen {
             } else if (name.endsWith(".schem") || name.endsWith(".schematic")) {
                 return SchematicLoaderUtil.loadSchematic(file.toPath());
             } else if (name.endsWith(".litematic")) {
-                // Litematic 也可用 schematic4j 读取（SchematicReader 自动识别）
                 return SchematicLoaderUtil.loadSchematic(file.toPath());
             } else {
                 return null;
@@ -714,7 +809,7 @@ public class StationEditorScreen extends GuiScreen {
     }
 
     private @NotNull GuiPanel getEmptyProperties(int propertyPanelWidth, int middlePanelHeight) {
-        GuiPanel panel = new  GuiPanel(propertyPanelWidth, middlePanelHeight);
+        GuiPanel panel = new GuiPanel(propertyPanelWidth, middlePanelHeight);
         initProperties(panel);
         panel.setMajorAlign(GuiPanel.MajorAlignMode.CENTER);
         panel.setCrossAlign(GuiPanel.CrossAlignMode.CENTER);
@@ -755,7 +850,6 @@ public class StationEditorScreen extends GuiScreen {
         int oldIndex = canvas.getSelectedIndex();
         boolean ret = super.mouseClicked(mouseX, mouseY, button);
 
-        // 当发生点击并在 Canvas 内选中新块或空白时，更新右侧的属性区域即可
         if (oldIndex != canvas.getSelectedIndex()) {
             refreshPropertyArea();
         }
@@ -764,7 +858,6 @@ public class StationEditorScreen extends GuiScreen {
 
     @Override
     public void onClose() {
-        // 关闭时自动发送保存包
         sendSyncPacket();
         super.onClose();
     }
@@ -801,7 +894,7 @@ public class StationEditorScreen extends GuiScreen {
         try {
             return Integer.parseInt(this.lengthField.getText());
         } catch (NumberFormatException e) {
-            return Integer.parseInt(initialLength); // 默认值
+            return Integer.parseInt(initialLength);
         }
     }
 
