@@ -6,6 +6,8 @@ import cn.myfrank.stationbuilder.mixin.mtr.ItemPSDAPGBaseAccessor;
 import cn.myfrank.stationbuilder.mixin.mtr.ItemRailModifierAccessor;
 import cn.myfrank.stationbuilder.utils.*;
 import net.minecraft.block.HorizontalFacingBlock;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.Identifier;
@@ -14,6 +16,7 @@ import net.minecraft.world.World;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 
 import org.jetbrains.annotations.NotNull;
@@ -98,54 +101,91 @@ public class MTRIntegration {
         return true;
     }
 
-    public static boolean placePsdItem(ServerWorld world, BlockPos pos, Direction facing, Identifier blockId) {
-        var itemRaw = Registries.ITEM.get(blockId);
+        public static boolean placePsdItem(ServerWorld world, BlockPos pos, Direction facing, Identifier blockId) {
+        Item itemRaw = CommonUtil.getItem(blockId);
+        BlockState baseState = null;
+        boolean isDoor = false;
+        boolean isOdd = false;
+        boolean isPSD = false;
+
+        // 路径 1: MTR 原生物品 (ItemPSDAPGBase)
         if (itemRaw instanceof ItemPSDAPGBase item) {
             ItemPSDAPGBaseAccessor accessor = (ItemPSDAPGBaseAccessor) item;
-            var psdItem = accessor.item_();
-            var thisItem = (EnumPSDAPGItemAccessor) (Object) psdItem;
-            assert thisItem != null;
-            var psdType = accessor.type_();
-            var thisType = (EnumPSDAPGTypeAccessor) (Object) psdType;
+            baseState = accessor.getBlockStateFromItem_();
+            var psdItem = (EnumPSDAPGItemAccessor) (Object) accessor.item_();
+            var psdType = (EnumPSDAPGTypeAccessor) (Object) accessor.type_();
+            isDoor = psdItem != null && psdItem.isDoor();
+            isOdd = psdType != null && psdType.isOdd();
+            isPSD = psdType != null && psdType.isPSD();
+        } 
+        // 路径 2: 第三方 MTR 模组 (以 BlockItem 或常规 Block 形式注册)
+        else {
+            Block block = null;
+            if (itemRaw instanceof BlockItem bi) {
+                block = bi.getBlock();
+            } else if (CommonUtil.hasBlock(blockId)) {
+                block = CommonUtil.getBlock(blockId);
+            }
 
-            int horizontalBlocks = thisItem.isDoor() ? (thisType.isOdd() ? 3 : 2) : 1;
+            if (block != null && block != net.minecraft.block.Blocks.AIR) {
+                baseState = block.getDefaultState();
+                // 门体判定：包含 SIDE 属性或者 ID 包含 "door"
+                isDoor = baseState.contains(SIDE) || blockId.getPath().contains("door");
+                // 三格门判定：包含 CENTER 属性
+                isOdd = baseState.contains(TripleHorizontalBlock.CENTER);
+                // 全高 PSD 判定：ID 或类名中包含 "psd"（半高 APG 则不包含 psd）
+                isPSD = blockId.getPath().contains("psd") || block.getClass().getSimpleName().toLowerCase().contains("psd");
+            }
+        }
 
-            for (int x = 0; x < horizontalBlocks; ++x) {
-                // 计算横向偏移位置：沿站台边缘延伸
-                var newPos = pos.offset(facing.rotateYClockwise(), x);
+        if (baseState == null) {
+            return false;
+        }
 
-                for (int y = 0; y < 2; ++y) {
-                    // 获取基础 State 并手动设置属性
-                    var state = accessor.getBlockStateFromItem_()
-                            .with(Properties.HORIZONTAL_FACING, facing)
-                            .with(HALF, y == 1 ? IBlock.DoubleBlockHalf.UPPER : IBlock.DoubleBlockHalf.LOWER);
+        int horizontalBlocks = isDoor ? (isOdd ? 3 : 2) : 1;
 
-                    if (thisItem.isDoor()) {
-                        var neighborState = state
-                                .with(SIDE, x == 0 ? IBlock.EnumSide.LEFT : IBlock.EnumSide.RIGHT);
-                        if (thisType.isOdd()) {
-                            neighborState = neighborState.with(TripleHorizontalBlock.CENTER,
-                                x > 0 && x < horizontalBlocks - 1);
-                        }
+        for (int x = 0; x < horizontalBlocks; ++x) {
+            // 沿站台边缘横向推移
+            BlockPos newPos = pos.offset(facing.rotateYClockwise(), x);
 
-                        world.setBlockState(newPos.up(y), neighborState);
-                    } else {
-                        world.setBlockState(newPos.up(y), state.with(SIDE_EXTENDED, IBlock.EnumSide.SINGLE));
+            for (int y = 0; y < 2; ++y) {
+                BlockState state = baseState;
+                if (state.contains(Properties.HORIZONTAL_FACING)) {
+                    state = state.with(Properties.HORIZONTAL_FACING, facing);
+                }
+                if (state.contains(HALF)) {
+                    state = state.with(HALF, y == 1 ? IBlock.DoubleBlockHalf.UPPER : IBlock.DoubleBlockHalf.LOWER);
+                }
+
+                if (isDoor) {
+                    if (state.contains(SIDE)) {
+                        state = state.with(SIDE, x == 0 ? IBlock.EnumSide.LEFT : IBlock.EnumSide.RIGHT);
+                    }
+                    if (isOdd && state.contains(TripleHorizontalBlock.CENTER)) {
+                        state = state.with(TripleHorizontalBlock.CENTER, x > 0 && x < horizontalBlocks - 1);
+                    }
+                } else {
+                    if (state.contains(SIDE_EXTENDED)) {
+                        state = state.with(SIDE_EXTENDED, IBlock.EnumSide.SINGLE);
+                    } else if (state.contains(SIDE)) {
+                        state = state.with(SIDE, IBlock.EnumSide.SINGLE);
                     }
                 }
 
-                if (thisType.isPSD()) {
-                    var newPos2 = newPos.up(2);
-                    world.setBlockState(
-                        newPos.up(2),
-                        BlockPSDTop.getActualState(world,newPos2)
-                    );
-                }
+                world.setBlockState(newPos.up(y), state, Block.NOTIFY_ALL);
             }
-            return true;
-        } else {
-            return false;
+
+            // 如果是全高 PSD，在上方补齐顶盖
+            if (isPSD) {
+                BlockPos newPos2 = newPos.up(2);
+                world.setBlockState(
+                        newPos2,
+                        BlockPSDTop.getActualState(world, newPos2),
+                        Block.NOTIFY_ALL
+                );
+            }
         }
+        return true;
     }
 
     public static Rail connectRailNodes(

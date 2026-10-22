@@ -20,7 +20,6 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
     modImplementation "maven.modrinth:minecraft-transit-railway:FABRIC-${project.mtr_version}+${project.minecraft_version}"
 
-
     // MSD FABRIC for MTR 4.0.0 + Minecraft 1.20.1
     modImplementation "curse.maven:station-decoration-790307:6893835"
 
