@@ -1,5 +1,6 @@
 package cn.myfrank.stationbuilder.elements;
 
+import cn.myfrank.stationbuilder.utils.CatenaryTypeMapping;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.PacketByteBuf;
@@ -22,10 +23,11 @@ public class TrackElement extends StationElement {
     // === 接触网配置 ===
     public boolean hasCatenary = true;
     public int catenaryState = CommonUtil.isMsdLoaded() ? 2 : 1; // 0=关闭, 1=原版, 2=MSD
-    public int catenarySpacing = 16;
-    public int catenaryModeIndex = 0;
+    public int catenarySpacing = 50;                             // 默认间距 50
+    public int catenaryHeight = 6;                              // 默认高度 6
+    public int catenaryModeIndex = CatenaryTypeMapping.MSDCatenary.ordinal(); // 默认柔性接触网
     public Identifier catenaryBlock = CommonUtil.isMsdLoaded() ?
-            CommonUtil.identifierOf("msd", "catenary_connector") :
+            CommonUtil.identifierOf("msd", "catenary_with_long") :
             CommonUtil.identifierOf("minecraft", "iron_bars");
     public Identifier catenaryPillarBlock = CommonUtil.identifierOf("minecraft", "stone_brick_wall");
 
@@ -39,6 +41,7 @@ public class TrackElement extends StationElement {
         buf.writeBoolean(hasCatenary);
         buf.writeInt(catenaryState);
         buf.writeInt(catenarySpacing);
+        buf.writeInt(catenaryHeight);
         buf.writeInt(catenaryModeIndex);
         buf.writeIdentifier(catenaryBlock);
         buf.writeIdentifier(catenaryPillarBlock);
@@ -53,6 +56,7 @@ public class TrackElement extends StationElement {
         nbt.putBoolean("hasCatenary", hasCatenary);
         nbt.putInt("catenaryState", catenaryState);
         nbt.putInt("catenarySpacing", catenarySpacing);
+        nbt.putInt("catenaryHeight", catenaryHeight);
         nbt.putInt("catenaryModeIndex", catenaryModeIndex);
         nbt.putString("catenaryBlock", catenaryBlock.toString());
         nbt.putString("catenaryPillarBlock", catenaryPillarBlock.toString());

@@ -2,6 +2,7 @@ package cn.myfrank.stationbuilder.screens;
 
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.manager.PresetManager;
+import cn.myfrank.stationbuilder.utils.CatenaryTypeMapping;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.SchematicLoaderUtil;
 import cn.myfrank.stationbuilder.StationBuilder;
@@ -190,6 +191,66 @@ public class StationEditorScreen extends GuiScreen {
         }
     }, BTN_WIDTH_XXL, BTN_HEIGHT);
 
+    // 接触网配置控件
+    private final GuiButton trackCatenaryStateBtn = new GuiButton(Text.empty(), b -> {
+        int index = canvas.getSelectedIndex();
+        if (index >= 0 && elements.get(index) instanceof TrackElement t) {
+            int maxState = CommonUtil.isMsdLoaded() ? 3 : 2;
+            t.catenaryState = (t.catenaryState + 1) % maxState;
+            t.hasCatenary = (t.catenaryState != 0);
+            syncTrackCatenaryUi(t);
+        }
+    }, BTN_WIDTH_XL, BTN_HEIGHT);
+
+    private final GuiLabelTextField trackCatenarySpacingField = new GuiLabelTextField(
+            getText("catenary_spacing"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("50"));
+
+    private final GuiLabelTextField trackCatenaryHeightField = new GuiLabelTextField(
+            getText("tunnel_height"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("6"));
+
+    private final GuiButton trackCatenaryModeBtn = new GuiButton(Text.empty(), b -> {
+        int index = canvas.getSelectedIndex();
+        if (index >= 0 && elements.get(index) instanceof TrackElement t) {
+            t.catenaryModeIndex = (t.catenaryModeIndex + 1) % CatenaryTypeMapping.values().length;
+            syncTrackCatenaryUi(t);
+        }
+    }, BTN_WIDTH_XL, BTN_HEIGHT);
+
+    private final GuiLabelSlot trackCatenaryLineSlot = new GuiLabelSlot(
+            getText("catenary_line_block"), INPUT_WIDTH, INPUT_HEIGHT,
+            CommonUtil.identifierOf("minecraft", "iron_bars"), false);
+
+    private final GuiLabelSlot trackCatenaryPillarSlot = new GuiLabelSlot(
+            getText("catenary_bridge_pillar"), INPUT_WIDTH, INPUT_HEIGHT,
+            CommonUtil.identifierOf("minecraft", "stone_brick_wall"), false);
+
+    private void syncTrackCatenaryUi(TrackElement t) {
+        if (t.catenaryState == 0) {
+            trackCatenaryStateBtn.setMessage(getText("catenary_disabled"));
+            trackCatenarySpacingField.setVisible(false);
+            trackCatenaryHeightField.setVisible(false);
+            trackCatenaryModeBtn.setVisible(false);
+            trackCatenaryLineSlot.setVisible(false);
+            trackCatenaryPillarSlot.setVisible(false);
+        } else if (t.catenaryState == 1) {
+            trackCatenaryStateBtn.setMessage(getText("catenary_vanilla"));
+            trackCatenarySpacingField.setVisible(true);
+            trackCatenaryHeightField.setVisible(true);
+            trackCatenaryModeBtn.setVisible(false);
+            trackCatenaryLineSlot.setVisible(true);
+            trackCatenaryPillarSlot.setVisible(true);
+        } else {
+            trackCatenaryStateBtn.setMessage(getText("catenary_msd"));
+            trackCatenarySpacingField.setVisible(true);
+            trackCatenaryHeightField.setVisible(true);
+            trackCatenaryModeBtn.setVisible(true);
+            trackCatenaryLineSlot.setVisible(false);
+            trackCatenaryPillarSlot.setVisible(true);
+            var type = CatenaryTypeMapping.values()[Math.min(t.catenaryModeIndex, CatenaryTypeMapping.values().length - 1)];
+            trackCatenaryModeBtn.setMessage(Text.translatable("gui.stationbuilder." + type.getName()));
+        }
+    }
+
     public int getSelectedIndex() {
         return canvas != null ? canvas.getSelectedIndex() : -1;
     }
@@ -226,7 +287,12 @@ public class StationEditorScreen extends GuiScreen {
                 trackProperties.setVisible(true);
                 trackBallastField.setBlockId(t.ballastBlock);
                 trackBlockField.setBlockId(t.track);
-            } else if(e instanceof PlatformElement p) {
+                trackCatenarySpacingField.setText(String.valueOf(t.catenarySpacing));
+                trackCatenaryHeightField.setText(String.valueOf(t.catenaryHeight));
+                trackCatenaryLineSlot.setBlockId(t.catenaryBlock);
+                trackCatenaryPillarSlot.setBlockId(t.catenaryPillarBlock);
+                syncTrackCatenaryUi(t);
+            } else if (e instanceof PlatformElement p) {
                 platformProperties.setVisible(true);
                 platformLengthField.setText(String.valueOf(p.width));
                 platformSafetyField.setBlockId(p.safetyBlock);
@@ -370,7 +436,7 @@ public class StationEditorScreen extends GuiScreen {
     }
 
     private @NotNull GuiPanel getTrackProperties(int propertyPanelWidth, int middlePanelHeight) {
-        GuiPanel trackProperties = new GuiPanel(propertyPanelWidth, middlePanelHeight);
+        GuiPanel trackProperties = new GuiScrollablePanel(propertyPanelWidth, middlePanelHeight);
         initProperties(trackProperties);
 
         trackBallastField.slotChanged.clear();
@@ -380,6 +446,7 @@ public class StationEditorScreen extends GuiScreen {
                 t.ballastBlock = e.newId;
             }
         });
+
         trackBlockField.slotChanged.clear();
         trackBlockField.slotChanged.addHandler((sender, e) -> {
             int index = canvas.getSelectedIndex();
@@ -388,7 +455,48 @@ public class StationEditorScreen extends GuiScreen {
             }
         });
 
-        trackProperties.addControl(trackBallastField).addControl(trackBlockField);
+        trackCatenarySpacingField.getTextField().setNumberOnly(true);
+        trackCatenarySpacingField.getTextField().textChanged.clear();
+        trackCatenarySpacingField.getTextField().textChanged.addHandler((sender, e) -> {
+            int index = canvas.getSelectedIndex();
+            if (index >= 0 && elements.get(index) instanceof TrackElement t) {
+                try { t.catenarySpacing = Integer.parseInt(e.newText); } catch (Exception ignored) {}
+            }
+        });
+
+        trackCatenaryHeightField.getTextField().setNumberOnly(true);
+        trackCatenaryHeightField.getTextField().textChanged.clear();
+        trackCatenaryHeightField.getTextField().textChanged.addHandler((sender, e) -> {
+            int index = canvas.getSelectedIndex();
+            if (index >= 0 && elements.get(index) instanceof TrackElement t) {
+                try { t.catenaryHeight = Integer.parseInt(e.newText); } catch (Exception ignored) {}
+            }
+        });
+
+        trackCatenaryLineSlot.slotChanged.clear();
+        trackCatenaryLineSlot.slotChanged.addHandler((sender, e) -> {
+            int index = canvas.getSelectedIndex();
+            if (index >= 0 && elements.get(index) instanceof TrackElement t) {
+                t.catenaryBlock = e.newId;
+            }
+        });
+
+        trackCatenaryPillarSlot.slotChanged.clear();
+        trackCatenaryPillarSlot.slotChanged.addHandler((sender, e) -> {
+            int index = canvas.getSelectedIndex();
+            if (index >= 0 && elements.get(index) instanceof TrackElement t) {
+                t.catenaryPillarBlock = e.newId;
+            }
+        });
+
+        trackProperties.addControl(trackBallastField)
+                .addControl(trackBlockField)
+                .addControl(trackCatenaryStateBtn)
+                .addControl(trackCatenarySpacingField)
+                .addControl(trackCatenaryHeightField)
+                .addControl(trackCatenaryModeBtn)
+                .addControl(trackCatenaryLineSlot)
+                .addControl(trackCatenaryPillarSlot);
         return trackProperties;
     }
 

@@ -25,6 +25,6 @@ def combine_py_files_to_md(root_dir, output_md):
 
 if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    output_file = os.path.join(current_dir, "stationbuilder1.20.x.md")
+    output_file = os.path.join(current_dir, "stationbuilder-fabric.md")
     combine_py_files_to_md(current_dir, output_file)
     print(f"Combined Markdown file created at: {output_file}")

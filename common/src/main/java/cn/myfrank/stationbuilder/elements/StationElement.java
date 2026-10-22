@@ -31,6 +31,11 @@ public abstract class StationElement {
                 if (nbt.contains("catenarySpacing")) {
                     track.catenarySpacing = nbt.getInt("catenarySpacing");
                 }
+                if (nbt.contains("catenaryHeight")) {
+                    track.catenaryHeight = nbt.getInt("catenaryHeight");
+                } else {
+                    track.catenaryHeight = 6;
+                }
                 if (nbt.contains("catenaryModeIndex")) {
                     track.catenaryModeIndex = nbt.getInt("catenaryModeIndex");
                 }
@@ -108,6 +113,7 @@ public abstract class StationElement {
                 track.hasCatenary = buf.readBoolean();
                 track.catenaryState = buf.readInt();
                 track.catenarySpacing = buf.readInt();
+                track.catenaryHeight = buf.readInt();
                 track.catenaryModeIndex = buf.readInt();
                 track.catenaryBlock = buf.readIdentifier();
                 track.catenaryPillarBlock = buf.readIdentifier();
