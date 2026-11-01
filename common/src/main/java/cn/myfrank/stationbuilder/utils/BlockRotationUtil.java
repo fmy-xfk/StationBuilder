@@ -21,6 +21,7 @@ public class BlockRotationUtil {
     public static BlockState forceRotateState(BlockState state, Rotation rotation) {
         if (rotation == Rotation.NONE) return state;
 
+        @SuppressWarnings("deprecation")
         BlockState rotated = state.rotate(rotation);
         boolean changed = !rotated.equals(state);
 

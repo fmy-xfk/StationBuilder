@@ -24,9 +24,6 @@ import net.neoforged.fml.ModList;
  * throughout gameplay, GUI and generator code.
  */
 public final class CommonUtil {
-    private CommonUtil() {
-    }
-
     public static BlockState getBlockState(ResourceLocation id) {
         return getBlock(id).defaultBlockState();
     }

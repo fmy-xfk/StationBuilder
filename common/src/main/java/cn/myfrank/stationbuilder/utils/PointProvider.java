@@ -14,7 +14,7 @@ public class PointProvider {
     public PointProvider(CurveData math, int segment, boolean reversed) {
         this.math = math;
         this.segment = segment;
-        this.step = math.getLength() / segment;
+        this.step = segment == 0 ? 0 : math.getLength() / segment;
         this.reversed = reversed;
         if (reversed) {
             i = segment;
