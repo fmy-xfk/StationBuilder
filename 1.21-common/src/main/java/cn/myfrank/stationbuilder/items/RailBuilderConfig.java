@@ -34,7 +34,7 @@ public class RailBuilderConfig {
 
     public boolean useCatenary = true;
     public boolean isVanillaCatenary = !CommonUtil.isMsdLoaded();
-    public int catenaryModeIndex = 0;
+    public int catenaryModeIndex = CatenaryTypeMapping.MSDCatenary.ordinal();
     public int catenarySpacing = 50;
     public Identifier catenaryBlock = CommonUtil.isMsdLoaded() ?
             Identifier.of("msd", "catenary_connector") :

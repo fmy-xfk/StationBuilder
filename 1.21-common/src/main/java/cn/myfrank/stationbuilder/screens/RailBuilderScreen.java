@@ -48,7 +48,7 @@ public class RailBuilderScreen extends GuiScreen {
     }, BUTTON_WIDTH, INPUT_HEIGHT);
     private final GuiLabelSlot catenaryLineBlockInput = new GuiLabelSlot(getText("catenary_line_block"), INPUT_WIDTH_S, INPUT_HEIGHT, Identifier.of("minecraft", "cobweb"), false);
     private final GuiLabelTextField catenarySpacingInput = new GuiLabelTextField(getText("catenary_spacing"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("50"));
-    private int catenaryModeIndex = 0;
+    private int catenaryModeIndex = CatenaryTypeMapping.MSDCatenary.ordinal();
     private final GuiButton catenaryModeButton = new GuiButton(getText("catenary"), (button) -> {
         catenaryModeIndex = (catenaryModeIndex + 1) % CatenaryTypeMapping.values().length;
         syncCatenaryMode(button);
@@ -178,7 +178,7 @@ public class RailBuilderScreen extends GuiScreen {
         if (nbt.contains("catenaryModeIndex", NbtElement.INT_TYPE)) {
             this.catenaryModeIndex = nbt.getInt("catenaryModeIndex");
         } else {
-            this.catenaryModeIndex = 0;
+            this.catenaryModeIndex = CatenaryTypeMapping.MSDCatenary.ordinal();
         }
         syncCatenaryState();
 

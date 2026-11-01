@@ -1,5 +1,6 @@
 package cn.myfrank.stationbuilder.items;
 
+import cn.myfrank.stationbuilder.utils.CatenaryTypeMapping;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
@@ -32,7 +33,7 @@ public class RailBuilderConfig {
 
     public boolean useCatenary = true;
     public boolean isVanillaCatenary = !CommonUtil.isMsdLoaded();
-    public int catenaryModeIndex = 0;
+    public int catenaryModeIndex = CatenaryTypeMapping.MSDCatenary.ordinal();
     public int catenarySpacing = 50;
     public Identifier catenaryBlock = CommonUtil.isMsdLoaded() ?
             Identifier.of("msd", "catenary_connector") :
