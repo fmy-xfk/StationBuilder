@@ -16,6 +16,7 @@ import net.minecraft.structure.StructureTemplate;
 import net.minecraft.text.Text;
 import net.minecraft.util.BlockRotation;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Direction;
 
 import java.io.IOException;
 import java.nio.file.Path;
