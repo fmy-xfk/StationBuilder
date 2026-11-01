@@ -15,6 +15,7 @@ import net.minecraft.structure.StructureTemplate;
 import net.minecraft.text.Text;
 import net.minecraft.util.BlockRotation;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Direction;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -81,6 +82,10 @@ public final class CommonUtil {
         return msdLoaded;
     }
 
+    public static Direction fromRotation(float angle) {
+        return Direction.fromRotation(angle);
+    }
+    
     public static boolean isSoftTransparent(BlockState state) {
         return state.isAir()
                 || state.isReplaceable()

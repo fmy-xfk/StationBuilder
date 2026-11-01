@@ -49,7 +49,6 @@ public class ModBlocks {
 
     public static BlockEntityType<StationBuilderBlockEntity> STATION_BUILDER_ENTITY;
 
-    @SuppressWarnings("deprecation")
     public static void register() {
         Registry.register(Registries.BLOCK, STATION_BUILDER_ID, STATION_BUILDER);
         Registry.register(Registries.ITEM, STATION_BUILDER_ID, STATION_BUILDER_ITEM);

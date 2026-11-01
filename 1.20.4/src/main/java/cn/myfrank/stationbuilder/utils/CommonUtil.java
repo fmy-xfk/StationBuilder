@@ -82,6 +82,10 @@ public final class CommonUtil {
         return msdLoaded;
     }
 
+    public static Direction fromRotation(float angle) {
+        return Direction.fromRotation(angle);
+    }
+    
     public static boolean isSoftTransparent(BlockState state) {
         return state.isAir()
                 || state.isReplaceable()
