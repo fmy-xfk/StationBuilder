@@ -99,6 +99,8 @@
   "gui.stationbuilder.catenary": "Catenary",
   "gui.stationbuilder.catenary_disabled": "Catenary: Off",
   "gui.stationbuilder.catenary_vanilla": "Catenary: Vanilla",
+  "gui.stationbuilder.catenary_cee": "Catenary: CEE",
+  "gui.stationbuilder.catenary_cpw": "Catenary: CPW",
   "gui.stationbuilder.catenary_msd": "Catenary: MSD",
   "gui.stationbuilder.catenary_line_block": "Block",
   "gui.stationbuilder.catenary_spacing": "Spacing",

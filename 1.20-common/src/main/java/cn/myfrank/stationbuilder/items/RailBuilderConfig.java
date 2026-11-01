@@ -31,9 +31,27 @@ public class RailBuilderConfig {
     public int catenaryTypeIndex = CatenaryType.getDefaultType().ordinal();
     public int msdModeIndex = CatenaryTypeMapping.MSDCatenary.ordinal();
     public int catenarySpacing = 50;
-    public ResourceLocation catenaryBlock = CommonUtil.isMsdLoaded() ? ResourceLocation.fromNamespaceAndPath("msd", "catenary_connector") : ResourceLocation.fromNamespaceAndPath("minecraft", "cobweb");
-    public ResourceLocation catenaryBridgePillar = CommonUtil.isMsdLoaded() ? ResourceLocation.fromNamespaceAndPath("msd", "catenary_with_long") : ResourceLocation.fromNamespaceAndPath("minecraft", "stone_brick_wall");
-    public ResourceLocation catenaryTunnelPillar = CommonUtil.isMsdLoaded() ? ResourceLocation.fromNamespaceAndPath("msd", "catenary_with_long_top") : ResourceLocation.fromNamespaceAndPath("minecraft", "stone_brick_wall");
+    public ResourceLocation catenaryBlock = getDefaultCatenaryBlock();
+    public ResourceLocation catenaryBridgePillar = getDefaultCatenaryBridgePillar();
+    public ResourceLocation catenaryTunnelPillar = getDefaultCatenaryTunnelPillar();
+
+    public static ResourceLocation getDefaultCatenaryBlock() {
+        if (CommonUtil.isMsdLoaded()) return ResourceLocation.fromNamespaceAndPath("msd", "catenary_connector");
+        else if (CommonUtil.isCeeLoaded()) return ResourceLocation.fromNamespaceAndPath("electroenergetics", "copper_wire_spool");
+        else return ResourceLocation.fromNamespaceAndPath("minecraft", "cobweb");
+    }
+
+    public static ResourceLocation getDefaultCatenaryBridgePillar() {
+        if (CommonUtil.isMsdLoaded()) return ResourceLocation.fromNamespaceAndPath("msd", "catenary_with_long");
+        else if (CommonUtil.isCeeLoaded()) return ResourceLocation.fromNamespaceAndPath("electroenergetics", "concrete_pole");
+        else return ResourceLocation.fromNamespaceAndPath("minecraft", "stone_brick_wall");
+    }
+
+    public static ResourceLocation getDefaultCatenaryTunnelPillar() {
+        if (CommonUtil.isMsdLoaded()) return ResourceLocation.fromNamespaceAndPath("msd", "catenary_with_long_top");
+        else if (CommonUtil.isCeeLoaded()) return ResourceLocation.fromNamespaceAndPath("electroenergetics", "concrete_pole");
+        else return ResourceLocation.fromNamespaceAndPath("minecraft", "stone_brick_wall");
+    }
 
     public static RailBuilderConfig fromItem(ItemStack stack) {
         RailBuilderConfig cfg = new RailBuilderConfig();

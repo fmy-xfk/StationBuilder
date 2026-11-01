@@ -99,6 +99,8 @@
   "gui.stationbuilder.catenary": "接触网",
   "gui.stationbuilder.catenary_disabled": "接触网: 禁用",
   "gui.stationbuilder.catenary_vanilla": "接触网: 原版",
+  "gui.stationbuilder.catenary_cee": "接触网: CEE",
+  "gui.stationbuilder.catenary_cpw": "接触网: CPW",
   "gui.stationbuilder.catenary_line_block": "接触网方块",
   "gui.stationbuilder.catenary_msd": "接触网: MSD",
   "gui.stationbuilder.catenary_spacing": "间距",
