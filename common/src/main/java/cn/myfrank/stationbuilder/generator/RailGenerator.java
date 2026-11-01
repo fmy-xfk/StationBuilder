@@ -715,43 +715,45 @@ public class RailGenerator {
                 var center = tuple.get(0);
                 var tangent = tuple.get(1);
                 var thisUbm = BuildingMode.Up.fromValue(ubm[j]);
-                if (config.useCatenary) {
-                    if (config.isVanillaCatenary) {
-                        lastCatenaryNode = addVanillaCatenaryNode(world, center, tangent, isRightest[i], count, config.railSpacing,
-                                lastCatenaryNode, config.tunnelHeight - 1,
-                                thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar,
-                                config.catenaryBlock);
-                    } else if (CommonUtil.isMtrLoaded() && CommonUtil.isMsdLoaded()) {
-                        if (isLeftest[i] || isRightest[i]) {
-                            CatenaryTypeMapping type = CatenaryTypeMapping.values()[config.catenaryModeIndex];
-                            Identifier pillarBlock = thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar;
+                if (config.catenaryTypeIndex == CatenaryType.Vanilla.getValue()) {
+                    lastCatenaryNode = addVanillaCatenaryNode(world, center, tangent, isRightest[i], count, config.railSpacing,
+                            lastCatenaryNode, config.tunnelHeight - 1,
+                            thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar,
+                            config.catenaryBlock);
+                } else if (config.catenaryTypeIndex == CatenaryType.MSD.getValue() && CommonUtil.isMtrLoaded() && CommonUtil.isMsdLoaded()) {
+                    if (isLeftest[i] || isRightest[i]) {
+                        CatenaryTypeMapping type = CatenaryTypeMapping.values()[config.msdModeIndex];
+                        Identifier pillarBlock = thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar;
 
-                            if (type == CatenaryTypeMapping.Auto) {
-                                if (thisUbm == BuildingMode.Up.Tunnel) {
-                                    pillarBlock = Identifier.of("msd", "rigid_catenary_node");
+                        if (type == CatenaryTypeMapping.Auto) {
+                            if (thisUbm == BuildingMode.Up.Tunnel) {
+                                pillarBlock = Identifier.of("msd", "rigid_catenary_node");
+                            } else {
+                                pillarBlock = Identifier.of("msd", "catenary_with_long");
+                            }
+
+                            if (lastUbm != null) {
+                                if (lastUbm == BuildingMode.Up.Tunnel && thisUbm == BuildingMode.Up.Tunnel) {
+                                    type = CatenaryTypeMapping.MSDRigidCatenary;
+                                } else if (lastUbm == BuildingMode.Up.Clear && thisUbm == BuildingMode.Up.Clear) {
+                                    type = CatenaryTypeMapping.MSDCatenary;
                                 } else {
-                                    pillarBlock = Identifier.of("msd", "catenary_with_long");
-                                }
-
-                                if (lastUbm != null) {
-                                    if (lastUbm == BuildingMode.Up.Tunnel && thisUbm == BuildingMode.Up.Tunnel) {
-                                        type = CatenaryTypeMapping.MSDRigidCatenary;
-                                    } else if (lastUbm == BuildingMode.Up.Clear && thisUbm == BuildingMode.Up.Clear) {
-                                        type = CatenaryTypeMapping.MSDCatenary;
-                                    } else {
-                                        type = CatenaryTypeMapping.MSDRigidSoftCatenary;
-                                    }
+                                    type = CatenaryTypeMapping.MSDRigidSoftCatenary;
                                 }
                             }
-
-                            lastCatenaryNode = MTRIntegration.addCatenaryNode(world, center, tangent, isLeftest[i], isRightest[i],
-                                    lastCatenaryNode, pillarBlock, type, config.tunnelHeight - 1);
-                            if (lastCatenaryNode == null) {
-                                failToPlaceCatenaryNode = true;
-                            }
-                            lastUbm = thisUbm;
                         }
+
+                        lastCatenaryNode = MTRIntegration.addCatenaryNode(world, center, tangent, isLeftest[i], isRightest[i],
+                                lastCatenaryNode, pillarBlock, type, config.tunnelHeight - 1);
+                        if (lastCatenaryNode == null) {
+                            failToPlaceCatenaryNode = true;
+                        }
+                        lastUbm = thisUbm;
                     }
+                } else if (config.catenaryTypeIndex == CatenaryType.CEE.getValue() && CommonUtil.isCreateLoaded() && CommonUtil.isCeeLoaded()) {
+
+                } else if (config.catenaryTypeIndex == CatenaryType.CPW.getValue() && CommonUtil.isCreateLoaded() && CommonUtil.isCpwLoaded()) {
+                    
                 }
             }
         }

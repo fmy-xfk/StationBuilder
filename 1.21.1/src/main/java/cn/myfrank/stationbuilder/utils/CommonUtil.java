@@ -95,6 +95,16 @@ public final class CommonUtil {
     public static boolean isCreateLoaded() { return hasCreate; }
     public static boolean isMsdLoaded() { return hasMSD; }
 
+    private static final boolean ceeLoaded = FabricLoader.getInstance().isModLoaded("electroenergetics");
+    public static boolean isCeeLoaded() {
+        return ceeLoaded;
+    }
+
+    private static final boolean cpwLoaded = false; // FabricLoader.getInstance().isModLoaded("cpw");
+    public static boolean isCpwLoaded() {
+        return cpwLoaded;
+    }
+
     public static boolean isSoftTransparent(BlockState state) {
         return state.isAir() || state.isReplaceable() || !state.getFluidState().isEmpty()
                 || state.isIn(BlockTags.LOGS) || state.isIn(BlockTags.LEAVES);

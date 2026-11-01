@@ -83,6 +83,16 @@ public final class CommonUtil {
         return msdLoaded;
     }
 
+    private static final boolean ceeLoaded = FabricLoader.getInstance().isModLoaded("electroenergetics");
+    public static boolean isCeeLoaded() {
+        return ceeLoaded;
+    }
+
+    private static final boolean cpwLoaded = false; // FabricLoader.getInstance().isModLoaded("cpw");
+    public static boolean isCpwLoaded() {
+        return cpwLoaded;
+    }
+
     public static Direction fromRotation(float angle) {
         return Direction.fromRotation(angle);
     }

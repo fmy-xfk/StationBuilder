@@ -1,5 +1,6 @@
 package cn.myfrank.stationbuilder.items;
 
+import cn.myfrank.stationbuilder.utils.CatenaryType;
 import cn.myfrank.stationbuilder.utils.CatenaryTypeMapping;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import net.minecraft.item.ItemStack;
@@ -31,9 +32,8 @@ public class RailBuilderConfig {
     public double tunnelWidth = 7.0;
     public boolean clearFullHeight = false;
 
-    public boolean useCatenary = true;
-    public boolean isVanillaCatenary = !CommonUtil.isMsdLoaded();
-    public int catenaryModeIndex = CatenaryTypeMapping.MSDCatenary.ordinal();
+    public int catenaryTypeIndex = CatenaryType.getDefaultType().ordinal();
+    public int msdModeIndex = CatenaryTypeMapping.MSDCatenary.ordinal();
     public int catenarySpacing = 50;
     public Identifier catenaryBlock = CommonUtil.isMsdLoaded() ?
             Identifier.of("msd", "catenary_connector") :
@@ -82,9 +82,8 @@ public class RailBuilderConfig {
         nbt.putDouble("tunnelWidth", tunnelWidth);
         nbt.putBoolean("clearFullHeight", clearFullHeight);
 
-        nbt.putBoolean("useCatenary", useCatenary);
-        nbt.putBoolean("isVanillaCatenary", isVanillaCatenary);
-        nbt.putInt("catenaryModeIndex", catenaryModeIndex);
+        nbt.putInt("catenaryTypeIndex", catenaryTypeIndex);
+        nbt.putInt("msdModeIndex", msdModeIndex);
         nbt.putInt("catenarySpacing", catenarySpacing);
         nbt.putString("catenaryBlock", catenaryBlock.toString());
         nbt.putString("catenaryBridgePillar", catenaryBridgePillar.toString());
@@ -148,14 +147,11 @@ public class RailBuilderConfig {
         if (nbt.contains("clearFullHeight"))
             clearFullHeight = nbt.getBoolean("clearFullHeight");
 
-        if (nbt.contains("useCatenary"))
-            useCatenary = nbt.getBoolean("useCatenary");
+        if (nbt.contains("catenaryTypeIndex", NbtElement.INT_TYPE))
+            catenaryTypeIndex = nbt.getInt("catenaryTypeIndex");
 
-        if (nbt.contains("isVanillaCatenary"))
-            isVanillaCatenary = nbt.getBoolean("isVanillaCatenary");
-            
-        if (nbt.contains("catenaryModeIndex", NbtElement.INT_TYPE))
-            catenaryModeIndex = nbt.getInt("catenaryModeIndex");
+        if (nbt.contains("msdModeIndex", NbtElement.INT_TYPE))
+            msdModeIndex = nbt.getInt("msdModeIndex");
 
         if (nbt.contains("catenarySpacing", NbtElement.INT_TYPE))
             catenarySpacing = nbt.getInt("catenarySpacing");
