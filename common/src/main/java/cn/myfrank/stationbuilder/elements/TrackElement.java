@@ -1,5 +1,6 @@
 package cn.myfrank.stationbuilder.elements;
 
+import cn.myfrank.stationbuilder.utils.CatenaryType;
 import cn.myfrank.stationbuilder.utils.CatenaryTypeMapping;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import net.minecraft.nbt.NbtCompound;
@@ -22,14 +23,18 @@ public class TrackElement extends StationElement {
 
     // === 接触网配置 ===
     public boolean hasCatenary = true;
-    public int catenaryState = CommonUtil.isMsdLoaded() ? 2 : 1; // 0=关闭, 1=原版, 2=MSD
-    public int catenarySpacing = 50;                             // 默认间距 50
-    public int catenaryHeight = 6;                              // 默认高度 6
+    public int catenaryState = CatenaryType.getDefaultType().ordinal();
+    public int catenarySpacing = 50;
+    public int catenaryHeight = 6;
     public int catenaryModeIndex = CatenaryTypeMapping.MSDCatenary.ordinal(); // 默认柔性接触网
-    public Identifier catenaryBlock = CommonUtil.isMsdLoaded() ?
-            CommonUtil.identifierOf("msd", "catenary_with_long") :
-            CommonUtil.identifierOf("minecraft", "iron_bars");
+    public Identifier catenaryBlock = getDefaultCatenaryBlock();
     public Identifier catenaryPillarBlock = CommonUtil.identifierOf("minecraft", "stone_brick_wall");
+
+    public static Identifier getDefaultCatenaryBlock() {
+        if (CommonUtil.isMsdLoaded()) return CommonUtil.identifierOf("msd", "catenary_with_long");
+        else if (CommonUtil.isCeeLoaded()) return CommonUtil.identifierOf("electroenergetics", "copper_wire_spool");
+        else return CommonUtil.identifierOf("minecraft", "cobweb");
+    }
 
     @Override public Type getType() { return Type.TRACK; }
     @Override public int getWidth() { return 3; }

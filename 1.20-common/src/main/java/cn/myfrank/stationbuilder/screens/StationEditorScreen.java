@@ -11,6 +11,7 @@ import cn.myfrank.stationbuilder.manager.PresetManager;
 import cn.myfrank.stationbuilder.utils.CatenaryTypeMapping;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.SchematicLoaderUtil;
+import cn.myfrank.stationbuilder.utils.CatenaryType;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.client.MinecraftClient;
@@ -195,9 +196,12 @@ public class StationEditorScreen extends GuiScreen {
     private final GuiButton trackCatenaryStateBtn = new GuiButton(Text.empty(), b -> {
         int index = canvas.getSelectedIndex();
         if (index >= 0 && elements.get(index) instanceof TrackElement t) {
-            int maxState = CommonUtil.isMsdLoaded() ? 3 : 2;
-            t.catenaryState = (t.catenaryState + 1) % maxState;
-            t.hasCatenary = (t.catenaryState != 0);
+            t.catenaryState++;
+            if (t.catenaryState == CatenaryType.MSD.ordinal() && !CommonUtil.isMsdLoaded()) t.catenaryState++;
+            if (t.catenaryState == CatenaryType.CEE.ordinal() && !CommonUtil.isCeeLoaded()) t.catenaryState++;
+            if (t.catenaryState == CatenaryType.CPW.ordinal() && !CommonUtil.isCpwLoaded()) t.catenaryState++;
+            if (t.catenaryState > CatenaryType.CPW.ordinal()) t.catenaryState = CatenaryType.None.ordinal();
+            t.hasCatenary = (t.catenaryState != CatenaryType.None.ordinal());
             syncTrackCatenaryUi(t);
         }
     }, BTN_WIDTH_XL, BTN_HEIGHT);
@@ -225,21 +229,21 @@ public class StationEditorScreen extends GuiScreen {
             CommonUtil.identifierOf("minecraft", "stone_brick_wall"), false);
 
     private void syncTrackCatenaryUi(TrackElement t) {
-        if (t.catenaryState == 0) {
+        if (t.catenaryState == CatenaryType.None.ordinal()) {
             trackCatenaryStateBtn.setMessage(getText("catenary_disabled"));
             trackCatenarySpacingField.setVisible(false);
             trackCatenaryHeightField.setVisible(false);
             trackCatenaryModeBtn.setVisible(false);
             trackCatenaryLineSlot.setVisible(false);
             trackCatenaryPillarSlot.setVisible(false);
-        } else if (t.catenaryState == 1) {
+        } else if (t.catenaryState == CatenaryType.Vanilla.ordinal()) {
             trackCatenaryStateBtn.setMessage(getText("catenary_vanilla"));
             trackCatenarySpacingField.setVisible(true);
             trackCatenaryHeightField.setVisible(true);
             trackCatenaryModeBtn.setVisible(false);
             trackCatenaryLineSlot.setVisible(true);
             trackCatenaryPillarSlot.setVisible(true);
-        } else {
+        } else if (t.catenaryState == CatenaryType.MSD.ordinal()) {
             trackCatenaryStateBtn.setMessage(getText("catenary_msd"));
             trackCatenarySpacingField.setVisible(true);
             trackCatenaryHeightField.setVisible(true);
@@ -248,6 +252,20 @@ public class StationEditorScreen extends GuiScreen {
             trackCatenaryPillarSlot.setVisible(true);
             var type = CatenaryTypeMapping.values()[Math.min(t.catenaryModeIndex, CatenaryTypeMapping.values().length - 1)];
             trackCatenaryModeBtn.setMessage(Text.translatable("gui.stationbuilder." + type.getName()));
+        } else if (t.catenaryState == CatenaryType.CEE.ordinal()) {
+            trackCatenaryStateBtn.setMessage(getText("catenary_cee"));
+            trackCatenarySpacingField.setVisible(true);
+            trackCatenaryHeightField.setVisible(true);
+            trackCatenaryModeBtn.setVisible(false);
+            trackCatenaryLineSlot.setVisible(true);
+            trackCatenaryPillarSlot.setVisible(true);
+        } else if (t.catenaryState == CatenaryType.CPW.ordinal()) {
+            trackCatenaryStateBtn.setMessage(getText("catenary_cpw"));
+            trackCatenarySpacingField.setVisible(true);
+            trackCatenaryHeightField.setVisible(true);
+            trackCatenaryModeBtn.setVisible(false);
+            trackCatenaryLineSlot.setVisible(true);
+            trackCatenaryPillarSlot.setVisible(true);
         }
     }
 
