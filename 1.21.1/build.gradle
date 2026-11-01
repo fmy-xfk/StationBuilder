@@ -70,6 +70,7 @@ dependencies {
     compileOnly "dev.engine-room.flywheel:flywheel-neoforge-api-${project.minecraft_version}:1.0.6"
     compileOnly "net.createmod.catnip:Catnip-NeoForge-${project.minecraft_version}:0.8.54"
 
+    implementation "maven.modrinth:create-electro-energetics:1.21.1-1.1.4"
     runtimeOnly "maven.modrinth:create-steam-n-rails-1.21.1:0.3.0-beta.2+neoforge-mc1.21.1"
 }
 

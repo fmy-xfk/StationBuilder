@@ -88,6 +88,16 @@ public final class CommonUtil {
         return isMsdLoaded;
     }
 
+    private static final boolean ceeLoaded = ModList.get().isLoaded("electroenergetics");
+    public static boolean isCeeLoaded() {
+        return ceeLoaded;
+    }
+
+    private static final boolean cpwLoaded = false; // ModList.get().isLoaded("cpw");
+    public static boolean isCpwLoaded() {
+        return cpwLoaded;
+    }
+
     public static boolean isSoftTransparent(BlockState state) {
         return state.isAir()
                 || state.canBeReplaced()

@@ -90,6 +90,16 @@ public class CommonUtilBase {
         return msdLoaded;
     }
 
+    private static final boolean ceeLoaded = PlatformServices.isModLoaded("electroenergetics");
+    public static boolean isCeeLoaded() {
+        return ceeLoaded;
+    }
+
+    private static final boolean cpwLoaded = false; // PlatformServices.isModLoaded("cpw");
+    public static boolean isCpwLoaded() {
+        return cpwLoaded;
+    }
+
     public static boolean isSoftTransparent(BlockState state) {
         return state.isAir()
                 || state.canBeReplaced()

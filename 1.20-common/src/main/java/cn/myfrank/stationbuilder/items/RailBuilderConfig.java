@@ -1,5 +1,6 @@
 package cn.myfrank.stationbuilder.items;
 
+import cn.myfrank.stationbuilder.utils.CatenaryType;
 import cn.myfrank.stationbuilder.utils.CatenaryTypeMapping;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 
@@ -27,9 +28,8 @@ public class RailBuilderConfig {
     public ResourceLocation tunnelFloorBlock = ResourceLocation.fromNamespaceAndPath("minecraft", "andesite");
     public double tunnelWidth = 7.0;
     public boolean clearFullHeight = false;
-    public boolean useCatenary = true;
-    public boolean isVanillaCatenary = !CommonUtil.isMsdLoaded();
-    public int catenaryModeIndex = CatenaryTypeMapping.MSDCatenary.ordinal();
+    public int catenaryTypeIndex = CatenaryType.getDefaultType().ordinal();
+    public int msdModeIndex = CatenaryTypeMapping.MSDCatenary.ordinal();
     public int catenarySpacing = 50;
     public ResourceLocation catenaryBlock = CommonUtil.isMsdLoaded() ? ResourceLocation.fromNamespaceAndPath("msd", "catenary_connector") : ResourceLocation.fromNamespaceAndPath("minecraft", "cobweb");
     public ResourceLocation catenaryBridgePillar = CommonUtil.isMsdLoaded() ? ResourceLocation.fromNamespaceAndPath("msd", "catenary_with_long") : ResourceLocation.fromNamespaceAndPath("minecraft", "stone_brick_wall");
@@ -43,15 +43,30 @@ public class RailBuilderConfig {
     public void saveToItem(ItemStack stack) { stack.getOrCreateTag().put("railBuilderConfig", toNbt()); }
     public CompoundTag toNbt() {
         CompoundTag nbt = new CompoundTag();
-        nbt.putInt("railCount", railCount); nbt.putDouble("railSpacing", railSpacing);
-        nbt.putDouble("ballastTopWidth", ballastTopWidth); nbt.putDouble("ballastBottomWidth", ballastBottomWidth); nbt.putInt("ballastMaxThickness", ballastMaxThickness);
-        nbt.putString("ballastBlock", ballastBlock.toString()); nbt.putString("railType", railType.toString());
-        nbt.putInt("bridgeClearSpan", bridgeClearSpan); nbt.putString("bridgeGuardRailBlock", bridgeGuardRailBlock.toString());
-        nbt.putString("bridgeBlock", bridgeBlock.toString()); nbt.putString("bridgePillarBlock", bridgePillarBlock.toString()); nbt.putDouble("bridgeWidth", bridgeWidth);
-        nbt.putInt("tunnelHeight", tunnelHeight); nbt.putString("tunnelWallBlock", tunnelWallBlock.toString()); nbt.putString("tunnelCeilingBlock", tunnelCeilingBlock.toString()); nbt.putString("tunnelFloorBlock", tunnelFloorBlock.toString()); nbt.putDouble("tunnelWidth", tunnelWidth);
-        nbt.putBoolean("clearFullHeight", clearFullHeight); nbt.putBoolean("useCatenary", useCatenary); nbt.putBoolean("isVanillaCatenary", isVanillaCatenary);
-        nbt.putInt("catenaryModeIndex", catenaryModeIndex); nbt.putInt("catenarySpacing", catenarySpacing); nbt.putString("catenaryBlock", catenaryBlock.toString());
-        nbt.putString("catenaryBridgePillar", catenaryBridgePillar.toString()); nbt.putString("catenaryTunnelPillar", catenaryTunnelPillar.toString());
+        nbt.putInt("railCount", railCount);
+        nbt.putDouble("railSpacing", railSpacing);
+        nbt.putDouble("ballastTopWidth", ballastTopWidth);
+        nbt.putDouble("ballastBottomWidth", ballastBottomWidth); 
+        nbt.putInt("ballastMaxThickness", ballastMaxThickness);
+        nbt.putString("ballastBlock", ballastBlock.toString()); 
+        nbt.putString("railType", railType.toString());
+        nbt.putInt("bridgeClearSpan", bridgeClearSpan);
+        nbt.putString("bridgeGuardRailBlock", bridgeGuardRailBlock.toString());
+        nbt.putString("bridgeBlock", bridgeBlock.toString());
+        nbt.putString("bridgePillarBlock", bridgePillarBlock.toString()); 
+        nbt.putDouble("bridgeWidth", bridgeWidth);
+        nbt.putInt("tunnelHeight", tunnelHeight); 
+        nbt.putString("tunnelWallBlock", tunnelWallBlock.toString());
+        nbt.putString("tunnelCeilingBlock", tunnelCeilingBlock.toString());
+        nbt.putString("tunnelFloorBlock", tunnelFloorBlock.toString()); 
+        nbt.putDouble("tunnelWidth", tunnelWidth);
+        nbt.putBoolean("clearFullHeight", clearFullHeight);
+        nbt.putInt("catenaryTypeIndex", catenaryTypeIndex);
+        nbt.putInt("msdModeIndex", msdModeIndex);
+        nbt.putInt("catenarySpacing", catenarySpacing); 
+        nbt.putString("catenaryBlock", catenaryBlock.toString());
+        nbt.putString("catenaryBridgePillar", catenaryBridgePillar.toString());
+        nbt.putString("catenaryTunnelPillar", catenaryTunnelPillar.toString());
         return nbt;
     }
     public void fromNbt(CompoundTag nbt) {
@@ -73,9 +88,8 @@ public class RailBuilderConfig {
         if (nbt.contains("tunnelFloorBlock", Tag.TAG_STRING)) tunnelFloorBlock = ResourceLocation.parse(nbt.getString("tunnelFloorBlock"));
         if (nbt.contains("tunnelWidth", Tag.TAG_DOUBLE)) tunnelWidth = nbt.getDouble("tunnelWidth");
         if (nbt.contains("clearFullHeight")) clearFullHeight = nbt.getBoolean("clearFullHeight");
-        if (nbt.contains("useCatenary")) useCatenary = nbt.getBoolean("useCatenary");
-        if (nbt.contains("isVanillaCatenary")) isVanillaCatenary = nbt.getBoolean("isVanillaCatenary");
-        if (nbt.contains("catenaryModeIndex", Tag.TAG_INT)) catenaryModeIndex = nbt.getInt("catenaryModeIndex");
+        if (nbt.contains("catenaryTypeIndex", Tag.TAG_INT)) catenaryTypeIndex = nbt.getInt("catenaryTypeIndex");
+        if (nbt.contains("msdModeIndex", Tag.TAG_INT)) msdModeIndex = nbt.getInt("msdModeIndex");
         if (nbt.contains("catenarySpacing", Tag.TAG_INT)) catenarySpacing = nbt.getInt("catenarySpacing");
         if (nbt.contains("catenaryBlock", Tag.TAG_STRING)) catenaryBlock = ResourceLocation.parse(nbt.getString("catenaryBlock"));
         if (nbt.contains("catenaryBridgePillar", Tag.TAG_STRING)) catenaryBridgePillar = ResourceLocation.parse(nbt.getString("catenaryBridgePillar"));
