@@ -2,6 +2,7 @@ package cn.myfrank.stationbuilder.screens;
 
 import cn.myfrank.stationbuilder.*;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
+import cn.myfrank.stationbuilder.utils.CatenaryType;
 import cn.myfrank.stationbuilder.utils.CatenaryTypeMapping;
 import cn.myfrank.stationbuilder.gui.*;
 import cn.myfrank.stationbuilder.gui.GuiPanel.CrossAlignMode;
@@ -19,7 +20,7 @@ public class RailBuilderScreen extends GuiScreen {
     private static final int BUTTON_WIDTH_S = 60;
     private static final int INPUT_WIDTH_S = 30;
     private static final int INPUT_HEIGHT = 18;
-    private int catenaryState = 1; // 0=Disabled, 1=Vanilla, 2=MSD
+    private int catenaryState = CatenaryType.Vanilla.ordinal();
 
     private String initialRailCount;
     private final GuiLabelTextField railCountInput = new GuiLabelTextField(getText("rail_count"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("2"));
@@ -46,7 +47,20 @@ public class RailBuilderScreen extends GuiScreen {
     }, BUTTON_WIDTH_S, INPUT_HEIGHT, getText("clear_mode"));
 
     private final GuiButton catenaryStateButton = new GuiButton(getText("catenary_vanilla"), (button) -> {
-        catenaryState = (catenaryState + 1) % (CommonUtil.isMsdLoaded() ? 3 : 2);
+        catenaryState++;
+        if (catenaryState == CatenaryType.MSD.ordinal() && (!CommonUtil.isMsdLoaded() || !CommonUtil.isMtrLoaded())) {
+            catenaryState++;
+        }
+        if (catenaryState == CatenaryType.CEE.ordinal() && (!CommonUtil.isCreateLoaded() || !CommonUtil.isCeeLoaded())) {
+            catenaryState++;
+        }
+        if (catenaryState == CatenaryType.CPW.ordinal() && (!CommonUtil.isCreateLoaded() || !CommonUtil.isCpwLoaded())) {
+            catenaryState++;
+        }
+        if (catenaryState > CatenaryType.CPW.ordinal()) {
+            catenaryState = CatenaryType.None.ordinal();
+        }
+        syncCatenaryMode(button);
         syncCatenaryState();
     }, BUTTON_WIDTH, INPUT_HEIGHT);
     private final GuiLabelSlot catenaryLineBlockInput = new GuiLabelSlot(getText("catenary_line_block"), INPUT_WIDTH_S, INPUT_HEIGHT, new Identifier("minecraft", "cobweb"), false);
@@ -69,21 +83,21 @@ public class RailBuilderScreen extends GuiScreen {
         clearModeButton.setMessage(getText(clearFullHeight ? "clear_mode_v" : "clear_mode_tunnel"));
     }
     private void syncCatenaryState() {
-        if (catenaryState == 0) {
+        if (catenaryState == CatenaryType.None.ordinal()) {
             catenaryStateButton.setMessage(getText("catenary_disabled"));
             catenarySpacingInput.setVisible(false);
             catenaryModeButton.setVisible(false);
             catenaryLineBlockInput.setVisible(false);
             catenaryBridgePillarInput.setVisible(false);
             catenaryTunnelPillarInput.setVisible(false);
-        } else if (catenaryState == 1) {
+        } else if (catenaryState == CatenaryType.Vanilla.ordinal()) {
             catenaryStateButton.setMessage(getText("catenary_vanilla"));
             catenarySpacingInput.setVisible(true);
             catenaryModeButton.setVisible(false);
             catenaryLineBlockInput.setVisible(true);
             catenaryBridgePillarInput.setVisible(true);
             catenaryTunnelPillarInput.setVisible(true);
-        } else {
+        } else if (catenaryState == CatenaryType.MSD.ordinal()) {
             catenaryStateButton.setMessage(getText("catenary_msd"));
             catenarySpacingInput.setVisible(true);
             catenaryModeButton.setVisible(true);
@@ -93,6 +107,20 @@ public class RailBuilderScreen extends GuiScreen {
             boolean isAuto = catenaryModeIndex == 0;
             catenaryBridgePillarInput.setVisible(!isAuto);
             catenaryTunnelPillarInput.setVisible(!isAuto);
+        } else if (catenaryState == CatenaryType.CEE.ordinal()) {
+            catenaryStateButton.setMessage(getText("catenary_cee"));
+            catenarySpacingInput.setVisible(true);
+            catenaryModeButton.setVisible(false);
+            catenaryLineBlockInput.setVisible(true);
+            catenaryBridgePillarInput.setVisible(true);
+            catenaryTunnelPillarInput.setVisible(true);
+        } else if (catenaryState == CatenaryType.CPW.ordinal()) {
+            catenaryStateButton.setMessage(getText("catenary_cpw"));
+            catenarySpacingInput.setVisible(true);
+            catenaryModeButton.setVisible(false);
+            catenaryLineBlockInput.setVisible(true);
+            catenaryBridgePillarInput.setVisible(true);
+            catenaryTunnelPillarInput.setVisible(true);
         }
     }
     private static Text getText(String key) {

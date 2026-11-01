@@ -37,15 +37,27 @@ public class RailBuilderConfig {
     public int catenaryTypeIndex = CatenaryType.getDefaultType().ordinal();
     public int msdModeIndex = CatenaryTypeMapping.MSDCatenary.ordinal();
     public int catenarySpacing = 50;
-    public Identifier catenaryBlock = CommonUtil.isMsdLoaded() ?
-            Identifier.of("msd", "catenary_connector") :
-            Identifier.of("minecraft", "cobweb");
-    public Identifier catenaryBridgePillar = CommonUtil.isMsdLoaded() ?
-            Identifier.of("msd", "catenary_with_long") :
-            Identifier.of("minecraft", "stone_brick_wall");
-    public Identifier catenaryTunnelPillar = CommonUtil.isMsdLoaded() ?
-            Identifier.of("msd", "catenary_with_long_top") :
-            Identifier.of("minecraft", "stone_brick_wall");
+    public Identifier catenaryBlock = getDefaultCatenaryBlock();
+    public Identifier catenaryBridgePillar = getDefaultCatenaryBridgePillar();
+    public Identifier catenaryTunnelPillar = getDefaultCatenaryTunnelPillar();
+
+    public static Identifier getDefaultCatenaryBlock() {
+        if (CommonUtil.isMsdLoaded()) return Identifier.of("msd", "catenary_connector");
+        else if (CommonUtil.isCeeLoaded()) return Identifier.of("electroenergetics", "copper_wire_spool");
+        else return Identifier.of("minecraft", "cobweb");
+    }
+
+    public static Identifier getDefaultCatenaryBridgePillar() {
+        if (CommonUtil.isMsdLoaded()) return Identifier.of("msd", "catenary_with_long");
+        else if (CommonUtil.isCeeLoaded()) return Identifier.of("electroenergetics", "concrete_pole");
+        else return Identifier.of("minecraft", "stone_brick_wall");
+    }
+
+    public static Identifier getDefaultCatenaryTunnelPillar() {
+        if (CommonUtil.isMsdLoaded()) return Identifier.of("msd", "catenary_with_long_top");
+        else if (CommonUtil.isCeeLoaded()) return Identifier.of("electroenergetics", "concrete_pole");
+        else return Identifier.of("minecraft", "stone_brick_wall");
+    }
 
     public static RailBuilderConfig fromItem(ItemStack stack) {
         RailBuilderConfig cfg = new RailBuilderConfig();
