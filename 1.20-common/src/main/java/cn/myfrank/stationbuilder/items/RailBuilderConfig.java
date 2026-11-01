@@ -1,5 +1,6 @@
 package cn.myfrank.stationbuilder.items;
 
+import cn.myfrank.stationbuilder.utils.CatenaryTypeMapping;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 
 import net.minecraft.world.item.ItemStack;
@@ -28,7 +29,7 @@ public class RailBuilderConfig {
     public boolean clearFullHeight = false;
     public boolean useCatenary = true;
     public boolean isVanillaCatenary = !CommonUtil.isMsdLoaded();
-    public int catenaryModeIndex = 0;
+    public int catenaryModeIndex = CatenaryTypeMapping.MSDCatenary.ordinal();
     public int catenarySpacing = 50;
     public ResourceLocation catenaryBlock = CommonUtil.isMsdLoaded() ? ResourceLocation.fromNamespaceAndPath("msd", "catenary_connector") : ResourceLocation.fromNamespaceAndPath("minecraft", "cobweb");
     public ResourceLocation catenaryBridgePillar = CommonUtil.isMsdLoaded() ? ResourceLocation.fromNamespaceAndPath("msd", "catenary_with_long") : ResourceLocation.fromNamespaceAndPath("minecraft", "stone_brick_wall");
