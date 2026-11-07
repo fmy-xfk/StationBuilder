@@ -1,14 +1,16 @@
 package cn.myfrank.stationbuilder.generator;
 
-import cn.myfrank.stationbuilder.mtr.MTRIntegration;
-import cn.myfrank.stationbuilder.mtr.MSDIntegration;
-import cn.myfrank.stationbuilder.utils.CatenaryTypeMapping;
-import cn.myfrank.stationbuilder.utils.CommonUtil;
-import cn.myfrank.stationbuilder.utils.BlockRotationUtil;
-import cn.myfrank.stationbuilder.utils.TickScheduler;
-import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
+import cn.myfrank.stationbuilder.cee.CEEIntegration;
 import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.elements.*;
+import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
+import cn.myfrank.stationbuilder.mtr.MSDIntegration;
+import cn.myfrank.stationbuilder.mtr.MTRIntegration;
+import cn.myfrank.stationbuilder.utils.BlockRotationUtil;
+import cn.myfrank.stationbuilder.utils.CatenaryType;
+import cn.myfrank.stationbuilder.utils.CatenaryTypeMapping;
+import cn.myfrank.stationbuilder.utils.CommonUtil;
+import cn.myfrank.stationbuilder.utils.TickScheduler;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -128,11 +130,11 @@ public class StationGenerator {
         }
 
         // --- 生成接触网 ---
-        generateCatenaries(world, origin, facing, right, length, elements, trackLeftEdges, trackIndices);
+        generateCatenaries(player, world, origin, facing, right, length, elements, trackLeftEdges, trackIndices);
     }
 
     private static void generateCatenaries(
-            ServerWorld world, BlockPos origin, Direction facing, Direction right, int length,
+            ServerPlayerEntity player, ServerWorld world, BlockPos origin, Direction facing, Direction right, int length,
             List<StationElement> elements, List<BlockPos> trackLeftEdges, List<Integer> trackIndices
     ) {
         if (trackIndices.isEmpty()) return;
@@ -157,9 +159,9 @@ public class StationGenerator {
 
             TrackElement representativeTrack = (TrackElement) elements.get(startElemIdx);
 
-            if (representativeTrack.hasCatenary && representativeTrack.catenaryState != 0) {
+            if (representativeTrack.hasCatenary && representativeTrack.catenaryState != CatenaryType.None.ordinal()) {
                 buildCatenaryForGroup(
-                        world, origin, facing, right, length,
+                        player, world, origin, facing, right, length,
                         trackCountInGroup, groupStart, groupEnd, trackLeftEdges,
                         representativeTrack, pL, pR
                 );
@@ -207,19 +209,25 @@ public class StationGenerator {
     }
 
     private static void buildCatenaryForGroup(
-            ServerWorld world, BlockPos origin, Direction facing, Direction right, int length,
+            ServerPlayerEntity player, ServerWorld world, BlockPos origin, Direction facing, Direction right, int length,
             int trackCount, int groupStart, int groupEnd, List<BlockPos> trackLeftEdges,
             TrackElement trackCfg, PlatformElement pL, PlatformElement pR
     ) {
         int spacing = Math.max(6, trackCfg.catenarySpacing);
         int wireHeight = Math.max(4, trackCfg.catenaryHeight); // 接触线默认高度 6
 
-        boolean useMsd = trackCfg.catenaryState == 2 && CommonUtil.isMsdLoaded();
+        boolean useMsd = trackCfg.catenaryState == CatenaryType.MSD.ordinal() && CommonUtil.isMsdLoaded();
+        boolean useCee = trackCfg.catenaryState == CatenaryType.CEE.ordinal() && CommonUtil.isCeeLoaded();
         CatenaryTypeMapping msdType = CatenaryTypeMapping.values()[Math.min(trackCfg.catenaryModeIndex, CatenaryTypeMapping.values().length - 1)];
 
-        // soft catenary 时横梁提高一格
-        boolean isSoftCatenary = (!useMsd) || (msdType != CatenaryTypeMapping.MSDRigidCatenary);
-        int trussHeight = isSoftCatenary ? (wireHeight + 2) : (wireHeight + 1);
+        // CEE 横梁高度提高 3 格；MSD 软网提高 2 格，硬网提高 1 格
+        int trussHeight;
+        if (useCee) {
+            trussHeight = wireHeight + 3;
+        } else {
+            boolean isSoftCatenary = (!useMsd) || (msdType != CatenaryTypeMapping.MSDRigidCatenary);
+            trussHeight = isSoftCatenary ? (wireHeight + 2) : (wireHeight + 1);
+        }
 
         boolean leftHasCanopy = (pL != null && pL.hasCanopy);
         boolean rightHasCanopy = (pR != null && pR.hasCanopy);
@@ -230,11 +238,12 @@ public class StationGenerator {
         BlockPos lastTrackLeft = trackLeftEdges.get(groupEnd);
 
         BlockPos[] lastMsdNodes = new BlockPos[trackCount];
+        BlockPos[] lastCeeNodes = new BlockPos[trackCount];
         List<BlockPos> placedWallBlocks = new ArrayList<>();
 
-        // MSD 时，支柱往站台侧再内凹一格 (偏移格数 offsetDist: MSD 时为 2，原版时为 1)
-        int leftOffsetDist = (useMsd && leftIsPlatform) ? 2 : 1;
-        int rightOffsetDist = (useMsd && rightIsPlatform) ? 2 : 1;
+        // MSD / CEE 时，支柱往站台侧再内凹一格 (偏移格数 offsetDist: 此时为 2，原版时为 1)
+        int leftOffsetDist = ((useMsd || useCee) && leftIsPlatform) ? 2 : 1;
+        int rightOffsetDist = ((useMsd || useCee) && rightIsPlatform) ? 2 : 1;
 
         for (int l = 0; l < length; l++) {
             boolean isPillarFrame = (l % spacing == 0) || (l == length - 1);
@@ -355,6 +364,23 @@ public class StationGenerator {
                             }
                             lastMsdNodes[t] = catenaryPos;
                         }
+                    } else if (useCee) {
+                        // === CEE 接触网 ===
+                        // 1. 生成从横梁下垂连接 catenary_holder 的吊柱
+                        for (int y = wireHeight + 1; y < trussHeight; y++) {
+                            BlockPos fillPos = centerLine.up(y);
+                            world.setBlockState(fillPos, CommonUtil.getBlockState(trackCfg.catenaryPillarBlock), Block.NOTIFY_ALL);
+                            placedWallBlocks.add(fillPos);
+                        }
+
+                        // 2. 放置 catenary_holder 节点
+                        CEEIntegration.placeCatenaryHolder(world, catenaryPos);
+
+                        // 3. 连接导线（从上一个节点连接到当前节点）
+                        if (lastCeeNodes[t] != null) {
+                            CEEIntegration.connectWire(world, player, lastCeeNodes[t], catenaryPos, trackCfg.catenaryBlock);
+                        }
+                        lastCeeNodes[t] = catenaryPos;
                     } else {
                         // === 原版接触网 ===
                         for (int y = wireHeight + 1; y < trussHeight; y++) {
@@ -367,7 +393,7 @@ public class StationGenerator {
             }
 
             // --- 3. 原版接触网沿轨道铺设连续导线 ---
-            if (!useMsd) {
+            if (!useMsd && !useCee) {
                 BlockState wireState = CommonUtil.getBlockState(trackCfg.catenaryBlock);
                 for (int t = 0; t < trackCount; t++) {
                     BlockPos centerWire = trackLeftEdges.get(groupStart + t).offset(facing, l).offset(right, 1).up(wireHeight);
@@ -453,7 +479,6 @@ public class StationGenerator {
         }
     }
 
-    // （其余车站、站台、站房原有生成方法维持不变）
     private static void generateBuilding(ServerWorld world, BlockPos pos, Direction facing, BuildingElement element, int length) {
         Optional<StructureTemplate> custom = BuildingTemplateManager.getTemplate(element.presetName);
         StructureTemplate template = custom.orElse(null);
