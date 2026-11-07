@@ -5,9 +5,11 @@ import java.util.UUID;
 
 import cn.myfrank.stationbuilder.utils.*;
 import cn.myfrank.stationbuilder.vanilla.VanillaIntegration;
+import cn.myfrank.stationbuilder.cee.CEEIntegration;
 import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.items.RailBuilderConfig;
 import cn.myfrank.stationbuilder.items.RailBuilderState;
+import cn.myfrank.stationbuilder.mtr.MSDIntegration;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -364,6 +366,9 @@ public class RailGenerator {
     }
 
     private static void clearBlock(ServerLevel world, BlockPos pos, boolean includeCatenary) {
+        if (!includeCatenary && isCatenary(world, pos)) {
+            return;
+        }
         world.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
     }
 
@@ -750,12 +755,120 @@ public class RailGenerator {
                         lastUbm = thisUbm;
                     }
                 } else if (config.catenaryTypeIndex == CatenaryType.CEE.ordinal() && CommonUtil.isCeeLoaded() && CommonUtil.isCreateLoaded()) {
-
+                    lastCatenaryNode = addCEECatenaryNode(
+                            world, center, tangent, isLeftest[i], isRightest[i],
+                            i, count, config.railSpacing,
+                            lastCatenaryNode, config.tunnelHeight - 1,
+                            config.catenaryBridgePillar, config.catenaryTunnelPillar, config.catenaryBlock,
+                            player
+                    );
                 } else if (config.catenaryTypeIndex == CatenaryType.CPW.ordinal() && CommonUtil.isCpwLoaded() && CommonUtil.isCreateLoaded()) {
                     
                 }
             }
         }
         return failToPlaceCatenaryNode;
+    }
+
+    private static BlockPos addCEECatenaryNode(
+            ServerLevel world, Vec3 center, Vec3 tangent, boolean isLeftest, boolean isRightest,
+            int trackIndex, int trackCount, double railSpacing,
+            @Nullable BlockPos lastCatenaryNode, int height,
+            ResourceLocation gantryPillarBlock, ResourceLocation dropperPillarBlock,
+            ResourceLocation spoolItem, Player player
+    ) {
+        int blockY = (int) Math.floor(center.y);
+        int catenaryY = blockY + height;
+        BlockPos catenaryPos = new BlockPos((int) Math.floor(center.x), catenaryY, (int) Math.floor(center.z));
+        
+        // ========================================================
+        // 2. 正常生成新的接触网支柱（横梁高度 = catenaryY + 3）
+        // ========================================================
+        int trussY = catenaryY + 3;
+        Vec3 normal = new Vec3(-tangent.z, 0, tangent.x).normalize();
+
+        if (trackCount <= 2) {
+            // 双轨时左轨在外侧（左侧）立柱
+            if (trackCount == 2 && isLeftest) {
+                Vec3 leftPole = center.subtract(normal.scale(3.0));
+                BlockPos poleTop = new BlockPos((int) Math.floor(leftPole.x), trussY, (int) Math.floor(leftPole.z));
+                buildPillarDown(world, poleTop, dropperPillarBlock);
+            }
+            // 单轨或双轨时右轨在外侧（右侧）立柱
+            if (isRightest) {
+                Vec3 rightPole = center.add(normal.scale(3.0));
+                BlockPos poleTop = new BlockPos((int) Math.floor(rightPole.x), trussY, (int) Math.floor(rightPole.z));
+                buildPillarDown(world, poleTop, dropperPillarBlock);
+            }
+        } else {
+            // 多轨模式：龙门架横梁及两侧主立柱
+            if (isRightest) {
+                double leftSpan = -((trackCount - 1) * railSpacing + 3.0) + EPS;
+                double rightSpan = 3.0 - EPS;
+
+                BlockPos rightEnd = new BlockPos(
+                        (int) Math.floor(center.x + normal.x * rightSpan),
+                        trussY,
+                        (int) Math.floor(center.z + normal.z * rightSpan)
+                );
+                BlockPos leftEnd = new BlockPos(
+                        (int) Math.floor(center.x + normal.x * leftSpan),
+                        trussY,
+                        (int) Math.floor(center.z + normal.z * leftSpan)
+                );
+
+                drawLine(world, rightEnd, leftEnd, gantryPillarBlock);
+                buildPillarDown(world, rightEnd.below(), gantryPillarBlock);
+                buildPillarDown(world, leftEnd.below(), gantryPillarBlock);
+            }
+
+            // 仅中间内部轨道生成下垂 3 格的吊柱（底部正好平齐 catenaryY）
+            if (!isLeftest && !isRightest) {
+                double dropOffset = Math.min(2.5, railSpacing / 2.0);
+                boolean dropOnLeft = trackIndex <= (trackCount - 1) / 2;
+                Vec3 dropPosVec = dropOnLeft ? center.subtract(normal.scale(dropOffset)) : center.add(normal.scale(dropOffset));
+
+                int dropX = (int) Math.floor(dropPosVec.x);
+                int dropZ = (int) Math.floor(dropPosVec.z);
+                var dropState = CommonUtil.getBlockState(dropperPillarBlock);
+
+                for (int dy = 1; dy <= 3; dy++) {
+                    BlockPos dropPos = new BlockPos(dropX, trussY - dy, dropZ);
+                    world.setBlock(dropPos, dropState, 3);
+                }
+            }
+        }
+
+        // 3. 放置新的 catenary_holder 节点
+        CEEIntegration.placeCatenaryHolder(world, catenaryPos);
+
+        // 4. 连接导线（从上一个节点连接到新节点）
+        if (lastCatenaryNode != null) {
+            CEEIntegration.connectWire(world, player, lastCatenaryNode, catenaryPos, spoolItem);
+        }
+
+        return catenaryPos;
+    }
+
+    public static boolean isCatenary(Level world, BlockPos pos) {
+        var state = world.getBlockState(pos);
+        if (state.isAir()) return false;
+        var id = CommonUtil.getBlockId(state.getBlock());
+        if (id == null) return false;
+
+        // CEE 节点与杆件
+        if (CommonUtil.isCeeLoaded()) {
+            if (id.equals(CEEIntegration.CATENARY_HOLDER)
+                    || id.getPath().contains("catenary") || id.getPath().contains("pole")) {
+                return true;
+            }
+        }
+        // MSD 节点
+        if (CommonUtil.isMsdLoaded() && world instanceof ServerLevel serverLevel) {
+            if (MSDIntegration.isCatenaryNode(serverLevel, pos)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
