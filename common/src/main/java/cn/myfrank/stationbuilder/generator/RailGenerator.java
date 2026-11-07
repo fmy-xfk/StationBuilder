@@ -3,18 +3,22 @@ package cn.myfrank.stationbuilder.generator;
 import java.util.ArrayList;
 import java.util.UUID;
 
+import cn.myfrank.stationbuilder.cee.CEEIntegration;
 import cn.myfrank.stationbuilder.create.CreateIntegration;
+import cn.myfrank.stationbuilder.mtr.MSDIntegration;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
 import cn.myfrank.stationbuilder.utils.*;
 import cn.myfrank.stationbuilder.vanilla.VanillaIntegration;
 import cn.myfrank.stationbuilder.items.RailBuilderConfig;
 import cn.myfrank.stationbuilder.items.RailBuilderState;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.WallBlock;
 import net.minecraft.block.enums.WallShape;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Properties;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
@@ -365,6 +369,9 @@ public class RailGenerator {
     }
 
     private static void clearBlock(ServerWorld world, BlockPos pos, boolean includeCatenary) {
+        if (!includeCatenary && isCatenary(world, pos)) {
+            return;
+        }
         world.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
     }
 
@@ -751,12 +758,115 @@ public class RailGenerator {
                         lastUbm = thisUbm;
                     }
                 } else if (config.catenaryTypeIndex == CatenaryType.CEE.getValue() && CommonUtil.isCreateLoaded() && CommonUtil.isCeeLoaded()) {
-
+                    lastCatenaryNode = addCEECatenaryNode(
+                            world, center, tangent, isLeftest[i], isRightest[i],
+                            i, count, config.railSpacing,
+                            lastCatenaryNode, config.tunnelHeight - 1,
+                            config.catenaryBridgePillar, config.catenaryTunnelPillar, config.catenaryBlock,
+                            player
+                    );
                 } else if (config.catenaryTypeIndex == CatenaryType.CPW.getValue() && CommonUtil.isCreateLoaded() && CommonUtil.isCpwLoaded()) {
                     
                 }
             }
         }
         return failToPlaceCatenaryNode;
+    }
+
+    private static BlockPos addCEECatenaryNode(
+            ServerWorld world, Vec3d center, Vec3d tangent, boolean isLeftest, boolean isRightest,
+            int trackIndex, int trackCount, double railSpacing,
+            @Nullable BlockPos lastCatenaryNode, int height,
+            Identifier gantryPillarBlock, Identifier dropperPillarBlock,
+            Identifier spoolItem, PlayerEntity player
+    ) {
+        int blockY = (int) Math.floor(center.y);
+        int catenaryY = blockY + height;
+        BlockPos catenaryPos = new BlockPos((int) Math.floor(center.x), catenaryY, (int) Math.floor(center.z));
+
+        int trussY = catenaryY + 3;
+        Vec3d normal = new Vec3d(-tangent.z, 0, tangent.x).normalize();
+
+        if (trackCount <= 2) {
+            // 双轨时左轨在外侧（左侧）立柱
+            if (trackCount == 2 && isLeftest) {
+                Vec3d leftPole = center.subtract(normal.multiply(3.0));
+                BlockPos poleTop = new BlockPos((int) Math.floor(leftPole.x), trussY, (int) Math.floor(leftPole.z));
+                buildPillarDown(world, poleTop, dropperPillarBlock);
+            }
+            // 单轨或双轨时右轨在外侧（右侧）立柱
+            if (isRightest) {
+                Vec3d rightPole = center.add(normal.multiply(3.0));
+                BlockPos poleTop = new BlockPos((int) Math.floor(rightPole.x), trussY, (int) Math.floor(rightPole.z));
+                buildPillarDown(world, poleTop, dropperPillarBlock);
+            }
+        } else {
+            // 多轨模式：龙门架横梁及两侧主立柱
+            if (isRightest) {
+                double leftSpan = -((trackCount - 1) * railSpacing + 3.0) + EPS;
+                double rightSpan = 3.0 - EPS;
+
+                BlockPos rightEnd = new BlockPos(
+                        (int) Math.floor(center.x + normal.x * rightSpan),
+                        trussY,
+                        (int) Math.floor(center.z + normal.z * rightSpan)
+                );
+                BlockPos leftEnd = new BlockPos(
+                        (int) Math.floor(center.x + normal.x * leftSpan),
+                        trussY,
+                        (int) Math.floor(center.z + normal.z * leftSpan)
+                );
+
+                drawLine(world, rightEnd, leftEnd, gantryPillarBlock);
+                buildPillarDown(world, rightEnd.down(), gantryPillarBlock);
+                buildPillarDown(world, leftEnd.down(), gantryPillarBlock);
+            }
+
+            // 仅中间内部轨道生成下垂 3 格的吊柱（底部正好平齐 catenaryY）
+            if (!isLeftest && !isRightest) {
+                double dropOffset = Math.min(2.5, railSpacing / 2.0);
+                boolean dropOnLeft = trackIndex <= (trackCount - 1) / 2;
+                Vec3d dropPosVec = dropOnLeft ? center.subtract(normal.multiply(dropOffset)) : center.add(normal.multiply(dropOffset));
+
+                int dropX = (int) Math.floor(dropPosVec.x);
+                int dropZ = (int) Math.floor(dropPosVec.z);
+                BlockState dropState = CommonUtil.getBlockState(dropperPillarBlock);
+
+                for (int dy = 1; dy <= 3; dy++) {
+                    BlockPos dropPos = new BlockPos(dropX, trussY - dy, dropZ);
+                    world.setBlockState(dropPos, dropState, Block.NOTIFY_ALL);
+                }
+            }
+        }
+
+        CEEIntegration.placeCatenaryHolder(world, catenaryPos);
+
+        if (lastCatenaryNode != null) {
+            CEEIntegration.connectWire(world, player, lastCatenaryNode, catenaryPos, spoolItem);
+        }
+
+        return catenaryPos;
+    }
+
+    public static boolean isCatenary(World world, BlockPos pos) {
+        BlockState state = world.getBlockState(pos);
+        if (state.isAir()) return false;
+        Identifier id = Registries.BLOCK.getId(state.getBlock());
+        if (id == null) return false;
+
+        // CEE 节点与杆件
+        if (CommonUtil.isCeeLoaded()) {
+            if (id.equals(CEEIntegration.CATENARY_HOLDER)
+                    || id.getPath().contains("catenary") || id.getPath().contains("pole")) {
+                return true;
+            }
+        }
+        // MSD 节点
+        if (CommonUtil.isMsdLoaded() && world instanceof ServerWorld serverWorld) {
+            if (MSDIntegration.isCatenaryNode(serverWorld, pos)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
