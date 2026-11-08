@@ -791,13 +791,13 @@ public class RailGenerator {
             // 双轨时左轨在外侧（左侧）立柱
             if (trackCount == 2 && isLeftest) {
                 Vec3 leftPole = center.subtract(normal.scale(3.0));
-                BlockPos poleTop = new BlockPos((int) Math.floor(leftPole.x), trussY, (int) Math.floor(leftPole.z));
+                BlockPos poleTop = new BlockPos((int) Math.floor(leftPole.x), trussY - 1, (int) Math.floor(leftPole.z));
                 buildPillarDown(world, poleTop, dropperPillarBlock);
             }
             // 单轨或双轨时右轨在外侧（右侧）立柱
             if (isRightest) {
                 Vec3 rightPole = center.add(normal.scale(3.0));
-                BlockPos poleTop = new BlockPos((int) Math.floor(rightPole.x), trussY, (int) Math.floor(rightPole.z));
+                BlockPos poleTop = new BlockPos((int) Math.floor(rightPole.x), trussY - 1, (int) Math.floor(rightPole.z));
                 buildPillarDown(world, poleTop, dropperPillarBlock);
             }
         } else {

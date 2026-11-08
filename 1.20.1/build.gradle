@@ -61,6 +61,14 @@ repositories {
     }
 }
 
+configurations {
+    rawRuntimeMods {
+        canBeResolved = true
+        canBeConsumed = false
+        transitive = false
+    }
+}
+
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
@@ -68,5 +76,8 @@ dependencies {
     implementation fg.deobf('curse.maven:station-decoration-790307:6893847')
     implementation fg.deobf("maven.modrinth:create:mc${project.minecraft_version}-${project.create_version}")
     // Steam 'n' rails 1.20.1
-    implementation fg.deobf("maven.modrinth:create-steam-n-rails:1.7.3+forge-mc${project.minecraft_version}")
+    runtimeOnly fg.deobf("maven.modrinth:create-steam-n-rails:1.7.3+forge-mc${project.minecraft_version}")
+    rawRuntimeMods fg.deobf("maven.modrinth:dragonlib:3.0.29+${project.minecraft_version}-forge")
+    //create-pantographs-and-wires
+    rawRuntimeMods fg.deobf("maven.modrinth:VzdCnMqW:RaB5OqWE")
 }
