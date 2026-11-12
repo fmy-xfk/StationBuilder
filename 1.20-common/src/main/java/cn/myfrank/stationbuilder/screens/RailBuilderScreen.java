@@ -127,9 +127,9 @@ public class RailBuilderScreen extends GuiScreen {
             catenaryLineBlockInput.setVisible(true);
             catenaryBridgePillarInput.setVisible(true);
             catenaryTunnelPillarInput.setVisible(true);
-            catenaryLineBlockInput.setLabelText(getText("catenary_line_block"));
-            catenaryBridgePillarInput.setLabelText(getText("catenary_bridge_pillar"));
-            catenaryTunnelPillarInput.setLabelText(getText("catenary_tunnel_pillar"));
+            catenaryLineBlockInput.setLabelText(getText("catenary_cpw_spool")); // 导线线轴 (wire coil)
+            catenaryBridgePillarInput.setLabelText(getText("catenary_cpw_mast")); // 支柱 (Mast Block)
+            catenaryTunnelPillarInput.setLabelText(getText("catenary_cpw_cantilever")); // 腕臂 (Cantilever Block: 可选 brown 或 green)
         }
     }
     

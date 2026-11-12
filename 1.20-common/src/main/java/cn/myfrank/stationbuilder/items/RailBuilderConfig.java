@@ -30,26 +30,34 @@ public class RailBuilderConfig {
     public boolean clearFullHeight = false;
     public int catenaryTypeIndex = CatenaryType.getDefaultType().ordinal();
     public int msdModeIndex = CatenaryTypeMapping.MSDCatenary.ordinal();
-    public int catenarySpacing = 50;
+    public int catenarySpacing = getDefaultCatenarySpacing();
     public ResourceLocation catenaryBlock = getDefaultCatenaryBlock();
     public ResourceLocation catenaryBridgePillar = getDefaultCatenaryBridgePillar();
     public ResourceLocation catenaryTunnelPillar = getDefaultCatenaryTunnelPillar();
 
+    public static int getDefaultCatenarySpacing() {
+        if (CommonUtil.isCpwLoaded()) return 40; // CPW 模组默认导线最大跨度为 50 格，40 格为安全标准跨度
+        return 50;
+    }
+
     public static ResourceLocation getDefaultCatenaryBlock() {
         if (CommonUtil.isMsdLoaded()) return ResourceLocation.fromNamespaceAndPath("msd", "catenary_connector");
         else if (CommonUtil.isCeeLoaded()) return ResourceLocation.fromNamespaceAndPath("electroenergetics", "copper_wire_spool");
+        else if (CommonUtil.isCpwLoaded()) return ResourceLocation.fromNamespaceAndPath("pantographsandwires", "wire_coil");
         else return ResourceLocation.fromNamespaceAndPath("minecraft", "cobweb");
     }
 
     public static ResourceLocation getDefaultCatenaryBridgePillar() {
         if (CommonUtil.isMsdLoaded()) return ResourceLocation.fromNamespaceAndPath("msd", "catenary_with_long");
         else if (CommonUtil.isCeeLoaded()) return ResourceLocation.fromNamespaceAndPath("electroenergetics", "concrete_pole");
+        else if (CommonUtil.isCpwLoaded()) return ResourceLocation.fromNamespaceAndPath("pantographsandwires", "lattice_mast");
         else return ResourceLocation.fromNamespaceAndPath("minecraft", "stone_brick_wall");
     }
 
     public static ResourceLocation getDefaultCatenaryTunnelPillar() {
         if (CommonUtil.isMsdLoaded()) return ResourceLocation.fromNamespaceAndPath("msd", "catenary_with_long_top");
         else if (CommonUtil.isCeeLoaded()) return ResourceLocation.fromNamespaceAndPath("electroenergetics", "concrete_pole");
+        else if (CommonUtil.isCpwLoaded()) return ResourceLocation.fromNamespaceAndPath("pantographsandwires", "cantilever_brown");
         else return ResourceLocation.fromNamespaceAndPath("minecraft", "stone_brick_wall");
     }
 

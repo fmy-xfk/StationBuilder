@@ -6,6 +6,8 @@ import java.util.UUID;
 import cn.myfrank.stationbuilder.utils.*;
 import cn.myfrank.stationbuilder.vanilla.VanillaIntegration;
 import cn.myfrank.stationbuilder.cee.CEEIntegration;
+import cn.myfrank.stationbuilder.cpw.CPWAngle;
+import cn.myfrank.stationbuilder.cpw.CPWIntegration;
 import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.items.RailBuilderConfig;
 import cn.myfrank.stationbuilder.items.RailBuilderState;
@@ -763,7 +765,13 @@ public class RailGenerator {
                             player
                     );
                 } else if (config.catenaryTypeIndex == CatenaryType.CPW.ordinal() && CommonUtil.isCpwLoaded() && CommonUtil.isCreateLoaded()) {
-                    
+                    lastCatenaryNode = addCPWCatenaryNode(
+                            world, center, tangent, isLeftest[i], isRightest[i],
+                            i, count, config.railSpacing,
+                            lastCatenaryNode, config.tunnelHeight - 1,
+                            config.catenaryBridgePillar, config.catenaryTunnelPillar, config.catenaryBlock,
+                            player, thisUbm == BuildingMode.Up.Tunnel
+                    );
                 }
             }
         }
@@ -850,6 +858,106 @@ public class RailGenerator {
         return catenaryPos;
     }
 
+    private static BlockPos addCPWCatenaryNode(
+            ServerLevel world, Vec3 center, Vec3 tangent, boolean isLeftest, boolean isRightest,
+            int trackIndex, int trackCount, double railSpacing,
+            @Nullable BlockPos lastCatenaryNode, int height,
+            ResourceLocation mastBlock, ResourceLocation cantileverBlock,
+            ResourceLocation wireCoilItem, Player player, boolean isTunnel
+    ) {
+        int blockY = (int) Math.floor(center.y);
+        int catenaryY = blockY + height;
+
+        // 腕臂安装高度：抬高 2 格至立柱中上部
+        int cantileverY = catenaryY + 2;
+
+        // 1. 立柱朝向：对齐铁轨切线方向
+        CPWAngle mastAngle = CPWIntegration.getCPWAngles(tangent);
+        Vec3 normal = new Vec3(-tangent.z, 0, tangent.x).normalize();
+
+        BlockPos placedCantileverPos = null;
+
+        if (trackCount <= 2) {
+            // 单轨或双轨外侧立柱
+            boolean isSideMast = (trackCount == 2 && isLeftest) || isRightest;
+            if (isSideMast) {
+                boolean onRight = isRightest;
+                Vec3 poleVec = onRight ? center.add(normal.scale(3)) : center.subtract(normal.scale(3));
+                int poleX = (int) Math.floor(poleVec.x);
+                int poleZ = (int) Math.floor(poleVec.z);
+                BlockPos poleAtCantileverHeight = new BlockPos(poleX, cantileverY, poleZ);
+
+                if (isTunnel) {
+                    // 隧道：Mast 从天花板向下延伸
+                    int ceilingY = cantileverY + 2;
+                    while (ceilingY <= cantileverY + 6 && !world.isOutsideBuildHeight(new BlockPos(poleX, ceilingY, poleZ))) {
+                        if (!CommonUtil.isSoftTransparent(world.getBlockState(new BlockPos(poleX, ceilingY, poleZ)))) {
+                            break;
+                        }
+                        ceilingY++;
+                    }
+                    CPWIntegration.buildMastColumn(world, poleX, poleZ, cantileverY - 1, Math.max(cantileverY, ceilingY - 1), mastAngle, mastBlock);
+                } else {
+                    // 露天与桥梁：Mast 向上延伸至 cantileverY + 1，向下打地基
+                    int topY = cantileverY + 1;
+                    int bottomY = blockY;
+                    BlockPos p = new BlockPos(poleX, blockY, poleZ);
+                    while (!world.isOutsideBuildHeight(p) && CommonUtil.isSoftTransparent(world.getBlockState(p))) {
+                        bottomY = p.getY();
+                        p = p.below();
+                    }
+                    CPWIntegration.buildMastColumn(world, poleX, poleZ, bottomY, topY, mastAngle, mastBlock);
+                }
+
+                // 2. 悬臂朝向：严格垂直于立柱伸向轨道（右侧立柱逆时针 90°，左侧立柱顺时针 90°）
+                CPWAngle cantileverAngle = onRight ? mastAngle.getCounterClockWise() : mastAngle.getClockWise();
+
+                // 3. 悬臂方块放置位置：由 CPWAngle 内部计算正交/斜对角偏移
+                placedCantileverPos = cantileverAngle.offset(poleAtCantileverHeight);
+
+                CPWIntegration.placeCantilever(world, placedCantileverPos, cantileverAngle, cantileverBlock);
+            }
+        } else {
+            // 多轨龙门架模式
+            int trussY = cantileverY + 1;
+            if (isRightest) {
+                double leftSpan = -((trackCount - 1) * railSpacing + 2.5) + EPS;
+                double rightSpan = 2.5 - EPS;
+
+                BlockPos rightEnd = new BlockPos((int) Math.floor(center.x + normal.x * rightSpan), trussY, (int) Math.floor(center.z + normal.z * rightSpan));
+                BlockPos leftEnd = new BlockPos((int) Math.floor(center.x + normal.x * leftSpan), trussY, (int) Math.floor(center.z + normal.z * leftSpan));
+
+                drawLine(world, rightEnd, leftEnd, mastBlock);
+                buildPillarDown(world, rightEnd.below(), mastBlock);
+                buildPillarDown(world, leftEnd.below(), mastBlock);
+            }
+
+            // 中间股道吊柱及悬臂
+            boolean dropOnLeft = (trackIndex <= (trackCount - 1) / 2);
+            Vec3 dropOffsetVec = dropOnLeft ? center.subtract(normal.scale(1.0)) : center.add(normal.scale(1.0));
+            int dropX = (int) Math.floor(dropOffsetVec.x);
+            int dropZ = (int) Math.floor(dropOffsetVec.z);
+
+            CPWIntegration.buildMastColumn(world, dropX, dropZ, cantileverY - 1, trussY, mastAngle, mastBlock);
+
+            cn.myfrank.stationbuilder.cpw.CPWAngle cantileverAngle = dropOnLeft ? mastAngle.getClockWise() : mastAngle.getCounterClockWise();
+            placedCantileverPos = cantileverAngle.offset(new BlockPos(dropX, cantileverY, dropZ));
+
+            CPWIntegration.placeCantilever(world, placedCantileverPos, cantileverAngle, cantileverBlock);
+        }
+
+        if (placedCantileverPos == null) {
+            placedCantileverPos = new BlockPos((int) Math.floor(center.x), cantileverY, (int) Math.floor(center.z));
+        }
+
+        // 4. 连接导线
+        if (lastCatenaryNode != null) {
+            CPWIntegration.connectWire(world, player, lastCatenaryNode, placedCantileverPos, wireCoilItem);
+        }
+
+        return placedCantileverPos;
+    }
+
     public static boolean isCatenary(Level world, BlockPos pos) {
         var state = world.getBlockState(pos);
         if (state.isAir()) return false;
@@ -860,6 +968,13 @@ public class RailGenerator {
         if (CommonUtil.isCeeLoaded()) {
             if (id.equals(CEEIntegration.CATENARY_HOLDER)
                     || id.getPath().contains("catenary") || id.getPath().contains("pole")) {
+                return true;
+            }
+        }
+        // CPW 节点与杆件（涵盖 mast、cantilever 等）
+        if (CommonUtil.isCpwLoaded()) {
+            if (id.getNamespace().equals("pantographsandwires")
+                    || id.getPath().contains("mast") || id.getPath().contains("cantilever") || id.getPath().contains("pillar")) {
                 return true;
             }
         }

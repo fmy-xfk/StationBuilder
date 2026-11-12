@@ -34,6 +34,7 @@ public class TrackElement extends StationElement {
     public static ResourceLocation getDefaultCatenaryBlock() {
         if (CommonUtil.isMsdLoaded()) return ResourceLocation.fromNamespaceAndPath("msd", "catenary_with_long");
         else if (CommonUtil.isCeeLoaded()) return ResourceLocation.fromNamespaceAndPath("electroenergetics", "copper_wire_spool");
+        else if (CommonUtil.isCpwLoaded()) return ResourceLocation.fromNamespaceAndPath("pantographsandwires", "wire_coil");
         else return ResourceLocation.fromNamespaceAndPath("minecraft", "cobweb");
     }
 

@@ -93,7 +93,7 @@ public final class CommonUtil {
         return ceeLoaded;
     }
 
-    private static final boolean cpwLoaded = false; // ModList.get().isLoaded("cpw");
+    private static final boolean cpwLoaded = ModList.get().isLoaded("pantographsandwires");
     public static boolean isCpwLoaded() {
         return cpwLoaded;
     }

@@ -1,6 +1,8 @@
 package cn.myfrank.stationbuilder.generator;
 
 import cn.myfrank.stationbuilder.cee.CEEIntegration;
+import cn.myfrank.stationbuilder.cpw.CPWAngle;
+import cn.myfrank.stationbuilder.cpw.CPWIntegration;
 import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.elements.*;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
@@ -258,20 +260,24 @@ public class StationGenerator {
             TrackElement trackCfg, PlatformElement pL, PlatformElement pR
     ) {
         int spacing = Math.max(6, trackCfg.catenarySpacing);
-        int wireHeight = Math.max(4, trackCfg.catenaryHeight); // 接触线默认高度 6
+        int wireHeight = Math.max(4, trackCfg.catenaryHeight); // 基础接触线导高（默认 6）
 
         boolean useMsd = trackCfg.catenaryState == CatenaryType.MSD.ordinal() && CommonUtil.isMsdLoaded();
         boolean useCee = trackCfg.catenaryState == CatenaryType.CEE.ordinal() && CommonUtil.isCeeLoaded();
+        boolean useCpw = trackCfg.catenaryState == CatenaryType.CPW.ordinal() && CommonUtil.isCpwLoaded();
         CatenaryTypeMapping msdType = CatenaryTypeMapping.values()[Math.min(trackCfg.catenaryModeIndex, CatenaryTypeMapping.values().length - 1)];
 
-        // CEE 横梁高度提高3格，MSD 软网提高2格，硬网提高1格
+        // 横梁高度：CEE 与 CPW 抬高 3 格，MSD 软网抬高 2 格，硬网抬高 1 格
         int trussHeight;
-        if (useCee) {
+        if (useCee || useCpw) {
             trussHeight = wireHeight + 3;
         } else {
             boolean isSoftCatenary = (!useMsd) || (msdType != CatenaryTypeMapping.MSDRigidCatenary);
             trussHeight = isSoftCatenary ? (wireHeight + 2) : (wireHeight + 1);
         }
+
+        // Cantilever（腕臂）高度：上提 2 格至立柱中上部，其下垂绝缘子挂点正好落在 wireHeight
+        int cantileverY = wireHeight + 2;
 
         boolean leftHasCanopy = (pL != null && pL.hasCanopy);
         boolean rightHasCanopy = (pR != null && pR.hasCanopy);
@@ -283,11 +289,20 @@ public class StationGenerator {
 
         BlockPos[] lastMsdNodes = new BlockPos[trackCount];
         BlockPos[] lastCeeNodes = new BlockPos[trackCount];
+        BlockPos[] lastCpwNodes = new BlockPos[trackCount];
         List<BlockPos> placedWallBlocks = new ArrayList<>();
 
-        // MSD / CEE 接触网且相邻有站台时，支柱向站台侧内凹一格
-        int leftOffsetDist = ((useMsd || useCee) && leftIsPlatform) ? 2 : 1;
-        int rightOffsetDist = ((useMsd || useCee) && rightIsPlatform) ? 2 : 1;
+        // MSD / CEE / CPW 接触网且相邻有站台时，支柱向站台侧内凹一格避让安全线
+        int leftOffsetDist = ((useMsd || useCee || useCpw) && leftIsPlatform) ? 2 : 1;
+        int rightOffsetDist = ((useMsd || useCee || useCpw) && rightIsPlatform) ? 2 : 1;
+
+        // 确定 CPW 腕臂与线轴 ID
+        ResourceLocation cpwCantileverId = CPWIntegration.DEFAULT_CANTILEVER;
+        ResourceLocation cpwWireCoilId = trackCfg.catenaryBlock;
+        if (trackCfg.catenaryBlock.getPath().contains("cantilever")) {
+            cpwCantileverId = trackCfg.catenaryBlock;
+            cpwWireCoilId = CPWIntegration.WIRE_COIL;
+        }
 
         for (int l = 0; l < length; l++) {
             boolean isPillarFrame = (l % spacing == 0) || (l == length - 1);
@@ -317,10 +332,10 @@ public class StationGenerator {
 
                 boolean armFromLeft = true;
 
+                // ========================================================
+                // 1. 建造支柱框架（单轨 L 架 / 多轨龙门架）
+                // ========================================================
                 if (trackCount == 1) {
-                    // ==========================================
-                    //               单线侧架 (L 架)
-                    // ==========================================
                     BlockPos trackCenterTruss = baseLeft.relative(right, 1).above(trussHeight);
 
                     if (leftHasCanopy && !rightIsPlatform) {
@@ -337,7 +352,6 @@ public class StationGenerator {
                         connectToCanopy(world, leftEdgePos, trussHeight, leftCanopyY, trackCfg.catenaryPillarBlock, placedWallBlocks);
                         connectToCanopy(world, rightEdgePos, trussHeight, rightCanopyY, trackCfg.catenaryPillarBlock, placedWallBlocks);
                     } else {
-                        // 远离站台建立地立柱
                         if (rightIsPlatform && !leftIsPlatform) {
                             armFromLeft = true;
                             drawLineForced(world, leftSupport, trackCenterTruss, trackCfg.catenaryPillarBlock, placedWallBlocks);
@@ -349,9 +363,6 @@ public class StationGenerator {
                         }
                     }
                 } else {
-                    // ==========================================
-                    //               多线并排 (龙门架)
-                    // ==========================================
                     int spanBlocks = (groupEnd - groupStart + 1) * 3 + (groupEnd - groupStart) + leftOffsetDist + rightOffsetDist;
                     drawBeamContinuous(world, leftSupport, right, spanBlocks, trackCfg.catenaryPillarBlock, placedWallBlocks);
 
@@ -368,13 +379,15 @@ public class StationGenerator {
                     }
                 }
 
-                // --- 2. 在支架处处理接触线悬挂节点 ---
+                // ========================================================
+                // 2. 在横梁/支柱处处理接触网节点与悬挂装配
+                // ========================================================
                 for (int t = 0; t < trackCount; t++) {
                     BlockPos centerLine = trackLeftEdges.get(groupStart + t).relative(facing, l).relative(right, 1);
                     BlockPos catenaryPos = centerLine.above(wireHeight);
 
                     if (useMsd) {
-                        // === MSD 接触网（柔性网不要中间多余石砖吊柱） ===
+                        // === MSD 接触网 ===
                         CatenaryTypeMapping type = msdType;
                         ResourceLocation msdNodeBlock = trackCfg.catenaryBlock;
 
@@ -405,35 +418,61 @@ public class StationGenerator {
                         }
                     } else if (useCee) {
                         // === CEE 接触网 ===
-                        // 1. 生成从横梁下垂连接 catenary_holder 的立柱
                         for (int y = wireHeight + 1; y < trussHeight; y++) {
                             BlockPos fillPos = centerLine.above(y);
                             world.setBlock(fillPos, CommonUtil.getBlockState(trackCfg.catenaryPillarBlock), Block.UPDATE_ALL);
                             placedWallBlocks.add(fillPos);
                         }
 
-                        // 2. 放置 catenary_holder 节点
                         CEEIntegration.placeCatenaryHolder(world, catenaryPos);
 
-                        // 3. 连接导线（从上一个节点连接到当前节点）
                         if (lastCeeNodes[t] != null) {
                             CEEIntegration.connectWire(world, player, lastCeeNodes[t], catenaryPos, trackCfg.catenaryBlock);
                         }
                         lastCeeNodes[t] = catenaryPos;
-                    } else {
-                        // === 原版接触网 ===
-                        for (int y = wireHeight + 1; y < trussHeight; y++) {
-                            BlockPos fillPos = centerLine.above(y);
-                            world.setBlock(fillPos, CommonUtil.getBlockState(trackCfg.catenaryPillarBlock), Block.UPDATE_ALL);
-                            placedWallBlocks.add(fillPos);
+                    } else if (useCpw) {
+                        // === CPW 接触网 ===
+                        // 1. 吊柱朝向判断：左半侧股道向右伸出腕臂，右半侧股道向左伸出腕臂
+                        Direction hangerSide;
+                        if (trackCount == 1) {
+                            hangerSide = armFromLeft ? right : right.getOpposite();
+                        } else {
+                            hangerSide = (t < trackCount / 2) ? right : right.getOpposite();
                         }
-                        world.setBlock(catenaryPos, CommonUtil.getBlockState(trackCfg.catenaryBlock), Block.UPDATE_ALL);
+                        Direction toTrack = hangerSide.getOpposite();
+
+                        CPWAngle mastAngle = CPWAngle.fromDirection(facing);
+                        CPWAngle cantileverAngle = CPWAngle.fromDirection(hangerSide);
+
+                        // 2. 在轨道侧边生成 Mast 吊柱（从横梁 trussHeight 向下延伸到 cantileverY - 1）
+                        BlockPos dropperMastPos = centerLine.relative(toTrack, 3);
+                        CPWIntegration.buildMastColumn(
+                                world,
+                                dropperMastPos.getX(),
+                                dropperMastPos.getZ(),
+                                cantileverY - 3,
+                                trussHeight,
+                                mastAngle,
+                                trackCfg.catenaryPillarBlock
+                        );
+
+                        // 3. 紧贴 Mast 吊柱朝向轨道放置 Cantilever 腕臂
+                        BlockPos cantileverPos = centerLine.above(cantileverY).relative(toTrack, 2);
+                        CPWIntegration.placeCantilever(world, cantileverPos, cantileverAngle, cpwCantileverId);
+
+                        // 4. 使用 Wire Coil 在前后两榀腕臂之间拉起接触网导线
+                        if (lastCpwNodes[t] != null) {
+                            CPWIntegration.connectWire(world, player, lastCpwNodes[t], cantileverPos, cpwWireCoilId);
+                        }
+                        lastCpwNodes[t] = cantileverPos;
                     }
                 }
             }
 
-            // --- 3. 原版接触网沿轨道铺设连续导线 ---
-            if (!useMsd && !useCee) {
+            // ========================================================
+            // 3. 原版接触网沿轨道铺设连续导线方块（MSD/CEE/CPW 均跳过此步）
+            // ========================================================
+            if (!useMsd && !useCee && !useCpw) {
                 BlockState wireState = CommonUtil.getBlockState(trackCfg.catenaryBlock);
                 for (int t = 0; t < trackCount; t++) {
                     BlockPos centerWire = trackLeftEdges.get(groupStart + t).relative(facing, l).relative(right, 1).above(wireHeight);
@@ -442,7 +481,9 @@ public class StationGenerator {
             }
         }
 
-        // --- 4. 彻底消除墙体方块缝隙 ---
+        // ========================================================
+        // 4. 彻底消除墙体方块缝隙
+        // ========================================================
         fixWallConnections(world, placedWallBlocks);
     }
 

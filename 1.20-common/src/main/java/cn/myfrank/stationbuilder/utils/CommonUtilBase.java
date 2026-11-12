@@ -95,7 +95,7 @@ public class CommonUtilBase {
         return ceeLoaded;
     }
 
-    private static final boolean cpwLoaded = false; // PlatformServices.isModLoaded("cpw");
+    private static final boolean cpwLoaded = PlatformServices.isModLoaded("pantographsandwires");
     public static boolean isCpwLoaded() {
         return cpwLoaded;
     }
