@@ -3,7 +3,7 @@ package cn.myfrank.stationbuilder;
 import java.util.ArrayList;
 import java.util.List;
 
-import cn.myfrank.stationbuilder.create.CreateIntegration;
+import cn.myfrank.stationbuilder.create.CreateClientIntegration;
 import cn.myfrank.stationbuilder.generator.RailGenerator;
 import cn.myfrank.stationbuilder.items.*;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
@@ -276,7 +276,7 @@ public class StationBuilderClient implements ClientModInitializer {
 			} else if (railType == RailGenerator.RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
 				preview = CreatePreviewCache.get(lastNode, lastAngle, node, angle);
 				if (preview == null) {
-					preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle, config.railType);
+					preview = CreateClientIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle, config.railType);
 					CreatePreviewCache.put(lastNode, lastAngle, node, angle, preview);
 				}
 			} else if (railType == RailGenerator.RailNodeType.VANILLA) {
@@ -346,7 +346,7 @@ public class StationBuilderClient implements ClientModInitializer {
 			} else if (railType == RailGenerator.RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
 				preview = CreatePreviewCache.get(lastNode, lastAngle, node, angle);
 				if (preview == null) {
-					preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle, config.railType);
+					preview = CreateClientIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle, config.railType);
 					CreatePreviewCache.put(lastNode, lastAngle, node, angle, preview);
 				}
 

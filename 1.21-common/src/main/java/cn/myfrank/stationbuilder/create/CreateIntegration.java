@@ -1,7 +1,6 @@
 package cn.myfrank.stationbuilder.create;
 
 import cn.myfrank.stationbuilder.utils.CurveData;
-import cn.myfrank.stationbuilder.utils.TestConnectResult;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -37,7 +36,5 @@ public class CreateIntegration {
     public static Vec3d getRailCenter(BlockPos pos) { return Vec3d.ofCenter(pos).add(0, 0.125, 0); }
     public static void carveTunnelAndBuildBridge(ServerWorld world, CurveData curveData, BlockPos startPos, BlockPos endPos, int tunnelRadius) {}
     public static CurveData connectRailNodes(PlayerEntity player, ServerWorld world, BlockPos s, BlockPos e, Identifier railType) { return null; }
-    public static TestConnectResult testConnectRailNodes(BlockPos startPos, float startAngle, BlockPos endPos, float endAngle, Identifier railType) {
-        return TestConnectResult.fail();
-    }
+    
 }
