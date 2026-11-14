@@ -252,8 +252,44 @@ public class RailGenerator {
         }
     }
 
+    /**
+     * 从 node 方块的中心沿 dir 方向走 distance 格，返回落点所在的方块。
+     * 方块中心在 (x + 0.5, z + 0.5)，所以某一轴的步数是
+     *   floor(0.5 + distance * |dir|)
+     * 而不是 floor(distance * |dir|)。左右两侧使用相同的 |dir| 与 distance，
+     * 再按方向取符号，得到的两端严格互为镜像，不会出现一侧多走一格。
+     */
+    private static BlockPos offsetAlong(BlockPos node, Vec3d dir, double distance) {
+        double ax = Math.abs(dir.x);
+        double az = Math.abs(dir.z);
+        int ox = (int) Math.floor(0.5 + distance * ax + EPS);
+        int oz = (int) Math.floor(0.5 + distance * az + EPS);
+        int dx = dir.x < 0 ? -ox : ox;
+        int dz = dir.z < 0 ? -oz : oz;
+        return new BlockPos(node.getX() + dx, node.getY(), node.getZ() + dz);
+    }
+
+    /**
+     * 多轨龙门架：右端从右轨节点向外走 3 格，左端从左轨节点向外走 3 格。
+     * leftNode 是左轨在同一纵向位置的真实节点方块；为 null 时才退回按轨距估算。
+     */
+    private static void buildGantry(
+            ServerWorld world, BlockPos rightNode, @Nullable BlockPos leftNode,
+            Vec3d normal, double fallbackSpan, Identifier pillarBlock
+    ) {
+        BlockPos rightEnd = offsetAlong(rightNode, normal, 3.0);
+        BlockPos leftEnd = leftNode != null
+                ? offsetAlong(leftNode, normal.multiply(-1.0), 3.0)
+                : offsetAlong(rightEnd, normal.multiply(-1.0), fallbackSpan);
+
+        drawLine(world, rightEnd, leftEnd, pillarBlock);
+        buildPillarDown(world, rightEnd.down(), pillarBlock);
+        buildPillarDown(world, leftEnd.down(), pillarBlock);
+    }
+
     private static BlockPos addVanillaCatenaryNode(
-            ServerWorld world, Vec3d center, Vec3d tangent, boolean isRightest, int trackCount, double railSpacing,
+            ServerWorld world, Vec3d center, Vec3d tangent, @Nullable Vec3d leftCenter,
+            boolean isRightest, int trackCount, double railSpacing,
             @Nullable BlockPos lastCatenaryNode, int height, Identifier pillarBlock, Identifier lineBlock
     ) {
         int blockY = (int) Math.floor(center.y);
@@ -265,32 +301,17 @@ public class RailGenerator {
 
             if (trackCount == 1) {
                 // 单条轨道只在最右侧放置 L 型支架
-                BlockPos rightEnd = new BlockPos(
-                        (int) Math.floor(center.x + normal.x * 3.0),
-                        trussPos.getY(),
-                        (int) Math.floor(center.z + normal.z * 3.0)
-                );
+                BlockPos rightEnd = offsetAlong(trussPos, normal, 3.0);
                 drawLine(world, trussPos, rightEnd, pillarBlock);
                 buildPillarDown(world, rightEnd.down(), pillarBlock);
             } else {
-                // 多条轨道时，跨越所有轨道总宽画一道拱门
-                double leftSpan = -((trackCount - 1) * railSpacing + 3.0) + EPS;
-                double rightSpan = 3.0 - EPS;
-
-                BlockPos rightEnd = new BlockPos(
-                        (int) Math.floor(center.x + normal.x * rightSpan),
+                // 多轨龙门架：左端使用左轨在同一 j 的真实节点，而不是 (count-1)*spacing 的估算值
+                BlockPos leftNode = leftCenter == null ? null : new BlockPos(
+                        (int) Math.floor(leftCenter.x),
                         trussPos.getY(),
-                        (int) Math.floor(center.z + normal.z * rightSpan)
+                        (int) Math.floor(leftCenter.z)
                 );
-                BlockPos leftEnd = new BlockPos(
-                        (int) Math.floor(center.x + normal.x * leftSpan),
-                        trussPos.getY(),
-                        (int) Math.floor(center.z + normal.z * leftSpan)
-                );
-
-                drawLine(world, rightEnd, leftEnd, pillarBlock);
-                buildPillarDown(world, rightEnd.down(), pillarBlock);
-                buildPillarDown(world, leftEnd.down(), pillarBlock);
+                buildGantry(world, trussPos, leftNode, normal, (trackCount - 1) * railSpacing, pillarBlock);
             }
         }
 
@@ -663,6 +684,15 @@ public class RailGenerator {
             }
         }
 
+        // 多轨龙门架需要左轨在同一纵向位置的真实节点，而不是用 (count-1)*railSpacing 估算。
+        int leftmostIndex = -1;
+        for (int i = 0; i < count; i++) {
+            if (pps[i] != null && isLeftest[i]) {
+                leftmostIndex = i;
+                break;
+            }
+        }
+
         // First pass: Clear heights according to building modes
         for (int j = 0; j <= segments; j++) {
             for(int i = 0; i < count; i++) {
@@ -722,8 +752,12 @@ public class RailGenerator {
                 var center = tuple.get(0);
                 var tangent = tuple.get(1);
                 var thisUbm = BuildingMode.Up.fromValue(ubm[j]);
+                Vec3d leftCenter = (count > 1 && isRightest[i] && leftmostIndex >= 0)
+                        ? pps[leftmostIndex].get(j).get(0)
+                        : null;
                 if (config.catenaryTypeIndex == CatenaryType.Vanilla.getValue()) {
-                    lastCatenaryNode = addVanillaCatenaryNode(world, center, tangent, isRightest[i], count, config.railSpacing,
+                    lastCatenaryNode = addVanillaCatenaryNode(world, center, tangent, leftCenter,
+                            isRightest[i], count, config.railSpacing,
                             lastCatenaryNode, config.tunnelHeight - 1,
                             thisUbm == BuildingMode.Up.Tunnel ? config.catenaryTunnelPillar : config.catenaryBridgePillar,
                             config.catenaryBlock);
@@ -759,7 +793,7 @@ public class RailGenerator {
                     }
                 } else if (config.catenaryTypeIndex == CatenaryType.CEE.getValue() && CommonUtil.isCreateLoaded() && CommonUtil.isCeeLoaded()) {
                     lastCatenaryNode = addCEECatenaryNode(
-                            world, center, tangent, isLeftest[i], isRightest[i],
+                            world, center, tangent, leftCenter, isLeftest[i], isRightest[i],
                             i, count, config.railSpacing,
                             lastCatenaryNode, config.tunnelHeight - 1,
                             config.catenaryBridgePillar, config.catenaryTunnelPillar, config.catenaryBlock,
@@ -774,7 +808,8 @@ public class RailGenerator {
     }
 
     private static BlockPos addCEECatenaryNode(
-            ServerWorld world, Vec3d center, Vec3d tangent, boolean isLeftest, boolean isRightest,
+            ServerWorld world, Vec3d center, Vec3d tangent, @Nullable Vec3d leftCenter,
+            boolean isLeftest, boolean isRightest,
             int trackIndex, int trackCount, double railSpacing,
             @Nullable BlockPos lastCatenaryNode, int height,
             Identifier gantryPillarBlock, Identifier dropperPillarBlock,
@@ -788,38 +823,28 @@ public class RailGenerator {
         Vec3d normal = new Vec3d(-tangent.z, 0, tangent.x).normalize();
 
         if (trackCount <= 2) {
+            BlockPos poleNode = new BlockPos(catenaryPos.getX(), trussY - 1, catenaryPos.getZ());
             // 双轨时左轨在外侧（左侧）立柱
             if (trackCount == 2 && isLeftest) {
-                Vec3d leftPole = center.subtract(normal.multiply(3.0));
-                BlockPos poleTop = new BlockPos((int) Math.floor(leftPole.x), trussY - 1, (int) Math.floor(leftPole.z));
+                BlockPos poleTop = offsetAlong(poleNode, normal.multiply(-1.0), 3.0);
                 buildPillarDown(world, poleTop, dropperPillarBlock);
             }
             // 单轨或双轨时右轨在外侧（右侧）立柱
             if (isRightest) {
-                Vec3d rightPole = center.add(normal.multiply(3.0));
-                BlockPos poleTop = new BlockPos((int) Math.floor(rightPole.x), trussY - 1, (int) Math.floor(rightPole.z));
+                BlockPos poleTop = offsetAlong(poleNode, normal, 3.0);
                 buildPillarDown(world, poleTop, dropperPillarBlock);
             }
         } else {
             // 多轨模式：龙门架横梁及两侧主立柱
             if (isRightest) {
-                double leftSpan = -((trackCount - 1) * railSpacing + 3.0) + EPS;
-                double rightSpan = 3.0 - EPS;
-
-                BlockPos rightEnd = new BlockPos(
-                        (int) Math.floor(center.x + normal.x * rightSpan),
+                BlockPos rightNode = new BlockPos(catenaryPos.getX(), trussY, catenaryPos.getZ());
+                BlockPos leftNode = leftCenter == null ? null : new BlockPos(
+                        (int) Math.floor(leftCenter.x),
                         trussY,
-                        (int) Math.floor(center.z + normal.z * rightSpan)
-                );
-                BlockPos leftEnd = new BlockPos(
-                        (int) Math.floor(center.x + normal.x * leftSpan),
-                        trussY,
-                        (int) Math.floor(center.z + normal.z * leftSpan)
+                        (int) Math.floor(leftCenter.z)
                 );
 
-                drawLine(world, rightEnd, leftEnd, gantryPillarBlock);
-                buildPillarDown(world, rightEnd.down(), gantryPillarBlock);
-                buildPillarDown(world, leftEnd.down(), gantryPillarBlock);
+                buildGantry(world, rightNode, leftNode, normal, (trackCount - 1) * railSpacing, gantryPillarBlock);
             }
 
             // 仅中间内部轨道生成下垂 3 格的吊柱（底部正好平齐 catenaryY）
