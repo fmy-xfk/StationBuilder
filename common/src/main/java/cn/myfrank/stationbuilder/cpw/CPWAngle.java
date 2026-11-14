@@ -77,21 +77,28 @@ public enum CPWAngle {
     }
 
     /**
-     * 获取沿当前角度由支柱伸向外侧的方块偏移 X 分量
+     * 获取沿当前角度由支柱伸向外侧的方块偏移 X 分量。
+     *
+     * <p>CPW 的 {@code AbstractRotatableBlock.getSupportBlockPos()} 在
+     * {@code rotation == 3}（45° 斜向腕臂）时，会把支撑位置再向
+     * {@code facing.rotateYClockwise()} 偏移一格：
+     * {@code support = pos - facing + facing.clockwise}。
+     * 要让支撑位置正好落在 mast 上，腕臂方块必须放在
+     * {@code mast + facing - facing.clockwise}，而不是两个方向相加。</p>
      */
     public int getStepX() {
-        if (rotation == 3) { // 45° 斜对角，合成正交两轴
-            return facing.getOffsetX() + facing.rotateYClockwise().getOffsetX();
+        if (rotation == 3) { // 45° 斜对角：抵消 CPW 对支撑位置的顺时针偏移
+            return facing.getOffsetX() - facing.rotateYClockwise().getOffsetX();
         }
         return facing.getOffsetX();
     }
 
     /**
-     * 获取沿当前角度由支柱伸向外侧的方块偏移 Z 分量
+     * 获取沿当前角度由支柱伸向外侧的方块偏移 Z 分量（说明见 {@link #getStepX()}）。
      */
     public int getStepZ() {
-        if (rotation == 3) {
-            return facing.getOffsetZ() + facing.rotateYClockwise().getOffsetZ();
+        if (rotation == 3) { // 45° 斜对角：抵消 CPW 对支撑位置的顺时针偏移
+            return facing.getOffsetZ() - facing.rotateYClockwise().getOffsetZ();
         }
         return facing.getOffsetZ();
     }
