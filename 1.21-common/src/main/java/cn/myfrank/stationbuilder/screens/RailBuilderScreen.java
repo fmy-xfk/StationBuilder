@@ -127,9 +127,9 @@ public class RailBuilderScreen extends GuiScreen {
             catenaryLineBlockInput.setVisible(true);
             catenaryBridgePillarInput.setVisible(true);
             catenaryTunnelPillarInput.setVisible(true);
-            catenaryLineBlockInput.setLabelText(getText("catenary_line_block"));
-            catenaryBridgePillarInput.setLabelText(getText("catenary_bridge_pillar"));
-            catenaryTunnelPillarInput.setLabelText(getText("catenary_tunnel_pillar"));
+            catenaryLineBlockInput.setLabelText(getText("catenary_cpw_spool"));
+            catenaryBridgePillarInput.setLabelText(getText("catenary_cpw_mast"));
+            catenaryTunnelPillarInput.setLabelText(getText("catenary_cpw_cantilever"));
         }
     }
 

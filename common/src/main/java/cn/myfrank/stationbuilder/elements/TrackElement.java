@@ -33,6 +33,7 @@ public class TrackElement extends StationElement {
     public static Identifier getDefaultCatenaryBlock() {
         if (CommonUtil.isMsdLoaded()) return CommonUtil.identifierOf("msd", "catenary_with_long");
         else if (CommonUtil.isCeeLoaded()) return CommonUtil.identifierOf("electroenergetics", "copper_wire_spool");
+        else if (CommonUtil.isCpwLoaded()) return CommonUtil.identifierOf("pantographsandwires", "wire_coil");
         else return CommonUtil.identifierOf("minecraft", "cobweb");
     }
 

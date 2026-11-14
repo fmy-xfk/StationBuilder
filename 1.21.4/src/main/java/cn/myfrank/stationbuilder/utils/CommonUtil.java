@@ -100,7 +100,7 @@ public final class CommonUtil {
         return ceeLoaded;
     }
 
-    private static final boolean cpwLoaded = false; // FabricLoader.getInstance().isModLoaded("cpw");
+    private static final boolean cpwLoaded = FabricLoader.getInstance().isModLoaded("pantographsandwires");
     public static boolean isCpwLoaded() {
         return cpwLoaded;
     }

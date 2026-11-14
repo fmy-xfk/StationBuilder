@@ -1,6 +1,8 @@
 package cn.myfrank.stationbuilder.generator;
 
 import cn.myfrank.stationbuilder.cee.CEEIntegration;
+import cn.myfrank.stationbuilder.cpw.CPWAngle;
+import cn.myfrank.stationbuilder.cpw.CPWIntegration;
 import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.elements.*;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
@@ -163,7 +165,7 @@ public class StationGenerator {
                 buildCatenaryForGroup(
                         player, world, origin, facing, right, length,
                         trackCountInGroup, groupStart, groupEnd, trackLeftEdges,
-                        representativeTrack, pL, pR
+                        representativeTrack, pL, pR, leftNeighbor, rightNeighbor
                 );
             }
 
@@ -211,14 +213,36 @@ public class StationGenerator {
     private static void buildCatenaryForGroup(
             ServerPlayerEntity player, ServerWorld world, BlockPos origin, Direction facing, Direction right, int length,
             int trackCount, int groupStart, int groupEnd, List<BlockPos> trackLeftEdges,
-            TrackElement trackCfg, PlatformElement pL, PlatformElement pR
+            TrackElement trackCfg, PlatformElement pL, PlatformElement pR,
+            StationElement leftNeighbor, StationElement rightNeighbor
     ) {
         int spacing = Math.max(6, trackCfg.catenarySpacing);
         int wireHeight = Math.max(4, trackCfg.catenaryHeight); // 接触线默认高度 6
 
         boolean useMsd = trackCfg.catenaryState == CatenaryType.MSD.ordinal() && CommonUtil.isMsdLoaded();
         boolean useCee = trackCfg.catenaryState == CatenaryType.CEE.ordinal() && CommonUtil.isCeeLoaded();
+        boolean useCpw = trackCfg.catenaryState == CatenaryType.CPW.ordinal() && CommonUtil.isCpwLoaded();
         CatenaryTypeMapping msdType = CatenaryTypeMapping.values()[Math.min(trackCfg.catenaryModeIndex, CatenaryTypeMapping.values().length - 1)];
+
+        // 确定 CPW 腕臂与线轴 ID
+        Identifier cpwCantileverId = CPWIntegration.DEFAULT_CANTILEVER;
+        Identifier cpwWireCoilId = trackCfg.catenaryBlock;
+        if (trackCfg.catenaryBlock.getPath().contains("cantilever")) {
+            cpwCantileverId = trackCfg.catenaryBlock;
+            cpwWireCoilId = CPWIntegration.WIRE_COIL;
+        }
+
+        // CPW 采用独立的站台接触网建设模式：外侧 mast / 雨棚或站台 mast / 轨道间隙 mast。
+        // 该模式不再建造龙门架或软横跨，因此直接从这里分流。
+        if (useCpw) {
+            buildCpwCatenaryForGroup(
+                    player, world, origin, facing, right, length,
+                    trackCount, groupStart, trackLeftEdges, trackCfg,
+                    leftNeighbor, rightNeighbor, spacing, wireHeight,
+                    cpwCantileverId, cpwWireCoilId
+            );
+            return;
+        }
 
         // CEE 横梁高度提高 3 格；MSD 软网提高 2 格，硬网提高 1 格
         int trussHeight;
@@ -409,6 +433,209 @@ public class StationGenerator {
     /**
      * 将横梁紧密搭接在雨棚边缘上，消除一切悬空与缝隙
      */
+    // ========================================================
+    // CPW 站台接触网：按 3 条原则布置 mast
+    // 1. 最左/最右侧股道且外侧无站房、站台 -> 外侧落地 mast
+    // 2. 不满足 1 但贴近站台 -> 雨棚顶 mast；没有雨棚则建在站台面上
+    // 3. 其余 -> 轨道间隙 mast；间隙已有 mast 时重复利用
+    // ========================================================
+
+    private enum CpwMastBase { GROUND, PLATFORM, CANOPY }
+
+    private static final class CpwMastPlan {
+        private final int lateral;
+        private final CpwMastBase base;
+        private final int baseRelY;
+        private final int minAnchorRelY;
+        private final boolean gap;
+        private int resolvedGapLateral;
+
+        private CpwMastPlan(int lateral, CpwMastBase base, int baseRelY, int minAnchorRelY, boolean gap) {
+            this.lateral = lateral;
+            this.base = base;
+            this.baseRelY = baseRelY;
+            this.minAnchorRelY = minAnchorRelY;
+            this.gap = gap;
+        }
+    }
+
+    private static List<CpwMastPlan> planCpwMasts(
+            int trackCount, StationElement leftNeighbor, StationElement rightNeighbor
+    ) {
+        List<CpwMastPlan> plans = new ArrayList<>(trackCount);
+        for (int g = 0; g < trackCount; g++) {
+            boolean isLeftEnd = (g == 0);
+            boolean isRightEnd = (g == trackCount - 1);
+
+            PlatformElement leftPlatform = (isLeftEnd && leftNeighbor instanceof PlatformElement p) ? p : null;
+            PlatformElement rightPlatform = (isRightEnd && rightNeighbor instanceof PlatformElement p) ? p : null;
+            boolean leftBlocked = isLeftEnd
+                    && (leftNeighbor instanceof PlatformElement || leftNeighbor instanceof BuildingElement);
+            boolean rightBlocked = isRightEnd
+                    && (rightNeighbor instanceof PlatformElement || rightNeighbor instanceof BuildingElement);
+
+            if (isLeftEnd && !leftBlocked) {
+                plans.add(new CpwMastPlan(-3, CpwMastBase.GROUND, 0, 0, false));
+            } else if (isRightEnd && !rightBlocked) {
+                plans.add(new CpwMastPlan(3, CpwMastBase.GROUND, 0, 0, false));
+            } else if (leftPlatform != null) {
+                plans.add(createPlatformMastPlan(leftPlatform, true));
+            } else if (rightPlatform != null) {
+                plans.add(createPlatformMastPlan(rightPlatform, false));
+            } else {
+                boolean hasLeftGap = (g > 0);
+                boolean hasRightGap = (g < trackCount - 1);
+                if (hasLeftGap || hasRightGap) {
+                    plans.add(new CpwMastPlan(hasRightGap ? 2 : -2, CpwMastBase.GROUND, 0, 0, true));
+                } else {
+                    plans.add(new CpwMastPlan(3, CpwMastBase.GROUND, 0, 0, false));
+                }
+            }
+        }
+        return plans;
+    }
+
+    private static CpwMastPlan createPlatformMastPlan(PlatformElement p, boolean platformOnLeft) {
+        int mastW;
+        int edgeW;
+        int lateral;
+        if (p.width <= 1) {
+            mastW = 0;
+            edgeW = 0;
+            lateral = platformOnLeft ? -2 : 2;
+        } else {
+            mastW = platformOnLeft ? Math.max(0, p.width - 2) : Math.min(p.width - 1, 1);
+            edgeW = platformOnLeft ? p.width - 1 : 0;
+            lateral = platformOnLeft ? -3 : 3;
+        }
+
+        boolean hasCanopySlab = p.hasCanopy
+                && p.canopyStyle != PlatformElement.CanopyStyle.PILLAR_ONLY;
+        if (hasCanopySlab) {
+            int mastCanopyTop = canopyTopRelY(p, mastW);
+            int edgeCanopyTop = canopyTopRelY(p, edgeW);
+            int baseRelY = mastCanopyTop + 1;
+            int minAnchorRelY = Math.max(mastCanopyTop, edgeCanopyTop) + 1;
+            return new CpwMastPlan(lateral, CpwMastBase.CANOPY, baseRelY, minAnchorRelY, false);
+        }
+
+        return new CpwMastPlan(lateral, CpwMastBase.PLATFORM, 1, 1, false);
+    }
+
+    private static int canopyTopRelY(PlatformElement p, int w) {
+        int halfYOffset = calculateCanopyHalfY(w, p.width, p.canopyStyle);
+        return ((p.canopyHeight + 1) * 2 + halfYOffset) / 2;
+    }
+
+    private static void buildCpwCatenaryForGroup(
+            ServerPlayerEntity player, ServerWorld world, BlockPos origin, Direction facing, Direction right, int length,
+            int trackCount, int groupStart, List<BlockPos> trackLeftEdges, TrackElement trackCfg,
+            StationElement leftNeighbor, StationElement rightNeighbor,
+            int spacing, int wireHeight,
+            Identifier cantileverId, Identifier wireCoilId
+    ) {
+        Identifier mastId = CPWIntegration.resolveMastId(trackCfg.catenaryPillarBlock);
+        int nominalBaseY = origin.getY();
+        int cantileverY = nominalBaseY + wireHeight + 2;
+
+        List<CpwMastPlan> plans = planCpwMasts(trackCount, leftNeighbor, rightNeighbor);
+        CPWAngle mastAngle = CPWAngle.fromDirection(facing);
+        BlockPos[] lastAnchors = new BlockPos[trackCount];
+
+        for (int l = 0; l < length; l++) {
+            if (l % spacing != 0 && l != length - 1) continue;
+
+            for (int g = 0; g < trackCount; g++) {
+                BlockPos center = trackLeftEdges.get(groupStart + g).offset(facing, l).offset(right, 1);
+                CpwMastPlan plan = plans.get(g);
+
+                int lateral;
+                if (plan.gap) {
+                    if (plan.resolvedGapLateral == 0) {
+                        plan.resolvedGapLateral = chooseGapLateral(
+                                world, center, right, g, trackCount, nominalBaseY
+                        );
+                    }
+                    lateral = plan.resolvedGapLateral;
+                } else {
+                    lateral = plan.lateral;
+                }
+                BlockPos mastPos = center.offset(right, lateral);
+
+                int baseY;
+                int minAnchorY;
+                if (plan.base == CpwMastBase.GROUND) {
+                    baseY = plan.gap
+                            ? nominalBaseY
+                            : findGroundY(world, mastPos.getX(), mastPos.getZ(), nominalBaseY);
+                    minAnchorY = baseY;
+                } else {
+                    baseY = nominalBaseY + plan.baseRelY;
+                    minAnchorY = nominalBaseY + plan.minAnchorRelY;
+                }
+                int anchorY = Math.max(cantileverY, minAnchorY);
+                int topY = anchorY + 1;
+
+                boolean reuseMast = plan.gap && CPWIntegration.isMastBlock(
+                        world, new BlockPos(mastPos.getX(), anchorY, mastPos.getZ())
+                );
+                if (!reuseMast) {
+                    CPWIntegration.buildMastColumn(
+                            world, mastPos.getX(), mastPos.getZ(), baseY, topY, mastAngle, mastId
+                    );
+                }
+
+                CPWAngle cantileverAngle = lateral < 0
+                        ? mastAngle.getClockWise()
+                        : mastAngle.getCounterClockWise();
+                BlockPos cantileverPos = cantileverAngle.offset(new BlockPos(mastPos.getX(), anchorY, mastPos.getZ()));
+                CPWIntegration.placeCantilever(world, cantileverPos, cantileverAngle, cantileverId);
+
+                if (lastAnchors[g] != null) {
+                    CPWIntegration.connectWire(world, player, lastAnchors[g], cantileverPos, wireCoilId);
+                }
+                lastAnchors[g] = cantileverPos;
+            }
+        }
+    }
+
+    private static int chooseGapLateral(
+            ServerWorld world, BlockPos center, Direction right, int trackIndex, int trackCount, int nominalBaseY
+    ) {
+        if (trackIndex > 0) {
+            BlockPos leftGap = center.offset(right, -2);
+            if (hasMastInGap(world, leftGap, nominalBaseY)) return -2;
+        }
+        if (trackIndex < trackCount - 1) {
+            BlockPos rightGap = center.offset(right, 2);
+            if (hasMastInGap(world, rightGap, nominalBaseY)) return 2;
+        }
+        return trackIndex < trackCount - 1 ? 2 : -2;
+    }
+
+    private static boolean hasMastInGap(ServerWorld world, BlockPos gapPos, int nominalBaseY) {
+        return CPWIntegration.hasMastColumn(
+                world, gapPos.getX(), gapPos.getZ(), nominalBaseY - 16, nominalBaseY + 32
+        );
+    }
+
+    private static int findGroundY(ServerWorld world, int x, int z, int nominalY) {
+        int y = nominalY;
+        int limit = nominalY + 16;
+        while (y < limit) {
+            BlockPos pos = new BlockPos(x, y, z);
+            if (CommonUtil.isSoftTransparent(world.getBlockState(pos)) || CPWIntegration.isMastBlock(world, pos)) {
+                break;
+            }
+            y++;
+        }
+        while (y > world.getBottomY()
+                && CommonUtil.isSoftTransparent(world.getBlockState(new BlockPos(x, y - 1, z)))) {
+            y--;
+        }
+        return y;
+    }
+
     private static void connectToCanopy(ServerWorld world, BlockPos edgePos, int trussHeight, int canopyY, Identifier pillarBlock, List<BlockPos> recordedBlocks) {
         BlockPos canopyTopPos = edgePos.up(canopyY);
         // 将雨棚边缘处的半砖补成完整双半砖

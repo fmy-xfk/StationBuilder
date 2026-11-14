@@ -34,26 +34,34 @@ public class RailBuilderConfig {
 
     public int catenaryTypeIndex = CatenaryType.getDefaultType().ordinal();
     public int msdModeIndex = CatenaryTypeMapping.MSDCatenary.ordinal();
-    public int catenarySpacing = 50;
+    public int catenarySpacing = getDefaultCatenarySpacing();
     public Identifier catenaryBlock = getDefaultCatenaryBlock();
     public Identifier catenaryBridgePillar = getDefaultCatenaryBridgePillar();
     public Identifier catenaryTunnelPillar = getDefaultCatenaryTunnelPillar();
 
+    public static int getDefaultCatenarySpacing() {
+        if (CommonUtil.isCpwLoaded()) return 40;
+        return 50;
+    }
+
     public static Identifier getDefaultCatenaryBlock() {
         if (CommonUtil.isMsdLoaded()) return Identifier.of("msd", "catenary_connector");
         else if (CommonUtil.isCeeLoaded()) return Identifier.of("electroenergetics", "copper_wire_spool");
+        else if (CommonUtil.isCpwLoaded()) return Identifier.of("pantographsandwires", "wire_coil");
         else return Identifier.of("minecraft", "cobweb");
     }
 
     public static Identifier getDefaultCatenaryBridgePillar() {
         if (CommonUtil.isMsdLoaded()) return Identifier.of("msd", "catenary_with_long");
         else if (CommonUtil.isCeeLoaded()) return Identifier.of("electroenergetics", "concrete_pole");
+        else if (CommonUtil.isCpwLoaded()) return Identifier.of("pantographsandwires", "lattice_mast");
         else return Identifier.of("minecraft", "stone_brick_wall");
     }
 
     public static Identifier getDefaultCatenaryTunnelPillar() {
         if (CommonUtil.isMsdLoaded()) return Identifier.of("msd", "catenary_with_long_top");
         else if (CommonUtil.isCeeLoaded()) return Identifier.of("electroenergetics", "concrete_pole");
+        else if (CommonUtil.isCpwLoaded()) return Identifier.of("pantographsandwires", "cantilever_brown");
         else return Identifier.of("minecraft", "stone_brick_wall");
     }
     // ===== NBT =====
