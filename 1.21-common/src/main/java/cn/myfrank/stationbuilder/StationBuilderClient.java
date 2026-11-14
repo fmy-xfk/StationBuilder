@@ -19,6 +19,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
@@ -62,7 +63,7 @@ public class StationBuilderClient {
 
     private static void registerKeyMappings(RegisterKeyMappingsEvent event) {
         event.register(StationBuilderKeyBindings.CLEAR_RAIL_STATE);
-        event.register(StationBuilderKeyBindings.UNDO_PLACER);
+        event.register(StationBuilderKeyBindings.UNDO);
     }
 
     private static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -98,9 +99,10 @@ public class StationBuilderClient {
             PacketDistributor.sendToServer(new StationBuilder.ClearRailStatePayload());
         }
 
-        if (StationBuilderKeyBindings.UNDO_PLACER.consumeClick()
-                && client.player != null
-                && client.player.getMainHandItem().getItem() instanceof BuildingPlacerItem) {
+        // Global undo: Ctrl+Z rolls back the latest action of any StationBuilder tool.
+        if (StationBuilderKeyBindings.UNDO.consumeClick()
+                && client.screen == null
+                && Screen.hasControlDown()) {
             PacketDistributor.sendToServer(new StationBuilder.UndoPlacerPayload());
         }
     }

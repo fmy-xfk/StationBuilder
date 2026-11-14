@@ -1,12 +1,12 @@
 package cn.myfrank.stationbuilder;
 
-import cn.myfrank.stationbuilder.items.BuildingPlacerItem;
 import cn.myfrank.stationbuilder.items.RailBuilderItem;
 import cn.myfrank.stationbuilder.screens.BuildingPlacerScreen;
 import cn.myfrank.stationbuilder.screens.BuildingSelectorScreen;
 import cn.myfrank.stationbuilder.screens.RailBuilderScreen;
 import cn.myfrank.stationbuilder.screens.StationEditorScreen;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.Direction;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
@@ -61,7 +61,8 @@ public final class ForgeClientEvents {
         if (ForgeClientModEvents.CLEAR_RAIL_STATE.consumeClick() && client.player != null && client.player.getMainHandItem().getItem() instanceof RailBuilderItem) {
             PlatformServices.sendToServer(StationBuilder.PACKET_CLEAR_RAIL, StationBuilder.buf(b -> {}));
         }
-        if (ForgeClientModEvents.UNDO_PLACER.consumeClick() && client.player != null && client.player.getMainHandItem().getItem() instanceof BuildingPlacerItem) {
+        // Global undo: Ctrl+Z rolls back the latest action of any StationBuilder tool.
+        if (ForgeClientModEvents.UNDO.consumeClick() && client.screen == null && Screen.hasControlDown()) {
             PlatformServices.sendToServer(StationBuilder.PACKET_UNDO_PLACER, StationBuilder.buf(b -> {}));
         }
     }

@@ -10,10 +10,10 @@ public class StationBuilderKeyBindings {
             org.lwjgl.glfw.GLFW.GLFW_KEY_V,
             "category.stationbuilder"
     );
-    public static final KeyMapping UNDO_PLACER = new KeyMapping(
-            "key.stationbuilder.undo_placer",
+    public static final KeyMapping UNDO = new KeyMapping(
+            "key.stationbuilder.undo",
             InputConstants.Type.KEYSYM,
-            org.lwjgl.glfw.GLFW.GLFW_KEY_U,
+            org.lwjgl.glfw.GLFW.GLFW_KEY_Z,
             "category.stationbuilder"
     );
 }

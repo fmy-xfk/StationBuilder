@@ -279,15 +279,20 @@ public class StationBuilder {
     private static void handleUndoPlacer(UndoPlacerPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             ServerPlayer player = (ServerPlayer) context.player();
-            if (player.getMainHandItem().getItem() instanceof BuildingPlacerItem) {
-                boolean success = PlacerHistoryManager.undo(player);
-                if (success) {
-                    player.displayClientMessage(Component.translatable("message.stationbuilder.undo_success")
-                            .withStyle(ChatFormatting.GREEN), false);
-                } else {
-                    player.displayClientMessage(Component.translatable("message.stationbuilder.undo_no_history")
-                            .withStyle(ChatFormatting.RED), false);
-                }
+            // Global undo history: the latest action may come from any tool.
+            String tool = PlacerHistoryManager.undo(player);
+            if (tool != null) {
+                String key = switch (tool) {
+                    case "station" -> "message.stationbuilder.undo_station";
+                    case "rail" -> "message.stationbuilder.undo_rail";
+                    case "placer" -> "message.stationbuilder.undo_placer";
+                    default -> "message.stationbuilder.undo_success";
+                };
+                player.displayClientMessage(Component.translatable(key)
+                        .withStyle(ChatFormatting.GREEN), false);
+            } else {
+                player.displayClientMessage(Component.translatable("message.stationbuilder.undo_no_history")
+                        .withStyle(ChatFormatting.RED), false);
             }
         });
     }

@@ -6,6 +6,7 @@
   "refmap": "stationbuilder.refmap.json",
   "plugin": "cn.myfrank.stationbuilder.mixin.StationBuilderMixinPlugin",
   "mixins": [
+    "LevelBlockEditMixin",
     "mtr.EnumPSDAPGItemAccessor",
     "mtr.EnumPSDAPGTypeAccessor",
     "mtr.ItemPSDAPGBaseAccessor",

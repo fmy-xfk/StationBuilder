@@ -158,13 +158,18 @@ public final class StationBuilder {
 
     private static void handleUndoPlacer(net.minecraft.server.level.ServerPlayer player, FriendlyByteBuf buf) {
         if (player.getServer() != null) player.getServer().execute(() -> {
-            if (player.getMainHandItem().getItem() instanceof BuildingPlacerItem) {
-                boolean success = PlacerHistoryManager.undo(player);
-                if (success) {
-                    player.sendSystemMessage(Component.translatable("message.stationbuilder.undo_success").withStyle(net.minecraft.ChatFormatting.GREEN), true);
-                } else {
-                    player.sendSystemMessage(Component.translatable("message.stationbuilder.undo_no_history").withStyle(net.minecraft.ChatFormatting.RED), true);
-                }
+            // Global undo history: the latest action may come from any tool.
+            String tool = PlacerHistoryManager.undo(player);
+            if (tool != null) {
+                String key = switch (tool) {
+                    case "station" -> "message.stationbuilder.undo_station";
+                    case "rail" -> "message.stationbuilder.undo_rail";
+                    case "placer" -> "message.stationbuilder.undo_placer";
+                    default -> "message.stationbuilder.undo_success";
+                };
+                player.sendSystemMessage(Component.translatable(key).withStyle(net.minecraft.ChatFormatting.GREEN), true);
+            } else {
+                player.sendSystemMessage(Component.translatable("message.stationbuilder.undo_no_history").withStyle(net.minecraft.ChatFormatting.RED), true);
             }
         });
     }

@@ -77,6 +77,7 @@ public class RailBuilderItem extends Item {
         tooltip.add(Component.translatable("tooltip.stationbuilder.rail_builder.line1"));
         tooltip.add(Component.translatable("tooltip.stationbuilder.rail_builder.line2"));
         tooltip.add(Component.translatable("tooltip.stationbuilder.rail_builder.line3"));
+        tooltip.add(Component.translatable("tooltip.stationbuilder.rail_builder.line4"));
         var lastPair = RailBuilderState.getLastNodesAndAngle(stack);
         if (lastPair == null || lastPair.left() == null || lastPair.left().isEmpty()) return;
         BlockPos last = lastPair.left().get(0);
