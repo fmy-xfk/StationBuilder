@@ -246,7 +246,7 @@ public class StationGenerator {
                 buildCatenaryForGroup(
                         player, world, origin, facing, right, length,
                         trackCountInGroup, groupStart, groupEnd, trackLeftEdges,
-                        representativeTrack, pL, pR
+                        representativeTrack, pL, pR, leftNeighbor, rightNeighbor
                 );
             }
 
@@ -257,7 +257,8 @@ public class StationGenerator {
     private static void buildCatenaryForGroup(
             ServerPlayer player, ServerLevel world, BlockPos origin, Direction facing, Direction right, int length,
             int trackCount, int groupStart, int groupEnd, List<BlockPos> trackLeftEdges,
-            TrackElement trackCfg, PlatformElement pL, PlatformElement pR
+            TrackElement trackCfg, PlatformElement pL, PlatformElement pR,
+            StationElement leftNeighbor, StationElement rightNeighbor
     ) {
         int spacing = Math.max(6, trackCfg.catenarySpacing);
         int wireHeight = Math.max(4, trackCfg.catenaryHeight); // 基础接触线导高（默认 6）
@@ -267,17 +268,34 @@ public class StationGenerator {
         boolean useCpw = trackCfg.catenaryState == CatenaryType.CPW.ordinal() && CommonUtil.isCpwLoaded();
         CatenaryTypeMapping msdType = CatenaryTypeMapping.values()[Math.min(trackCfg.catenaryModeIndex, CatenaryTypeMapping.values().length - 1)];
 
-        // 横梁高度：CEE 与 CPW 抬高 3 格，MSD 软网抬高 2 格，硬网抬高 1 格
+        // 确定 CPW 腕臂与线轴 ID
+        ResourceLocation cpwCantileverId = CPWIntegration.DEFAULT_CANTILEVER;
+        ResourceLocation cpwWireCoilId = trackCfg.catenaryBlock;
+        if (trackCfg.catenaryBlock.getPath().contains("cantilever")) {
+            cpwCantileverId = trackCfg.catenaryBlock;
+            cpwWireCoilId = CPWIntegration.WIRE_COIL;
+        }
+
+        // CPW 采用独立的站台接触网建设模式：外侧 mast / 雨棚或站台 mast / 轨道间隙 mast。
+        // 该模式不再建造龙门架或软横跨，因此直接从这里分流。
+        if (useCpw) {
+            buildCpwCatenaryForGroup(
+                    player, world, origin, facing, right, length,
+                    trackCount, groupStart, trackLeftEdges, trackCfg,
+                    leftNeighbor, rightNeighbor, spacing, wireHeight,
+                    cpwCantileverId, cpwWireCoilId
+            );
+            return;
+        }
+
+        // 横梁高度：CEE 抬高 3 格，MSD 软网抬高 2 格，硬网抬高 1 格
         int trussHeight;
-        if (useCee || useCpw) {
+        if (useCee) {
             trussHeight = wireHeight + 3;
         } else {
             boolean isSoftCatenary = (!useMsd) || (msdType != CatenaryTypeMapping.MSDRigidCatenary);
             trussHeight = isSoftCatenary ? (wireHeight + 2) : (wireHeight + 1);
         }
-
-        // Cantilever（腕臂）高度：上提 2 格至立柱中上部，其下垂绝缘子挂点正好落在 wireHeight
-        int cantileverY = wireHeight + 2;
 
         boolean leftHasCanopy = (pL != null && pL.hasCanopy);
         boolean rightHasCanopy = (pR != null && pR.hasCanopy);
@@ -289,20 +307,11 @@ public class StationGenerator {
 
         BlockPos[] lastMsdNodes = new BlockPos[trackCount];
         BlockPos[] lastCeeNodes = new BlockPos[trackCount];
-        BlockPos[] lastCpwNodes = new BlockPos[trackCount];
         List<BlockPos> placedWallBlocks = new ArrayList<>();
 
-        // MSD / CEE / CPW 接触网且相邻有站台时，支柱向站台侧内凹一格避让安全线
-        int leftOffsetDist = ((useMsd || useCee || useCpw) && leftIsPlatform) ? 2 : 1;
-        int rightOffsetDist = ((useMsd || useCee || useCpw) && rightIsPlatform) ? 2 : 1;
-
-        // 确定 CPW 腕臂与线轴 ID
-        ResourceLocation cpwCantileverId = CPWIntegration.DEFAULT_CANTILEVER;
-        ResourceLocation cpwWireCoilId = trackCfg.catenaryBlock;
-        if (trackCfg.catenaryBlock.getPath().contains("cantilever")) {
-            cpwCantileverId = trackCfg.catenaryBlock;
-            cpwWireCoilId = CPWIntegration.WIRE_COIL;
-        }
+        // MSD / CEE 接触网且相邻有站台时，支柱向站台侧内凹一格避让安全线
+        int leftOffsetDist = ((useMsd || useCee) && leftIsPlatform) ? 2 : 1;
+        int rightOffsetDist = ((useMsd || useCee) && rightIsPlatform) ? 2 : 1;
 
         for (int l = 0; l < length; l++) {
             boolean isPillarFrame = (l % spacing == 0) || (l == length - 1);
@@ -430,49 +439,14 @@ public class StationGenerator {
                             CEEIntegration.connectWire(world, player, lastCeeNodes[t], catenaryPos, trackCfg.catenaryBlock);
                         }
                         lastCeeNodes[t] = catenaryPos;
-                    } else if (useCpw) {
-                        // === CPW 接触网 ===
-                        // 1. 吊柱朝向判断：左半侧股道向右伸出腕臂，右半侧股道向左伸出腕臂
-                        Direction hangerSide;
-                        if (trackCount == 1) {
-                            hangerSide = armFromLeft ? right : right.getOpposite();
-                        } else {
-                            hangerSide = (t < trackCount / 2) ? right : right.getOpposite();
-                        }
-                        Direction toTrack = hangerSide.getOpposite();
-
-                        CPWAngle mastAngle = CPWAngle.fromDirection(facing);
-                        CPWAngle cantileverAngle = CPWAngle.fromDirection(hangerSide);
-
-                        // 2. 在轨道侧边生成 Mast 吊柱（从横梁 trussHeight 向下延伸到 cantileverY - 1）
-                        BlockPos dropperMastPos = centerLine.relative(toTrack, 3);
-                        CPWIntegration.buildMastColumn(
-                                world,
-                                dropperMastPos.getX(),
-                                dropperMastPos.getZ(),
-                                cantileverY - 3,
-                                trussHeight,
-                                mastAngle,
-                                trackCfg.catenaryPillarBlock
-                        );
-
-                        // 3. 紧贴 Mast 吊柱朝向轨道放置 Cantilever 腕臂
-                        BlockPos cantileverPos = centerLine.above(cantileverY).relative(toTrack, 2);
-                        CPWIntegration.placeCantilever(world, cantileverPos, cantileverAngle, cpwCantileverId);
-
-                        // 4. 使用 Wire Coil 在前后两榀腕臂之间拉起接触网导线
-                        if (lastCpwNodes[t] != null) {
-                            CPWIntegration.connectWire(world, player, lastCpwNodes[t], cantileverPos, cpwWireCoilId);
-                        }
-                        lastCpwNodes[t] = cantileverPos;
                     }
                 }
             }
 
             // ========================================================
-            // 3. 原版接触网沿轨道铺设连续导线方块（MSD/CEE/CPW 均跳过此步）
+            // 3. 原版接触网沿轨道铺设连续导线方块（MSD/CEE 均跳过此步）
             // ========================================================
-            if (!useMsd && !useCee && !useCpw) {
+            if (!useMsd && !useCee) {
                 BlockState wireState = CommonUtil.getBlockState(trackCfg.catenaryBlock);
                 for (int t = 0; t < trackCount; t++) {
                     BlockPos centerWire = trackLeftEdges.get(groupStart + t).relative(facing, l).relative(right, 1).above(wireHeight);
@@ -485,6 +459,237 @@ public class StationGenerator {
         // 4. 彻底消除墙体方块缝隙
         // ========================================================
         fixWallConnections(world, placedWallBlocks);
+    }
+
+    // ========================================================
+    // CPW 站台接触网：按 3 条原则布置 mast
+    // 1. 最左/最右侧股道且外侧无站房、站台 -> 外侧落地 mast
+    // 2. 不满足 1 但贴近站台 -> 雨棚顶 mast；没有雨棚则建在站台面上
+    // 3. 其余 -> 轨道间隙 mast；间隙已有 mast 时重复利用
+    // ========================================================
+
+    private enum CpwMastBase { GROUND, PLATFORM, CANOPY }
+
+    private static final class CpwMastPlan {
+        private final int lateral;       // 相对轨道中心沿 right 方向的偏移
+        private final CpwMastBase base;
+        private final int baseRelY;      // 相对 origin 的 mast 底部高度（GROUND 时忽略）
+        private final int minAnchorRelY; // 相对 origin 的腕臂最低安装高度（GROUND 时忽略）
+        private final boolean gap;       // 是否采用轨道间隙方案
+        private int resolvedGapLateral;  // 间隙方案在首榀确定后固定，保证整条导线不歪斜
+
+        private CpwMastPlan(int lateral, CpwMastBase base, int baseRelY, int minAnchorRelY, boolean gap) {
+            this.lateral = lateral;
+            this.base = base;
+            this.baseRelY = baseRelY;
+            this.minAnchorRelY = minAnchorRelY;
+            this.gap = gap;
+        }
+    }
+
+    private static List<CpwMastPlan> planCpwMasts(
+            int trackCount, StationElement leftNeighbor, StationElement rightNeighbor
+    ) {
+        List<CpwMastPlan> plans = new ArrayList<>(trackCount);
+        for (int g = 0; g < trackCount; g++) {
+            boolean isLeftEnd = (g == 0);
+            boolean isRightEnd = (g == trackCount - 1);
+
+            PlatformElement leftPlatform = (isLeftEnd && leftNeighbor instanceof PlatformElement p) ? p : null;
+            PlatformElement rightPlatform = (isRightEnd && rightNeighbor instanceof PlatformElement p) ? p : null;
+            boolean leftBlocked = isLeftEnd
+                    && (leftNeighbor instanceof PlatformElement || leftNeighbor instanceof BuildingElement);
+            boolean rightBlocked = isRightEnd
+                    && (rightNeighbor instanceof PlatformElement || rightNeighbor instanceof BuildingElement);
+
+            if (isLeftEnd && !leftBlocked) {
+                // 原则 1：左侧外侧没有站房/站台
+                plans.add(new CpwMastPlan(-3, CpwMastBase.GROUND, 0, 0, false));
+            } else if (isRightEnd && !rightBlocked) {
+                // 原则 1：右侧外侧没有站房/站台
+                plans.add(new CpwMastPlan(3, CpwMastBase.GROUND, 0, 0, false));
+            } else if (leftPlatform != null) {
+                // 原则 2：贴近左侧站台
+                plans.add(createPlatformMastPlan(leftPlatform, true));
+            } else if (rightPlatform != null) {
+                // 原则 2：贴近右侧站台
+                plans.add(createPlatformMastPlan(rightPlatform, false));
+            } else {
+                // 原则 3：轨道间隙。优先选择右侧间隙，方便下一股道直接复用。
+                boolean hasLeftGap = (g > 0);
+                boolean hasRightGap = (g < trackCount - 1);
+                if (hasLeftGap || hasRightGap) {
+                    plans.add(new CpwMastPlan(hasRightGap ? 2 : -2, CpwMastBase.GROUND, 0, 0, true));
+                } else {
+                    // 单股道且两侧都被站房占满时的兜底：仍在外侧立 mast
+                    plans.add(new CpwMastPlan(3, CpwMastBase.GROUND, 0, 0, false));
+                }
+            }
+        }
+        return plans;
+    }
+
+    private static CpwMastPlan createPlatformMastPlan(PlatformElement p, boolean platformOnLeft) {
+        // 靠轨道一侧的平台边缘为 w=0（右侧站台）或 w=width-1（左侧站台）。
+        // mast 再向平台内侧一格，避开安全线与屏蔽门；腕臂仍朝轨道伸出。
+        // 宽度不足 2 的极窄站台只能让 mast 落在唯一的站台方块上。
+        int mastW;
+        int edgeW;
+        int lateral;
+        if (p.width <= 1) {
+            mastW = 0;
+            edgeW = 0;
+            lateral = platformOnLeft ? -2 : 2;
+        } else {
+            mastW = platformOnLeft
+                    ? Math.max(0, p.width - 2)
+                    : Math.min(p.width - 1, 1);
+            edgeW = platformOnLeft ? p.width - 1 : 0;
+            lateral = platformOnLeft ? -3 : 3;
+        }
+
+        boolean hasCanopySlab = p.hasCanopy
+                && p.canopyStyle != PlatformElement.CanopyStyle.PILLAR_ONLY;
+        if (hasCanopySlab) {
+            int mastCanopyTop = canopyTopRelY(p, mastW);
+            int edgeCanopyTop = canopyTopRelY(p, edgeW);
+            // mast 坐在雨棚顶上，腕臂必须高于雨棚边缘，避免穿模。
+            int baseRelY = mastCanopyTop + 1;
+            int minAnchorRelY = Math.max(mastCanopyTop, edgeCanopyTop) + 1;
+            return new CpwMastPlan(lateral, CpwMastBase.CANOPY, baseRelY, minAnchorRelY, false);
+        }
+
+        // 没有雨棚（或雨棚只有立柱）时 mast 直接建在站台面上。
+        return new CpwMastPlan(lateral, CpwMastBase.PLATFORM, 1, 1, false);
+    }
+
+    private static int canopyTopRelY(PlatformElement p, int w) {
+        int halfYOffset = calculateCanopyHalfY(w, p.width, p.canopyStyle);
+        return ((p.canopyHeight + 1) * 2 + halfYOffset) / 2;
+    }
+
+    private static void buildCpwCatenaryForGroup(
+            ServerPlayer player, ServerLevel world, BlockPos origin, Direction facing, Direction right, int length,
+            int trackCount, int groupStart, List<BlockPos> trackLeftEdges, TrackElement trackCfg,
+            StationElement leftNeighbor, StationElement rightNeighbor,
+            int spacing, int wireHeight,
+            ResourceLocation cantileverId, ResourceLocation wireCoilId
+    ) {
+        ResourceLocation mastId = CPWIntegration.resolveMastId(trackCfg.catenaryPillarBlock);
+        int nominalBaseY = origin.getY();
+        // 注意：这里的 mast / 腕臂高度必须是世界绝对 Y，不能只取相对高度，
+        // 否则在非 y=0 的站台上会把 mast 拉到 y=8 附近，出现几十格高的支柱。
+        int cantileverY = nominalBaseY + wireHeight + 2;
+
+        List<CpwMastPlan> plans = planCpwMasts(trackCount, leftNeighbor, rightNeighbor);
+        CPWAngle mastAngle = CPWAngle.fromDirection(facing);
+        BlockPos[] lastAnchors = new BlockPos[trackCount];
+
+        for (int l = 0; l < length; l++) {
+            if (l % spacing != 0 && l != length - 1) continue;
+
+            for (int g = 0; g < trackCount; g++) {
+                BlockPos center = trackLeftEdges.get(groupStart + g).relative(facing, l).relative(right, 1);
+                CpwMastPlan plan = plans.get(g);
+
+                int lateral;
+                if (plan.gap) {
+                    if (plan.resolvedGapLateral == 0) {
+                        plan.resolvedGapLateral = chooseGapLateral(
+                                world, center, right, g, trackCount, nominalBaseY
+                        );
+                    }
+                    lateral = plan.resolvedGapLateral;
+                } else {
+                    lateral = plan.lateral;
+                }
+                BlockPos mastPos = center.relative(right, lateral);
+
+                int baseY;
+                int minAnchorY;
+                if (plan.base == CpwMastBase.GROUND) {
+                    // 轨道间隙位于站内，地面高度固定为 origin；不能对已有 mast 做地面扫描，
+                    // 否则会把相邻股道刚建好的 mast 当成地形，导致在其顶部叠加新 mast。
+                    baseY = plan.gap
+                            ? nominalBaseY
+                            : findGroundY(world, mastPos.getX(), mastPos.getZ(), nominalBaseY);
+                    minAnchorY = baseY;
+                } else {
+                    baseY = nominalBaseY + plan.baseRelY;
+                    minAnchorY = nominalBaseY + plan.minAnchorRelY;
+                }
+                int anchorY = Math.max(cantileverY, minAnchorY);
+                int topY = anchorY + 1;
+
+                // 原则 3：间隙中已有 mast 时直接复用，不再重复建造。
+                boolean reuseMast = plan.gap && CPWIntegration.isMastBlock(
+                        world, new BlockPos(mastPos.getX(), anchorY, mastPos.getZ())
+                );
+                if (!reuseMast) {
+                    CPWIntegration.buildMastColumn(
+                            world, mastPos.getX(), mastPos.getZ(), baseY, topY, mastAngle, mastId
+                    );
+                }
+
+                // mast 在轨道左侧时腕臂向右伸，在轨道右侧时腕臂向左伸。
+                CPWAngle cantileverAngle = lateral < 0
+                        ? mastAngle.getClockWise()
+                        : mastAngle.getCounterClockWise();
+                BlockPos cantileverPos = cantileverAngle.offset(new BlockPos(mastPos.getX(), anchorY, mastPos.getZ()));
+                CPWIntegration.placeCantilever(world, cantileverPos, cantileverAngle, cantileverId);
+
+                if (lastAnchors[g] != null) {
+                    CPWIntegration.connectWire(world, player, lastAnchors[g], cantileverPos, wireCoilId);
+                }
+                lastAnchors[g] = cantileverPos;
+            }
+        }
+    }
+
+    /**
+     * 轨道间隙方案：先检查左右两侧间隙是否已经有 mast，有则复用；
+     * 否则优先在右侧间隙新建，便于下一股道检查左侧间隙时直接复用。
+     */
+    private static int chooseGapLateral(
+            ServerLevel world, BlockPos center, Direction right, int trackIndex, int trackCount, int nominalBaseY
+    ) {
+        if (trackIndex > 0) {
+            BlockPos leftGap = center.relative(right, -2);
+            if (hasMastInGap(world, leftGap, nominalBaseY)) return -2;
+        }
+        if (trackIndex < trackCount - 1) {
+            BlockPos rightGap = center.relative(right, 2);
+            if (hasMastInGap(world, rightGap, nominalBaseY)) return 2;
+        }
+        return trackIndex < trackCount - 1 ? 2 : -2;
+    }
+
+    private static boolean hasMastInGap(ServerLevel world, BlockPos gapPos, int nominalBaseY) {
+        return CPWIntegration.hasMastColumn(
+                world, gapPos.getX(), gapPos.getZ(), nominalBaseY - 16, nominalBaseY + 32
+        );
+    }
+
+    /**
+     * 外侧 mast 的落地点：从站台地面高度开始寻找第一个可放置位置，
+     * 地形较高时向上让位，地形较低时向下落到实际地面。
+     */
+    private static int findGroundY(ServerLevel world, int x, int z, int nominalY) {
+        int y = nominalY;
+        int limit = nominalY + 16;
+        while (y < limit && !world.isOutsideBuildHeight(y)) {
+            BlockPos pos = new BlockPos(x, y, z);
+            // 把旧 mast 当作可穿透结构，避免重建车站时在其顶部继续叠 mast。
+            if (CommonUtil.isSoftTransparent(world.getBlockState(pos)) || CPWIntegration.isMastBlock(world, pos)) {
+                break;
+            }
+            y++;
+        }
+        while (y > world.getMinBuildHeight()
+                && CommonUtil.isSoftTransparent(world.getBlockState(new BlockPos(x, y - 1, z)))) {
+            y--;
+        }
+        return y;
     }
 
     private static void connectToCanopy(ServerLevel world, BlockPos edgePos, int trussHeight, int canopyY, ResourceLocation pillarBlock, List<BlockPos> recordedBlocks) {

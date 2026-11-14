@@ -1,6 +1,6 @@
 package cn.myfrank.stationbuilder;
 
-import cn.myfrank.stationbuilder.create.CreateIntegration;
+import cn.myfrank.stationbuilder.create.CreateClientIntegration;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.RailMath;
 import cn.myfrank.stationbuilder.utils.TestConnectResult;
@@ -223,7 +223,7 @@ public final class RailPreviewRenderer {
 				else if (railType == RailGenerator.RailNodeType.CREATE && CommonUtil.isCreateLoaded()) {
 					preview = CreatePreviewCache.get(lastNode, lastAngle, node, angle);
 					if (preview == null) {
-						preview = CreateIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle, config.railType);
+						preview = CreateClientIntegration.testConnectRailNodes(lastNode, lastAngle, node, angle, config.railType);
 						CreatePreviewCache.put(lastNode, lastAngle, node, angle, preview);
 					}
 				}

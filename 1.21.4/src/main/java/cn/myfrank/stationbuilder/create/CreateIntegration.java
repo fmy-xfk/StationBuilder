@@ -1,7 +1,6 @@
 package cn.myfrank.stationbuilder.create;
 
 import cn.myfrank.stationbuilder.utils.CurveData;
-import cn.myfrank.stationbuilder.utils.TestConnectResult;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
@@ -66,11 +65,4 @@ public class CreateIntegration {
     public static CurveData connectRailNodes(Player player, ServerLevel world, BlockPos s, BlockPos e, ResourceLocation railType) {
         return null;
     }
-
-    public static TestConnectResult testConnectRailNodes(
-            BlockPos startPos, float startAngle,
-            BlockPos endPos, float endAngle, ResourceLocation railType) {
-        return TestConnectResult.fail();
-    }
-
 }

@@ -17,8 +17,8 @@ minecraft {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
-            property 'mixin.env.remapRefMap', 'true'
-            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+            //property 'mixin.env.remapRefMap', 'true'
+            //property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
 
             mods {
                 "${mod_id}" {
@@ -77,7 +77,16 @@ dependencies {
     implementation fg.deobf("maven.modrinth:create:mc${project.minecraft_version}-${project.create_version}")
     // Steam 'n' rails 1.20.1
     runtimeOnly fg.deobf("maven.modrinth:create-steam-n-rails:1.7.3+forge-mc${project.minecraft_version}")
-    rawRuntimeMods fg.deobf("maven.modrinth:dragonlib:3.0.29+${project.minecraft_version}-forge")
+    //runtimeOnly fg.deobf("maven.modrinth:dragonlib:3.0.29+${project.minecraft_version}-forge")
     //create-pantographs-and-wires
-    rawRuntimeMods fg.deobf("maven.modrinth:VzdCnMqW:RaB5OqWE")
+    //runtimeOnly fg.deobf("maven.modrinth:VzdCnMqW:RaB5OqWE")
+}
+
+tasks.register('deployModsToRunDir', Copy) {
+    from configurations.rawRuntimeMods
+    into file("run/mods")
+}
+
+tasks.matching { it.name in ['runClient', 'runServer'] }.configureEach {
+    dependsOn 'deployModsToRunDir'
 }

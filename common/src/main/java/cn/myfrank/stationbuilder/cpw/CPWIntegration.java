@@ -1,19 +1,20 @@
 package cn.myfrank.stationbuilder.cpw;
 
 import cn.myfrank.stationbuilder.utils.CommonUtil;
+import cn.myfrank.stationbuilder.utils.TickScheduler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
-import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 
 public class CPWIntegration {
     public static final ResourceLocation WIRE_COIL = ResourceLocation.fromNamespaceAndPath("pantographsandwires", "wire_coil");
@@ -85,44 +86,139 @@ public class CPWIntegration {
         return true;
     }
 
+    /**
+     * 沿铁轨延伸接触网导线。
+     *
+     * CPW 的 {@code pantographsandwires:wire_coil} 只是 MultiWireItem 的外壳，
+     * 真正决定导线类型的是 subtype 数据组件；裸 ItemStack 会回退到 energy_wire。
+     * 另外 {@code CatenaryWireItem.useWireOn} 会忽略右键目标，改为从玩家视线射线
+     * 寻找 cantilever，因此在生成器里模拟 useOn 并不能可靠连线。
+     *
+     * 这里直接调用 CPW 的 WireGraph API，使用 CATENARY_WIRE 类型在两根 cantilever
+     * 方块之间创建 edge。CPW 未加载或 API 版本不匹配时安全跳过。
+     */
     public static void connectWire(ServerLevel world, Player player, BlockPos from, BlockPos to, ResourceLocation wireCoilId) {
-        if (from == null || to == null || from.equals(to)) return;
+        if (world == null || from == null || to == null || from.equals(to)) return;
+        // 延后 1 tick，确保 cantilever 的 BlockEntity 已创建，WireGraph 能读取连接点。
+        TickScheduler.schedule(1, () -> connectCatenaryWire(world, from, to));
+    }
 
-        ItemStack coilStack = ItemStack.EMPTY;
-        if (player != null) {
-            for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-                ItemStack invStack = player.getInventory().getItem(i);
-                if (!invStack.isEmpty() && CommonUtil.getItemId(invStack.getItem()).equals(wireCoilId)) {
-                    coilStack = invStack;
+    public static boolean connectCatenaryWire(ServerLevel world, BlockPos fromCantilever, BlockPos toCantilever) {
+        if (!ensureWireApi()) return false;
+        try {
+            Object graph = wireGraphManagerGet.invoke(null, world, catenaryGraphId);
+            if (graph == null) return false;
+
+            Object customData = customDataCtor.newInstance(new CompoundTag());
+            Object nodeA = blockConnectorNodeCtor.newInstance(fromCantilever);
+            Object nodeB = blockConnectorNodeCtor.newInstance(toCantilever);
+            Object pointIndex = mutableIntCtor.newInstance(0);
+            Object result = wireGraphCreateEdge.invoke(
+                    graph, catenaryWireType, customData, nodeA, nodeB, pointIndex, true
+            );
+            if (result == null) return false;
+            return createEdgeResultSuccess == null
+                    || Boolean.TRUE.equals(createEdgeResultSuccess.invoke(result));
+        } catch (Throwable t) {
+            logWireApiFailure(t);
+            return false;
+        }
+    }
+
+    private static volatile Boolean wireApiAvailable;
+    private static Method wireGraphManagerGet;
+    private static Method wireGraphCreateEdge;
+    private static Method createEdgeResultSuccess;
+    private static Constructor<?> customDataCtor;
+    private static Constructor<?> blockConnectorNodeCtor;
+    private static Constructor<?> mutableIntCtor;
+    private static Object catenaryGraphId;
+    private static Object catenaryWireType;
+    private static boolean wireApiFailureLogged;
+
+    private static synchronized boolean ensureWireApi() {
+        if (wireApiAvailable != null) return wireApiAvailable;
+        try {
+            Class<?> wiresApi = Class.forName("de.mrjulsen.wires.WiresApi");
+            catenaryGraphId = wiresApi.getField("PAW_CATENARY_WIRES").get(null);
+
+            Class<?> modWireRegistry = Class.forName("de.mrjulsen.paw.registry.ModWireRegistry");
+            catenaryWireType = modWireRegistry.getField("CATENARY_WIRE").get(null);
+
+            Class<?> graphIdClass = Class.forName("de.mrjulsen.wires.util.GraphId");
+            Class<?> graphManagerClass = Class.forName("de.mrjulsen.wires.graph.WireGraphManager");
+            wireGraphManagerGet = graphManagerClass.getMethod("get", Level.class, graphIdClass);
+
+            Class<?> wireGraphClass = Class.forName("de.mrjulsen.wires.graph.WireGraph");
+            for (Method method : wireGraphClass.getMethods()) {
+                if (method.getName().equals("createEdge") && method.getParameterCount() == 6) {
+                    wireGraphCreateEdge = method;
                     break;
                 }
             }
-        }
-        if (coilStack.isEmpty()) {
-            coilStack = CommonUtil.getItemStack(wireCoilId);
-        }
-        if (coilStack.isEmpty()) return;
-
-        ItemStack originalHeld = player != null ? player.getItemInHand(InteractionHand.MAIN_HAND) : ItemStack.EMPTY;
-        if (player != null) {
-            player.setItemInHand(InteractionHand.MAIN_HAND, coilStack);
-        }
-
-        try {
-            ItemStack activeStack = player != null ? player.getItemInHand(InteractionHand.MAIN_HAND) : coilStack;
-            BlockHitResult hitFrom = new BlockHitResult(Vec3.atCenterOf(from), Direction.UP, from, false);
-            UseOnContext contextFrom = new UseOnContext(world, player, InteractionHand.MAIN_HAND, activeStack, hitFrom);
-            activeStack.useOn(contextFrom);
-
-            activeStack = player != null ? player.getItemInHand(InteractionHand.MAIN_HAND) : activeStack;
-            BlockHitResult hitTo = new BlockHitResult(Vec3.atCenterOf(to), Direction.UP, to, false);
-            UseOnContext contextTo = new UseOnContext(world, player, InteractionHand.MAIN_HAND, activeStack, hitTo);
-            activeStack.useOn(contextTo);
-        } finally {
-            if (player != null) {
-                player.setItemInHand(InteractionHand.MAIN_HAND, originalHeld);
+            if (wireGraphCreateEdge == null) {
+                throw new NoSuchMethodException("WireGraph.createEdge");
             }
+
+            customDataCtor = Class.forName("de.mrjulsen.wires.item.CustomData")
+                    .getConstructor(CompoundTag.class);
+            blockConnectorNodeCtor = Class.forName("de.mrjulsen.wires.graph.data.node.BlockConnectorNodeData")
+                    .getConstructor(BlockPos.class);
+            mutableIntCtor = Class.forName("org.apache.commons.lang3.mutable.MutableInt")
+                    .getConstructor(int.class);
+
+            try {
+                Class<?> resultClass = Class.forName("de.mrjulsen.wires.graph.WireGraph$CreateEdgeResult");
+                createEdgeResultSuccess = resultClass.getMethod("success");
+            } catch (Throwable ignored) {
+                createEdgeResultSuccess = null;
+            }
+
+            wireApiAvailable = true;
+        } catch (Throwable t) {
+            wireApiAvailable = false;
+            logWireApiFailure(t);
         }
+        return wireApiAvailable;
+    }
+
+    private static void logWireApiFailure(Throwable t) {
+        if (wireApiFailureLogged) return;
+        wireApiFailureLogged = true;
+        System.out.println("[StationBuilder] CPW catenary wire graph API unavailable: " + t);
+    }
+
+    /**
+     * 判断方块 ID 是否可作为 CPW 支柱（mast）。
+     * CPW 本体和常见附属模组的 mast 方块路径都包含 mast。
+     */
+    public static boolean isMastBlockId(ResourceLocation id) {
+        return id != null && id.getPath().contains("mast");
+    }
+
+    /**
+     * 站台接触网只接受 mast 方块；配置为墙、栅栏等非 mast 方块时回退到默认格构柱。
+     */
+    public static ResourceLocation resolveMastId(ResourceLocation configured) {
+        return isMastBlockId(configured) ? configured : DEFAULT_MAST;
+    }
+
+    public static boolean isMastBlock(Level world, BlockPos pos) {
+        BlockState state = world.getBlockState(pos);
+        if (state.isAir()) return false;
+        return isMastBlockId(CommonUtil.getBlockId(state.getBlock()));
+    }
+
+    /**
+     * 在指定竖直范围内查找已有的 mast。
+     * 轨道间隙模式用它判断相邻股道是否已经建好 mast，从而直接重复利用。
+     */
+    public static boolean hasMastColumn(Level world, int x, int z, int minY, int maxY) {
+        if (minY > maxY) return false;
+        for (int y = minY; y <= maxY; y++) {
+            if (isMastBlock(world, new BlockPos(x, y, z))) return true;
+        }
+        return false;
     }
 
     public static boolean isCPWBlock(Level world, BlockPos pos) {
