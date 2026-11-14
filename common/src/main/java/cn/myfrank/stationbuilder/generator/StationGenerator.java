@@ -685,7 +685,7 @@ public class StationGenerator {
             }
             y++;
         }
-        while (y > world.getMinBuildHeight()
+        while (!world.isOutsideBuildHeight(new BlockPos(x, y - 1, z))
                 && CommonUtil.isSoftTransparent(world.getBlockState(new BlockPos(x, y - 1, z)))) {
             y--;
         }

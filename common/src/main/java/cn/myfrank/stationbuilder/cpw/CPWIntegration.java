@@ -4,22 +4,46 @@ import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.TickScheduler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 public class CPWIntegration {
     public static final ResourceLocation WIRE_COIL = ResourceLocation.fromNamespaceAndPath("pantographsandwires", "wire_coil");
     public static final ResourceLocation DEFAULT_MAST = ResourceLocation.fromNamespaceAndPath("pantographsandwires", "lattice_mast");
     public static final ResourceLocation DEFAULT_CANTILEVER = ResourceLocation.fromNamespaceAndPath("pantographsandwires", "cantilever_brown");
+
+    private static final TagKey<Block> HEADSPAN_CONNECTABLE = TagKey.create(
+            Registries.BLOCK,
+            ResourceLocation.fromNamespaceAndPath("pantographsandwires", "catenary_headspan_connectable")
+    );
+
+    /** 生成器使用的 headspan dropper 描述，不依赖 CPW 类型。 */
+    public static final class HeadspanDropper {
+        public final UUID id;
+        public final double fraction;
+
+        public HeadspanDropper(UUID id, double fraction) {
+            this.id = id;
+            this.fraction = fraction;
+        }
+    }
 
     /**
      * 将任意水平方向向量精确转换为对应的 CPWAngle 实例
@@ -125,6 +149,146 @@ public class CPWIntegration {
         }
     }
 
+    // ========================================================
+    // Headspan（多股道并行）
+    // ========================================================
+
+    /**
+     * 选择可以用于 headspan 的支柱。必须属于
+     * {@code pantographsandwires:catenary_headspan_connectable} 方块标签，
+     * 否则 LatticeMastNodeData 无法创建节点。
+     */
+    public static ResourceLocation resolveHeadspanMastId(ResourceLocation configured) {
+        if (configured != null && CommonUtil.getBlockState(configured).is(HEADSPAN_CONNECTABLE)) {
+            return configured;
+        }
+        return DEFAULT_MAST;
+    }
+
+    /**
+     * 在两根 headspan 支柱之间创建 CATENARY_HEADSPAN edge。
+     * 四段高度信息以 CPW 的 UpperWireHeight / TopWireHeight / Droppers 自定义数据写入。
+     */
+    public static Object createHeadspanEdge(
+            ServerLevel world, BlockPos mastA, BlockPos mastB,
+            float upperWireHeight, float topWireHeight, List<HeadspanDropper> droppers
+    ) {
+        if (world == null || mastA == null || mastB == null || droppers == null || !ensureHeadspanApi()) {
+            return null;
+        }
+        try {
+            CompoundTag common = new CompoundTag();
+            common.putFloat("UpperWireHeight", upperWireHeight);
+            common.putFloat("TopWireHeight", topWireHeight);
+
+            ListTag dropperList = new ListTag();
+            for (HeadspanDropper dropper : droppers) {
+                CompoundTag tag = new CompoundTag();
+                tag.putUUID("Id", dropper.id);
+                tag.putDouble("Pos", dropper.fraction);
+                dropperList.add(tag);
+            }
+            common.put("Droppers", dropperList);
+
+            CompoundTag edgeData = new CompoundTag();
+            edgeData.put("CustomData", common);
+            edgeData.putInt("PointsCount", 2);
+
+            Object graph = wireGraphManagerGet.invoke(null, world, catenaryGraphId);
+            if (graph == null) return null;
+
+            Object customData = customDataCtor.newInstance(edgeData);
+            Object nodeA = latticeMastNodeCtor.newInstance(mastA);
+            Object nodeB = latticeMastNodeCtor.newInstance(mastB);
+            Object pointIndex = mutableIntCtor.newInstance(0);
+            Object result = wireGraphCreateEdge.invoke(
+                    graph, headspanWireType, customData, nodeA, nodeB, pointIndex, true
+            );
+            if (result == null || !isEdgeSuccess(result)) return null;
+
+            Object edgeOptional = createEdgeResultEdge.invoke(result);
+            return Optional.class.getMethod("orElse", Object.class).invoke(edgeOptional, (Object) null);
+        } catch (Throwable t) {
+            logWireApiFailure(t);
+            return null;
+        }
+    }
+
+    /**
+     * 在 headspan 的 lower_tension_wire 上给指定 dropper 安装 registration arm，
+     * 之后 CATENARY_WIRE 才能以该 dropper 为连接点。
+     */
+    public static boolean addHeadspanRegistrationArm(
+            Object headspanEdge, UUID dropperId, double fraction, ResourceLocation cantileverItemId
+    ) {
+        if (headspanEdge == null || dropperId == null || cantileverItemId == null || !ensureHeadspanApi()) {
+            return false;
+        }
+        try {
+            ItemStack stack = CommonUtil.getItemStack(cantileverItemId);
+            if (stack.isEmpty()) return false;
+
+            Object decoration = registrationArmDecorationCtor.newInstance(
+                    stack, false, registrationArmNormalCentered, dropperId
+            );
+            int length = ((Number) wireEdgeLength.invoke(headspanEdge)).intValue();
+            double pos = Math.max(0.5, Math.min(Math.max(0.5, length - 0.5), fraction * length));
+            return Boolean.TRUE.equals(
+                    wireEdgeAddDecoration.invoke(headspanEdge, pos, "lower_tension_wire", decoration)
+            );
+        } catch (Throwable t) {
+            logWireApiFailure(t);
+            return false;
+        }
+    }
+
+    /**
+     * 为 headspan dropper 创建 catenary 连接节点。
+     */
+    public static Object createHeadspanCatenaryNode(Object headspanEdge, UUID dropperId) {
+        if (headspanEdge == null || dropperId == null || !ensureHeadspanApi()) {
+            return null;
+        }
+        try {
+            UUID edgeId = (UUID) wireEdgeGetId.invoke(headspanEdge);
+            Object wireId = wireIdCtor.newInstance(
+                    edgeId, "dropper_l_" + dropperId, headspanWireType
+            );
+            return headspanConnectionNodeCtor.newInstance(wireId);
+        } catch (Throwable t) {
+            logWireApiFailure(t);
+            return null;
+        }
+    }
+
+    /**
+     * 在两个 headspan dropper 节点之间创建 CATENARY_WIRE edge。
+     */
+    public static boolean connectHeadspanCatenary(ServerLevel world, Object nodeA, Object nodeB) {
+        if (world == null || nodeA == null || nodeB == null || !ensureHeadspanApi()) {
+            return false;
+        }
+        try {
+            Object graph = wireGraphManagerGet.invoke(null, world, catenaryGraphId);
+            if (graph == null) return false;
+
+            Object customData = customDataCtor.newInstance(new CompoundTag());
+            Object pointIndex = mutableIntCtor.newInstance(0);
+            Object result = wireGraphCreateEdge.invoke(
+                    graph, catenaryWireType, customData, nodeA, nodeB, pointIndex, true
+            );
+            return result != null && isEdgeSuccess(result);
+        } catch (Throwable t) {
+            logWireApiFailure(t);
+            return false;
+        }
+    }
+
+    private static boolean isEdgeSuccess(Object result) throws Exception {
+        return createEdgeResultSuccess == null
+                || Boolean.TRUE.equals(createEdgeResultSuccess.invoke(result));
+    }
+
     private static volatile Boolean wireApiAvailable;
     private static Method wireGraphManagerGet;
     private static Method wireGraphCreateEdge;
@@ -185,7 +349,67 @@ public class CPWIntegration {
     private static void logWireApiFailure(Throwable t) {
         if (wireApiFailureLogged) return;
         wireApiFailureLogged = true;
-        System.out.println("[StationBuilder] CPW catenary wire graph API unavailable: " + t);
+        System.out.println("[StationBuilder] CPW wire graph API unavailable: " + t);
+    }
+
+    private static volatile Boolean headspanApiAvailable;
+    private static Object headspanWireType;
+    private static Constructor<?> latticeMastNodeCtor;
+    private static Constructor<?> registrationArmDecorationCtor;
+    private static Object registrationArmNormalCentered;
+    private static Constructor<?> headspanConnectionNodeCtor;
+    private static Constructor<?> wireIdCtor;
+    private static Method wireEdgeGetId;
+    private static Method wireEdgeLength;
+    private static Method wireEdgeAddDecoration;
+    private static Method createEdgeResultEdge;
+
+    /**
+     * headspan 相关反射单独初始化，失败时不影响已经可用的普通 catenary 连线。
+     */
+    private static synchronized boolean ensureHeadspanApi() {
+        if (headspanApiAvailable != null) return headspanApiAvailable;
+        if (!ensureWireApi()) {
+            headspanApiAvailable = false;
+            return false;
+        }
+        try {
+            Class<?> modWireRegistry = Class.forName("de.mrjulsen.paw.registry.ModWireRegistry");
+            headspanWireType = modWireRegistry.getField("CATENARY_HEADSPAN").get(null);
+
+            latticeMastNodeCtor = Class.forName("de.mrjulsen.wires.graph.data.node.LatticeMastNodeData")
+                    .getConstructor(BlockPos.class);
+
+            Class<?> wireEdgeClass = Class.forName("de.mrjulsen.wires.graph.WireEdge");
+            wireEdgeGetId = wireEdgeClass.getMethod("getId");
+            wireEdgeLength = wireEdgeClass.getMethod("length");
+            wireEdgeAddDecoration = wireEdgeClass.getMethod(
+                    "addDecoration", double.class, String.class,
+                    Class.forName("de.mrjulsen.wires.decoration.IWireDecoration")
+            );
+
+            Class<?> resultClass = Class.forName("de.mrjulsen.wires.graph.WireGraph$CreateEdgeResult");
+            createEdgeResultEdge = resultClass.getMethod("edge");
+
+            Class<?> registrationStateClass = Class.forName("de.mrjulsen.paw.block.RegistrationArmBlock$State");
+            registrationArmNormalCentered = registrationStateClass.getField("NORMAL_CENTERED").get(null);
+            registrationArmDecorationCtor = Class.forName("de.mrjulsen.paw.registry.RegistrationArmWireDecoration")
+                    .getConstructor(ItemStack.class, boolean.class, registrationStateClass, UUID.class);
+
+            Class<?> wireIdClass = Class.forName("de.mrjulsen.wires.network.WireId");
+            wireIdCtor = wireIdClass.getConstructor(
+                    UUID.class, String.class, Class.forName("de.mrjulsen.wires.IWireType")
+            );
+            headspanConnectionNodeCtor = Class.forName(
+                            "de.mrjulsen.wires.graph.data.node.CatenaryHeadspanConnectionNodeData")
+                    .getConstructor(wireIdClass);
+
+            headspanApiAvailable = true;
+        } catch (Throwable t) {
+            headspanApiAvailable = false;
+            logWireApiFailure(t);
+        }
+        return headspanApiAvailable;
     }
 
     /**

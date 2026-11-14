@@ -1,6 +1,7 @@
 package cn.myfrank.stationbuilder.generator;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import cn.myfrank.stationbuilder.utils.*;
@@ -738,6 +739,17 @@ public class RailGenerator {
         // Build catenary
         boolean failToPlaceCatenaryNode = false;
 
+        // CPW 多股道并行走 headspan 模式；1~2 股道仍走 addCPWCatenaryNode 的侧柱 + 腕臂。
+        if (count > 2
+                && config.catenaryTypeIndex == CatenaryType.CPW.ordinal()
+                && CommonUtil.isCpwLoaded() && CommonUtil.isCreateLoaded()) {
+            buildCpwHeadspanCatenary(
+                    world, player, config, pps, count, segments, catenarySegCount,
+                    catenarySpacing, ubm, isRightest, leftmostIndex
+            );
+            return failToPlaceCatenaryNode;
+        }
+
         for (int i = 0; i < count; i++) {
             BlockPos lastCatenaryNode = null;
             BuildingMode.Up lastUbm = null;
@@ -954,6 +966,184 @@ public class RailGenerator {
         }
 
         return placedCantileverPos;
+    }
+
+    // ========================================================
+    // CPW 多股道 headspan
+    // ========================================================
+
+    private static final class CpwHeadspanFrame {
+        final BlockPos mastA;
+        final BlockPos mastB;
+        final int nodeY;
+        final float upperHeight;
+        final float topHeight;
+        final List<CPWIntegration.HeadspanDropper> droppers;
+        final UUID[] dropperIds;
+        final double[] fractions;
+
+        private CpwHeadspanFrame(
+                BlockPos mastA, BlockPos mastB, int nodeY,
+                float upperHeight, float topHeight,
+                List<CPWIntegration.HeadspanDropper> droppers,
+                UUID[] dropperIds, double[] fractions
+        ) {
+            this.mastA = mastA;
+            this.mastB = mastB;
+            this.nodeY = nodeY;
+            this.upperHeight = upperHeight;
+            this.topHeight = topHeight;
+            this.droppers = droppers;
+            this.dropperIds = dropperIds;
+            this.fractions = fractions;
+        }
+    }
+
+    /**
+     * CPW 多股道并行：每榀在左右外侧各立一根 headspan 支柱，
+     * 在两根支柱之间创建 CATENARY_HEADSPAN，并按股道位置创建 dropper
+     * 和 registration arm，最后沿股道连接 CATENARY_WIRE。
+     */
+    private static void buildCpwHeadspanCatenary(
+            ServerLevel world, Player player, RailBuilderConfig config,
+            PointProvider[] pps, int count, int segments, int catenarySegCount,
+            double catenarySpacing, byte[] ubm, boolean[] isRightest, int leftmostIndex
+    ) {
+        if (leftmostIndex < 0) return;
+
+        int rightmostIndex = -1;
+        for (int i = 0; i < count; i++) {
+            if (pps[i] != null && isRightest[i]) {
+                rightmostIndex = i;
+                break;
+            }
+        }
+        if (rightmostIndex < 0) return;
+
+        ResourceLocation mastId = CPWIntegration.resolveHeadspanMastId(config.catenaryBridgePillar);
+        ResourceLocation cantileverId = config.catenaryTunnelPillar;
+        int catenaryHeight = config.tunnelHeight - 1;
+
+        List<CpwHeadspanFrame> frames = new ArrayList<>();
+
+        for (int k = 0; k <= catenarySegCount; k++) {
+            int j = k < catenarySegCount ? (int) Math.floor(k * catenarySpacing) : segments;
+            BuildingMode.Up up = BuildingMode.Up.fromValue(ubm[j]);
+            if (up == BuildingMode.Up.Tunnel) {
+                // 隧道内没有空间立高大的 headspan 支柱，跳过该榀
+                continue;
+            }
+
+            var leftTuple = pps[leftmostIndex].get(j);
+            var rightTuple = pps[rightmostIndex].get(j);
+            Vec3 leftCenter = leftTuple.get(0);
+            Vec3 rightCenter = rightTuple.get(0);
+            Vec3 tangent = rightTuple.get(1);
+            Vec3 normal = new Vec3(-tangent.z, 0, tangent.x).normalize();
+
+            BlockPos leftBase = new BlockPos(
+                    (int) Math.floor(leftCenter.x),
+                    (int) Math.floor(leftCenter.y),
+                    (int) Math.floor(leftCenter.z)
+            );
+            BlockPos rightBase = new BlockPos(
+                    (int) Math.floor(rightCenter.x),
+                    (int) Math.floor(rightCenter.y),
+                    (int) Math.floor(rightCenter.z)
+            );
+
+            BlockPos leftPole = offsetAlong(leftBase, normal.scale(-1.0), 3.0);
+            BlockPos rightPole = offsetAlong(rightBase, normal, 3.0);
+            int nodeY = Math.max(leftBase.getY(), rightBase.getY()) + catenaryHeight + 1;
+
+            Vec3 mastAWorld = new Vec3(leftPole.getX() + 0.5, nodeY + 0.5, leftPole.getZ() + 0.5);
+            Vec3 mastBWorld = new Vec3(rightPole.getX() + 0.5, nodeY + 0.5, rightPole.getZ() + 0.5);
+            double spanX = mastBWorld.x - mastAWorld.x;
+            double spanZ = mastBWorld.z - mastAWorld.z;
+            double spanLength = Math.sqrt(spanX * spanX + spanZ * spanZ);
+            if (spanLength < 1.0) continue;
+
+            // UpperWireHeight 取 CPW 允许的 1~4 中的 2；
+            // TopWireHeight 取 "UpperWireHeight + floor(span/16) + 1"，
+            // 落在 CPW 的最小/最大值区间内。
+            float upperHeight = 2.0F;
+            float topHeight = (float) (Math.floor(spanLength / 16.0) + upperHeight + 1.0);
+            int mastTopY = (int) Math.ceil(nodeY + 0.5 + upperHeight + topHeight + 0.4) + 1;
+
+            CPWAngle mastAngle = CPWIntegration.getCPWAngles(tangent);
+            buildCpwHeadspanMast(world, leftPole, leftBase.getY(), nodeY, mastTopY, mastAngle, mastId);
+            buildCpwHeadspanMast(world, rightPole, rightBase.getY(), nodeY, mastTopY, mastAngle, mastId);
+
+            List<CPWIntegration.HeadspanDropper> droppers = new ArrayList<>();
+            UUID[] dropperIds = new UUID[count];
+            double[] fractions = new double[count];
+            double spanLen2 = spanX * spanX + spanZ * spanZ;
+
+            for (int i = 0; i < count; i++) {
+                if (pps[i] == null) continue;
+                Vec3 center = pps[i].get(j).get(0);
+                double f = ((center.x - mastAWorld.x) * spanX + (center.z - mastAWorld.z) * spanZ) / spanLen2;
+                f = Math.max(0.05, Math.min(0.95, f));
+                UUID id = UUID.randomUUID();
+                dropperIds[i] = id;
+                fractions[i] = f;
+                droppers.add(new CPWIntegration.HeadspanDropper(id, f));
+            }
+
+            frames.add(new CpwHeadspanFrame(
+                    new BlockPos(leftPole.getX(), nodeY, leftPole.getZ()),
+                    new BlockPos(rightPole.getX(), nodeY, rightPole.getZ()),
+                    nodeY, upperHeight, topHeight, droppers, dropperIds, fractions
+            ));
+        }
+
+        if (frames.isEmpty()) return;
+
+        TickScheduler.schedule(1, () -> {
+            Object[] previousNodes = new Object[count];
+            for (CpwHeadspanFrame frame : frames) {
+                Object headspan = CPWIntegration.createHeadspanEdge(
+                        world, frame.mastA, frame.mastB, frame.upperHeight, frame.topHeight, frame.droppers
+                );
+                if (headspan == null) {
+                    previousNodes = new Object[count];
+                    continue;
+                }
+
+                Object[] nodes = new Object[count];
+                for (int i = 0; i < count; i++) {
+                    UUID dropperId = frame.dropperIds[i];
+                    if (dropperId == null) continue;
+
+                    if (!CPWIntegration.addHeadspanRegistrationArm(
+                            headspan, dropperId, frame.fractions[i], cantileverId
+                    )) {
+                        continue;
+                    }
+                    Object node = CPWIntegration.createHeadspanCatenaryNode(headspan, dropperId);
+                    if (node == null) continue;
+                    nodes[i] = node;
+                    if (previousNodes[i] != null) {
+                        CPWIntegration.connectHeadspanCatenary(world, previousNodes[i], node);
+                    }
+                }
+                previousNodes = nodes;
+            }
+        });
+    }
+
+    private static void buildCpwHeadspanMast(
+            ServerLevel world, BlockPos pole, int blockY, int nodeY, int mastTopY,
+            CPWAngle angle, ResourceLocation mastId
+    ) {
+        int bottomY = blockY;
+        BlockPos p = new BlockPos(pole.getX(), blockY, pole.getZ());
+        while (!world.isOutsideBuildHeight(p) && CommonUtil.isSoftTransparent(world.getBlockState(p))) {
+            bottomY = p.getY();
+            p = p.below();
+        }
+        int topY = Math.max(mastTopY, nodeY + 1);
+        CPWIntegration.buildMastColumn(world, pole.getX(), pole.getZ(), bottomY, topY, angle, mastId);
     }
 
     public static boolean isCatenary(Level world, BlockPos pos) {
