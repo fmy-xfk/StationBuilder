@@ -96,6 +96,7 @@ public class RailBuilderItem extends Item {
         tooltip.add(Text.translatable("tooltip.stationbuilder.rail_builder.line1"));
         tooltip.add(Text.translatable("tooltip.stationbuilder.rail_builder.line2"));
         tooltip.add(Text.translatable("tooltip.stationbuilder.rail_builder.line3"));
+        tooltip.add(Text.translatable("tooltip.stationbuilder.rail_builder.line4"));
         var lastPair = RailBuilderState.getLastNodesAndAngle(stack);
         if (lastPair == null) return;
         var lastNodes = lastPair.left();

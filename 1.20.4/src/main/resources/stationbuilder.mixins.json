@@ -4,6 +4,7 @@
   "plugin": "cn.myfrank.stationbuilder.mixin.StationBuilderMixinPlugin",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
+    "WorldBlockEditMixin",
     "mtr.EnumPSDAPGItemAccessor",
     "mtr.EnumPSDAPGTypeAccessor",
     "mtr.ItemPSDAPGBaseAccessor",

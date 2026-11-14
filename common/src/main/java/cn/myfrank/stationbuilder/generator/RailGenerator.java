@@ -14,6 +14,8 @@ import cn.myfrank.stationbuilder.utils.*;
 import cn.myfrank.stationbuilder.vanilla.VanillaIntegration;
 import cn.myfrank.stationbuilder.items.RailBuilderConfig;
 import cn.myfrank.stationbuilder.items.RailBuilderState;
+import cn.myfrank.stationbuilder.manager.PlacerHistoryManager;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -126,12 +128,25 @@ public class RailGenerator {
     }
 
     public static ArrayList<BlockPos> placeFirstRailNodes(ServerWorld world, BlockPos pos, PlayerEntity player, RailBuilderConfig config) {
-        ArrayList<BlockPos> nodes = calcRailNodes(pos, player.getYaw(), config);
-        RailNodeType railNodeType = getRailNodeType(config);
-        for (BlockPos p : nodes) {
-            placeFirstRailNode(world, p, player, railNodeType, config);
+        PlacerHistoryManager.Recording recording = beginRailRecording(player, world);
+        try {
+            ArrayList<BlockPos> nodes = calcRailNodes(pos, player.getYaw(), config);
+            RailNodeType railNodeType = getRailNodeType(config);
+            for (BlockPos p : nodes) {
+                placeFirstRailNode(world, p, player, railNodeType, config);
+            }
+            return nodes;
+        } finally {
+            PlacerHistoryManager.finish(recording);
         }
-        return nodes;
+    }
+
+    /** Starts an undo recording for a server-side rail operation (no-op on the client). */
+    private static PlacerHistoryManager.Recording beginRailRecording(PlayerEntity player, ServerWorld world) {
+        if (player instanceof ServerPlayerEntity serverPlayer) {
+            return PlacerHistoryManager.begin(serverPlayer, world, "rail");
+        }
+        return null;
     }
 
     @Nullable
@@ -142,6 +157,9 @@ public class RailGenerator {
             RailBuilderConfig config,
             PlayerEntity player
     ) {
+        PlacerHistoryManager.Recording recording = beginRailRecording(player, world);
+        boolean deferred = false;
+        try {
         RailNodeType railNodeType = getRailNodeType(config);
         if (railNodeType == RailNodeType.UNSUPPORTED) {
             player.sendMessage(Text.translatable("message.stationbuilder.rail_builder.invalid_rail",
@@ -188,19 +206,33 @@ public class RailGenerator {
             }
         }
 
-        // Build rails
+        // Build rails. The heavy work runs on the next tick, so the recording is
+        // suspended until then and resumed inside the scheduled task.
         TickScheduler.schedule(1, () -> {
+            PlacerHistoryManager.resume(recording);
             var failToPlaceCatenaryNode = false;
-            failToPlaceCatenaryNode = buildRails(startPositions, endPositions, player, world, config);
+            try {
+                failToPlaceCatenaryNode = buildRails(startPositions, endPositions, player, world, config);
+            } finally {
+                PlacerHistoryManager.finish(recording);
+            }
             if (failToPlaceCatenaryNode) {
                 player.sendMessage(Text.translatable("message.stationbuilder.rail_builder.catenary_node_failed"), true);
             }
         });
+        deferred = true;
 
         if(anySuccess) {
             return endPositions;
         } else {
             return null;
+        }
+        } finally {
+            if (deferred) {
+                PlacerHistoryManager.suspend(recording);
+            } else {
+                PlacerHistoryManager.finish(recording);
+            }
         }
     }
 

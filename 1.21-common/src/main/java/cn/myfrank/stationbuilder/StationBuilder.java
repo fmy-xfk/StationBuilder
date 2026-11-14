@@ -406,15 +406,20 @@ public class StationBuilder implements ModInitializer {
 		ServerPlayNetworking.registerGlobalReceiver(UndoPlacerPayload.ID, (payload, context) -> {
 			context.server().execute(() -> {
 				net.minecraft.server.network.ServerPlayerEntity player = context.player();
-				if (player.getMainHandStack().getItem() instanceof BuildingPlacerItem) {
-					boolean success = PlacerHistoryManager.undo(player);
-					if (success) {
-						player.sendMessage(Text.translatable("message.stationbuilder.undo_success")
-								.formatted(net.minecraft.util.Formatting.GREEN), true);
-					} else {
-						player.sendMessage(Text.translatable("message.stationbuilder.undo_no_history")
-								.formatted(net.minecraft.util.Formatting.RED), true);
-					}
+				// Global undo history: the latest action may come from any tool.
+				String tool = PlacerHistoryManager.undo(player);
+				if (tool != null) {
+					String key = switch (tool) {
+						case "station" -> "message.stationbuilder.undo_station";
+						case "rail" -> "message.stationbuilder.undo_rail";
+						case "placer" -> "message.stationbuilder.undo_placer";
+						default -> "message.stationbuilder.undo_success";
+					};
+					player.sendMessage(Text.translatable(key)
+							.formatted(net.minecraft.util.Formatting.GREEN), true);
+				} else {
+					player.sendMessage(Text.translatable("message.stationbuilder.undo_no_history")
+							.formatted(net.minecraft.util.Formatting.RED), true);
 				}
 			});
 		});

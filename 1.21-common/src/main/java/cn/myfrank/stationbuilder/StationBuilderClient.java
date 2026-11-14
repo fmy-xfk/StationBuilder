@@ -24,6 +24,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
@@ -52,9 +53,10 @@ public class StationBuilderClient implements ClientModInitializer {
 				ClientPlayNetworking.send(new StationBuilder.ClearRailStatePayload());
 			}
             
-			if (StationBuilderKeyBindings.UNDO_PLACER.wasPressed()
-					&& client.player != null
-					&& client.player.getMainHandStack().getItem() instanceof BuildingPlacerItem) {
+			// Global undo: Ctrl+Z rolls back the latest action of any StationBuilder tool.
+			if (StationBuilderKeyBindings.UNDO.wasPressed()
+					&& client.currentScreen == null
+					&& Screen.hasControlDown()) {
 				ClientPlayNetworking.send(new StationBuilder.UndoPlacerPayload());
 			}
 		});

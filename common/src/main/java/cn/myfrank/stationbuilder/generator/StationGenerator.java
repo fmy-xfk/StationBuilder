@@ -6,6 +6,7 @@ import cn.myfrank.stationbuilder.cpw.CPWIntegration;
 import cn.myfrank.stationbuilder.create.CreateIntegration;
 import cn.myfrank.stationbuilder.elements.*;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
+import cn.myfrank.stationbuilder.manager.PlacerHistoryManager;
 import cn.myfrank.stationbuilder.mtr.MSDIntegration;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
 import cn.myfrank.stationbuilder.utils.BlockRotationUtil;
@@ -58,6 +59,35 @@ public class StationGenerator {
     }
 
     public static void build(ServerPlayerEntity player, ServerWorld world, BlockPos origin, Direction facing, int length, List<StationElement> elements) {
+        PlacerHistoryManager.Recording recording = PlacerHistoryManager.begin(player, world, "station");
+        List<Runnable> deferredTasks = new ArrayList<>();
+        boolean scheduled = false;
+        try {
+            buildInternal(player, world, origin, facing, length, elements, deferredTasks);
+            if (!deferredTasks.isEmpty()) {
+                // MTR track nodes are placed one tick later; keep the same recording
+                // alive so they are part of this construction's undo step.
+                TickScheduler.schedule(1, () -> {
+                    PlacerHistoryManager.resume(recording);
+                    try {
+                        for (Runnable task : deferredTasks) {
+                            task.run();
+                        }
+                    } finally {
+                        PlacerHistoryManager.finish(recording);
+                    }
+                });
+                PlacerHistoryManager.suspend(recording);
+                scheduled = true;
+            }
+        } finally {
+            if (!scheduled) {
+                PlacerHistoryManager.finish(recording);
+            }
+        }
+    }
+
+    private static void buildInternal(ServerPlayerEntity player, ServerWorld world, BlockPos origin, Direction facing, int length, List<StationElement> elements, List<Runnable> deferredTasks) {
         Direction right = facing.rotateYClockwise();
 
         int totalWidth = 0;
@@ -120,7 +150,7 @@ public class StationGenerator {
                 }
                 trackLeftEdges.add(currentLeftEdge);
                 trackIndices.add(i);
-                generateTrack(player, world, currentLeftEdge, facing, right, length, track);
+                generateTrack(player, world, currentLeftEdge, facing, right, length, track, deferredTasks);
             } else if (element instanceof PlatformElement platform) {
                 StationElement leftNeighbor = (i > 0) ? elements.get(i - 1) : null;
                 StationElement rightNeighbor = (i < elements.size() - 1) ? elements.get(i + 1) : null;
@@ -1023,7 +1053,8 @@ public class StationGenerator {
     }
 
     private static void generateTrack(ServerPlayerEntity player, ServerWorld world, BlockPos start,
-                                      Direction facing, Direction right, int length, TrackElement t) {
+                                      Direction facing, Direction right, int length, TrackElement t,
+                                      List<Runnable> deferredTasks) {
         BlockState ballast = CommonUtil.getBlockState(t.ballastBlock);
         boolean hasMTR = CommonUtil.isMtrLoaded();
         boolean hasCreate = CommonUtil.isCreateLoaded();
@@ -1062,7 +1093,7 @@ public class StationGenerator {
             BlockPos nodeStart = start.offset(right);
             BlockPos nodeEnd = nodeStart.offset(facing, length - 1);
             var playerUuid = player.getUuid();
-            TickScheduler.schedule(1, () -> {
+            deferredTasks.add(() -> {
                 MTRIntegration.placeRailNode(world, nodeStart, facing);
                 MTRIntegration.placeRailNode(world, nodeEnd, facing);
                 MTRIntegration.connectRailNodes(playerUuid, world, nodeStart, nodeEnd, t.track);

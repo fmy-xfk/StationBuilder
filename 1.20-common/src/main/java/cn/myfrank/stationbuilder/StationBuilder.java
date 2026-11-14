@@ -184,13 +184,18 @@ public class StationBuilder implements ModInitializer {
 		// 新增：撤销 C2S 控制包
 		ServerPlayNetworking.registerGlobalReceiver(UNDO_PLACER_PACKET, (server, player, handler, buf, responseSender) -> {
 			server.execute(() -> {
-				if (player.getMainHandStack().getItem() instanceof BuildingPlacerItem) {
-					boolean success = PlacerHistoryManager.undo(player);
-					if (success) {
-						player.sendMessage(Text.translatable("message.stationbuilder.undo_success").formatted(net.minecraft.util.Formatting.GREEN), true);
-					} else {
-						player.sendMessage(Text.translatable("message.stationbuilder.undo_no_history").formatted(net.minecraft.util.Formatting.RED), true);
-					}
+				// Global undo history: the latest action may come from any tool.
+				String tool = PlacerHistoryManager.undo(player);
+				if (tool != null) {
+					String key = switch (tool) {
+						case "station" -> "message.stationbuilder.undo_station";
+						case "rail" -> "message.stationbuilder.undo_rail";
+						case "placer" -> "message.stationbuilder.undo_placer";
+						default -> "message.stationbuilder.undo_success";
+					};
+					player.sendMessage(Text.translatable(key).formatted(net.minecraft.util.Formatting.GREEN), true);
+				} else {
+					player.sendMessage(Text.translatable("message.stationbuilder.undo_no_history").formatted(net.minecraft.util.Formatting.RED), true);
 				}
 			});
 		});

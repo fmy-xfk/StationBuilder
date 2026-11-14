@@ -9,7 +9,7 @@ import net.minecraft.client.util.InputUtil;
 public class StationBuilderKeyBindings {
 
     public static KeyBinding CLEAR_RAIL_STATE;
-    public static KeyBinding UNDO_PLACER; // 新增
+    public static KeyBinding UNDO; // Ctrl+Z: global undo shared by all tools
 
     public static void register() {
         CLEAR_RAIL_STATE = KeyBindingHelper.registerKeyBinding(
@@ -20,11 +20,12 @@ public class StationBuilderKeyBindings {
                         "category.stationbuilder"
                 )
         );
-        UNDO_PLACER = KeyBindingHelper.registerKeyBinding(
+        // Ctrl is checked separately; this binding only registers the Z part.
+        UNDO = KeyBindingHelper.registerKeyBinding(
                 new KeyBinding(
-                        "key.stationbuilder.undo_placer",
+                        "key.stationbuilder.undo",
                         InputUtil.Type.KEYSYM,
-                        GLFW.GLFW_KEY_U, // 绑定至 U 键
+                        GLFW.GLFW_KEY_Z,
                         "category.stationbuilder"
                 )
         );
