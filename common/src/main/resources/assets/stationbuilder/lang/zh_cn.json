@@ -107,6 +107,7 @@
   "gui.stationbuilder.catenary_spacing": "间距",
   "gui.stationbuilder.catenary_block": "连接方块",
   "gui.stationbuilder.catenary_bridge_pillar": "桥梁支柱",
+  "gui.stationbuilder.catenary_edit_leftmost": "接触网请编辑最左侧轨道",
   "gui.stationbuilder.catenary_tunnel_pillar": "隧道支柱",
   "gui.stationbuilder.minecraft_block": "原版方块",
   "gui.stationbuilder.auto": "自动",

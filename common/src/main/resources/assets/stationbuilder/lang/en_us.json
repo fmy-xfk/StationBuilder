@@ -107,6 +107,7 @@
   "gui.stationbuilder.catenary_spacing": "Spacing",
   "gui.stationbuilder.catenary_block": "Connector",
   "gui.stationbuilder.catenary_bridge_pillar": "On-bridge pillar",
+  "gui.stationbuilder.catenary_edit_leftmost": "Edit catenary on leftmost track",
   "gui.stationbuilder.catenary_tunnel_pillar": "In-tunnel pillar",
   "gui.stationbuilder.minecraft_block": "Block",
   "gui.stationbuilder.auto": "Auto",
