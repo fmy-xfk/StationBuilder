@@ -421,10 +421,15 @@ public class StationGenerator {
                     } else if (useCee) {
                         // === CEE 接触网 ===
                         // 1. 生成从横梁下垂连接 catenary_holder 的吊柱
-                        for (int y = wireHeight + 1; y < trussHeight; y++) {
-                            BlockPos fillPos = centerLine.up(y);
-                            world.setBlockState(fillPos, CommonUtil.getBlockState(trackCfg.catenaryPillarBlock), Block.NOTIFY_ALL);
-                            placedWallBlocks.add(fillPos);
+                        // 最外侧股道若该侧已建落地支柱（未接雨棚），支柱本身已承担支撑，不再生成吊柱
+                        boolean outerSideHasPillar = (t == 0 && !leftHasCanopy)
+                                || (t == trackCount - 1 && !rightHasCanopy);
+                        if (!(trackCount > 1 && outerSideHasPillar)) {
+                            for (int y = wireHeight + 1; y < trussHeight; y++) {
+                                BlockPos fillPos = centerLine.up(y);
+                                world.setBlockState(fillPos, CommonUtil.getBlockState(trackCfg.catenaryPillarBlock), Block.NOTIFY_ALL);
+                                placedWallBlocks.add(fillPos);
+                            }
                         }
 
                         // 2. 放置 catenary_holder 节点

@@ -228,6 +228,28 @@ public class StationEditorScreen extends GuiScreen {
             getText("catenary_bridge_pillar"), INPUT_WIDTH, INPUT_HEIGHT,
             CommonUtil.identifierOf("minecraft", "stone_brick_wall"), false);
 
+    // 连续轨道组里只有最左侧那条轨道的接触网参数会被生成器采用，其余轨道只显示提示。
+    private final GuiLabel catenaryGroupHint = new GuiLabel(getText("catenary_edit_leftmost"));
+
+    private boolean isCatenaryGroupLeftmost(int index) {
+        return index <= 0 || !(this.elements.get(index - 1) instanceof TrackElement);
+    }
+
+    private void refreshCatenaryEditor(int index, TrackElement t) {
+        boolean editable = isCatenaryGroupLeftmost(index);
+        catenaryGroupHint.setVisible(!editable);
+        trackCatenaryStateBtn.setVisible(editable);
+        if (editable) {
+            syncTrackCatenaryUi(t);
+        } else {
+            trackCatenarySpacingField.setVisible(false);
+            trackCatenaryHeightField.setVisible(false);
+            trackCatenaryModeBtn.setVisible(false);
+            trackCatenaryLineSlot.setVisible(false);
+            trackCatenaryPillarSlot.setVisible(false);
+        }
+    }
+
     private void syncTrackCatenaryUi(TrackElement t) {
         if (t.catenaryState == CatenaryType.None.ordinal()) {
             trackCatenaryStateBtn.setMessage(getText("catenary_disabled"));
@@ -309,7 +331,7 @@ public class StationEditorScreen extends GuiScreen {
                 trackCatenaryHeightField.setText(String.valueOf(t.catenaryHeight));
                 trackCatenaryLineSlot.setBlockId(t.catenaryBlock);
                 trackCatenaryPillarSlot.setBlockId(t.catenaryPillarBlock);
-                syncTrackCatenaryUi(t);
+                refreshCatenaryEditor(index, t);
             } else if (e instanceof PlatformElement p) {
                 platformProperties.setVisible(true);
                 platformLengthField.setText(String.valueOf(p.width));
@@ -510,8 +532,12 @@ public class StationEditorScreen extends GuiScreen {
             }
         });
 
+        catenaryGroupHint.setForeColor(0xFFFFAA00);
+        catenaryGroupHint.setVisible(false);
+
         trackProperties.addControl(trackBallastField)
                 .addControl(trackBlockField)
+                .addControl(catenaryGroupHint)
                 .addControl(trackCatenaryStateBtn)
                 .addControl(trackCatenarySpacingField)
                 .addControl(trackCatenaryHeightField)
