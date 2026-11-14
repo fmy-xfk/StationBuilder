@@ -346,6 +346,9 @@ public class StationEditorScreen extends GuiScreen {
             } else {
                 emptyProperties.setVisible(true);
             }
+        } else {
+            // 无选中项时仍要显示“请选择一个车站元素”的提示面板
+            emptyProperties.setVisible(true);
         }
     }
 
