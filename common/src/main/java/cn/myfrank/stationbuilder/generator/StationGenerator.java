@@ -621,6 +621,9 @@ public class StationGenerator {
                 int anchorY = Math.max(cantileverY, minAnchorY);
                 int topY = anchorY + 1;
 
+                // mast 不能踩在半砖上：把支撑位置的半砖提升为完整方块。
+                ensureDoubleSlab(world, new BlockPos(mastPos.getX(), baseY - 1, mastPos.getZ()));
+
                 // 原则 3：间隙中已有 mast 时直接复用，不再重复建造。
                 boolean reuseMast = plan.gap && CPWIntegration.isMastBlock(
                         world, new BlockPos(mastPos.getX(), anchorY, mastPos.getZ())

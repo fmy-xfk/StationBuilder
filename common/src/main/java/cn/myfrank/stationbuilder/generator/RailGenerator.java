@@ -934,6 +934,7 @@ public class RailGenerator {
                         }
                         ceilingY++;
                     }
+                    CPWIntegration.ensureFullBlockBelow(world, poleX, cantileverY - 1, poleZ);
                     CPWIntegration.buildMastColumn(world, poleX, poleZ, cantileverY - 1, Math.max(cantileverY, ceilingY - 1), mastAngle, mastBlock);
                 } else {
                     // 露天与桥梁：Mast 向上延伸至 cantileverY + 1，向下打地基
@@ -944,6 +945,7 @@ public class RailGenerator {
                         bottomY = p.getY();
                         p = p.below();
                     }
+                    CPWIntegration.ensureFullBlockBelow(world, poleX, bottomY, poleZ);
                     CPWIntegration.buildMastColumn(world, poleX, poleZ, bottomY, topY, mastAngle, mastBlock);
                 }
 
@@ -1063,11 +1065,10 @@ public class RailGenerator {
             double spanLength = Math.sqrt(spanX * spanX + spanZ * spanZ);
             if (spanLength < 1.0) continue;
 
-            // UpperWireHeight 取 CPW 允许的 1~4 中的 2；
-            // TopWireHeight 取 "UpperWireHeight + floor(span/16) + 1"，
-            // 落在 CPW 的最小/最大值区间内。
-            float upperHeight = 2.0F;
-            float topHeight = (float) (Math.floor(spanLength / 16.0) + upperHeight + 1.0);
+            // UpperWireHeight 取 CPW 允许的最小值 1，TopWireHeight 取最小允许值，
+            // 避免顶部承力索下垂过深、看起来像多出来一条斜线。
+            float upperHeight = 1.0F;
+            float topHeight = (float) (Math.floor(spanLength / 16.0) + upperHeight);
             int mastTopY = (int) Math.ceil(nodeY + 0.5 + upperHeight + topHeight + 0.4) + 1;
 
             CPWAngle mastAngle = CPWIntegration.getCPWAngles(tangent);
@@ -1143,6 +1144,7 @@ public class RailGenerator {
             p = p.below();
         }
         int topY = Math.max(mastTopY, nodeY + 1);
+        CPWIntegration.ensureFullBlockBelow(world, pole.getX(), bottomY, pole.getZ());
         CPWIntegration.buildMastColumn(world, pole.getX(), pole.getZ(), bottomY, topY, angle, mastId);
     }
 
