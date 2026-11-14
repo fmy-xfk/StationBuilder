@@ -931,6 +931,7 @@ public class RailGenerator {
                         }
                         ceilingY++;
                     }
+                    CPWIntegration.ensureFullBlockBelow(world, poleX, cantileverY - 1, poleZ);
                     CPWIntegration.buildMastColumn(
                             world, poleX, poleZ, cantileverY - 1,
                             Math.max(cantileverY, ceilingY - 1), mastAngle, resolvedMast
@@ -943,6 +944,7 @@ public class RailGenerator {
                         bottomY = p.getY();
                         p = p.down();
                     }
+                    CPWIntegration.ensureFullBlockBelow(world, poleX, bottomY, poleZ);
                     CPWIntegration.buildMastColumn(world, poleX, poleZ, bottomY, topY, mastAngle, resolvedMast);
                 }
 
@@ -1050,8 +1052,10 @@ public class RailGenerator {
             double spanLength = Math.sqrt(spanX * spanX + spanZ * spanZ);
             if (spanLength < 1.0) continue;
 
-            float upperHeight = 2.0F;
-            float topHeight = (float) (Math.floor(spanLength / 16.0) + upperHeight + 1.0);
+            // UpperWireHeight 取 CPW 允许的最小值 1，TopWireHeight 取最小允许值，
+            // 避免顶部承力索下垂过深、看起来像多出来一条斜线。
+            float upperHeight = 1.0F;
+            float topHeight = (float) (Math.floor(spanLength / 16.0) + upperHeight);
             int mastTopY = (int) Math.ceil(nodeY + 0.5 + upperHeight + topHeight + 0.4) + 1;
 
             CPWAngle mastAngle = CPWIntegration.getCPWAngles(tangent);
@@ -1127,6 +1131,7 @@ public class RailGenerator {
             p = p.down();
         }
         int topY = Math.max(mastTopY, nodeY + 1);
+        CPWIntegration.ensureFullBlockBelow(world, pole.getX(), bottomY, pole.getZ());
         CPWIntegration.buildMastColumn(world, pole.getX(), pole.getZ(), bottomY, topY, angle, mastId);
     }
 
@@ -1140,6 +1145,13 @@ public class RailGenerator {
         if (CommonUtil.isCeeLoaded()) {
             if (id.equals(CEEIntegration.CATENARY_HOLDER)
                     || id.getPath().contains("catenary") || id.getPath().contains("pole")) {
+                return true;
+            }
+        }
+        // CPW 节点与杆件（建新路段时避免清掉上一段已有的 mast / cantilever）
+        if (CommonUtil.isCpwLoaded()) {
+            if (id.getNamespace().equals("pantographsandwires")
+                    || id.getPath().contains("mast") || id.getPath().contains("cantilever") || id.getPath().contains("pillar")) {
                 return true;
             }
         }

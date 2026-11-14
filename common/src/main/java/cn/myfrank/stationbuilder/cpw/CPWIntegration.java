@@ -4,6 +4,8 @@ import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.TickScheduler;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.SlabBlock;
+import net.minecraft.block.enums.SlabType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
@@ -86,9 +88,22 @@ public class CPWIntegration {
     }
 
     public static void placeMastBlock(ServerWorld world, BlockPos pos, CPWAngle angle, String part, Identifier mastId) {
+        // 已经存在的 mast 不重建：mast 上的节点/相邻腕臂导线依赖它，重建会丢掉旧的接触网。
+        if (isMastBlockId(Registries.BLOCK.getId(world.getBlockState(pos).getBlock()))) return;
         BlockState base = CommonUtil.getBlockState(mastId);
         BlockState configured = applyMastProperties(base, angle, part);
         world.setBlockState(pos, configured, Block.NOTIFY_ALL);
+    }
+
+    /**
+     * mast 底部不能踩在半砖上：如果下方是单半砖，提升为双层半砖（完整方块）。
+     */
+    public static void ensureFullBlockBelow(ServerWorld world, int x, int y, int z) {
+        BlockPos below = new BlockPos(x, y - 1, z);
+        BlockState state = world.getBlockState(below);
+        if (state.getBlock() instanceof SlabBlock && state.contains(SlabBlock.TYPE)) {
+            world.setBlockState(below, state.with(SlabBlock.TYPE, SlabType.DOUBLE), Block.NOTIFY_ALL);
+        }
     }
 
     public static void buildMastColumn(ServerWorld world, int x, int z, int minY, int maxY, CPWAngle angle, Identifier mastId) {
@@ -102,6 +117,10 @@ public class CPWIntegration {
     }
 
     public static boolean placeCantilever(ServerWorld world, BlockPos cantileverPos, CPWAngle angle, Identifier cantileverId) {
+        // 复用已有腕臂及其 BlockEntity，避免重建导致旧节点/旧导线被移除。
+        if (isCantileverBlockId(Registries.BLOCK.getId(world.getBlockState(cantileverPos).getBlock()))) {
+            return true;
+        }
         BlockState base = CommonUtil.getBlockState(cantileverId);
         BlockState configured = applyMastProperties(base, angle, null);
         world.setBlockState(cantileverPos, configured, Block.NOTIFY_ALL);
@@ -188,6 +207,15 @@ public class CPWIntegration {
             Object customData = customDataCtor.newInstance(edgeData);
             Object nodeA = latticeMastNodeCtor.newInstance(mastA);
             Object nodeB = latticeMastNodeCtor.newInstance(mastB);
+
+            // 如果同一对 mast 上已经存在 headspan，直接复用旧 edge，
+            // 避免重建路段时生成重复结构，也保留旧接触网。
+            Object hash = wireEdgeHashCtor.newInstance(customData, nodeA, nodeB);
+            Object existing = wireGraphGetEdgeByHash.invoke(graph, hash);
+            if (existing != null) {
+                return existing;
+            }
+
             Object pointIndex = mutableIntCtor.newInstance(0);
             Object result = wireGraphCreateEdge.invoke(
                     graph, headspanWireType, customData, nodeA, nodeB, pointIndex, true
@@ -217,9 +245,10 @@ public class CPWIntegration {
             );
             int length = ((Number) wireEdgeLength.invoke(headspanEdge)).intValue();
             double pos = Math.max(0.5, Math.min(Math.max(0.5, length - 0.5), fraction * length));
-            return Boolean.TRUE.equals(
-                    wireEdgeAddDecoration.invoke(headspanEdge, pos, "lower_tension_wire", decoration)
-            );
+            wireEdgeAddDecoration.invoke(headspanEdge, pos, "lower_tension_wire", decoration);
+            // 旧 headspan 上已经有该 dropper 的 registration arm 时，
+            // addDecoration 会返回 false；这仍然表示可以继续复用该连接点。
+            return true;
         } catch (Throwable t) {
             logWireApiFailure(t);
             return false;
@@ -277,6 +306,10 @@ public class CPWIntegration {
 
     public static boolean isMastBlockId(Identifier id) {
         return id != null && id.getPath().contains("mast");
+    }
+
+    public static boolean isCantileverBlockId(Identifier id) {
+        return id != null && id.getPath().contains("cantilever");
     }
 
     public static boolean isMastBlock(World world, BlockPos pos) {
@@ -372,6 +405,8 @@ public class CPWIntegration {
     private static Method wireEdgeLength;
     private static Method wireEdgeAddDecoration;
     private static Method createEdgeResultEdge;
+    private static Constructor<?> wireEdgeHashCtor;
+    private static Method wireGraphGetEdgeByHash;
 
     private static synchronized boolean ensureHeadspanApi() {
         if (headspanApiAvailable != null) return headspanApiAvailable;
@@ -396,6 +431,13 @@ public class CPWIntegration {
 
             Class<?> resultClass = Class.forName("de.mrjulsen.wires.graph.WireGraph$CreateEdgeResult");
             createEdgeResultEdge = resultClass.getMethod("edge");
+
+            Class<?> customDataClass = Class.forName("de.mrjulsen.wires.item.CustomData");
+            Class<?> nodeDataClass = Class.forName("de.mrjulsen.wires.graph.data.node.NodeData");
+            Class<?> wireEdgeHashClass = Class.forName("de.mrjulsen.wires.graph.data.WireEdgeHash");
+            wireEdgeHashCtor = wireEdgeHashClass.getConstructor(customDataClass, nodeDataClass, nodeDataClass);
+            wireGraphGetEdgeByHash = Class.forName("de.mrjulsen.wires.graph.WireGraph")
+                    .getMethod("getEdge", wireEdgeHashClass);
 
             Class<?> registrationStateClass = Class.forName("de.mrjulsen.paw.block.RegistrationArmBlock$State");
             registrationArmNormalCentered = registrationStateClass.getField("NORMAL_CENTERED").get(null);
