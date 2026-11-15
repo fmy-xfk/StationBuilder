@@ -2,6 +2,7 @@ package cn.myfrank.stationbuilder;
 
 import cn.myfrank.stationbuilder.blocks.ModBlocks;
 import cn.myfrank.stationbuilder.blocks.StationBuilderBlockEntity;
+import cn.myfrank.stationbuilder.elements.PassageConfig;
 import cn.myfrank.stationbuilder.elements.StationElement;
 import cn.myfrank.stationbuilder.generator.StationGenerator;
 import cn.myfrank.stationbuilder.items.*;
@@ -70,6 +71,12 @@ public class StationBuilder {
 
     // ============ Payloads ============
 
+    public static final StreamCodec<FriendlyByteBuf, PassageConfig> PASSAGE_CODEC =
+            StreamCodec.of(
+                    (buf, passage) -> passage.write(buf),
+                    buf -> PassageConfig.read(buf)
+            );
+
     public static final StreamCodec<FriendlyByteBuf, List<StationElement>> ELEMENTS_CODEC =
             StreamCodec.of(
                     (buf, elements) -> {
@@ -102,7 +109,7 @@ public class StationBuilder {
         public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
 
-    public record SaveStationPayload(BlockPos pos, int facing, int length, List<StationElement> elements) implements CustomPacketPayload {
+    public record SaveStationPayload(BlockPos pos, int facing, int length, PassageConfig passage, List<StationElement> elements) implements CustomPacketPayload {
         public static final Type<SaveStationPayload> TYPE =
                 new Type<>(ResourceLocation.fromNamespaceAndPath(MOD_ID, "save_data"));
         public static final StreamCodec<FriendlyByteBuf, SaveStationPayload> STREAM_CODEC =
@@ -110,6 +117,7 @@ public class StationBuilder {
                         BlockPos.STREAM_CODEC, SaveStationPayload::pos,
                         ByteBufCodecs.VAR_INT, SaveStationPayload::facing,
                         ByteBufCodecs.VAR_INT, SaveStationPayload::length,
+                        PASSAGE_CODEC, SaveStationPayload::passage,
                         ELEMENTS_CODEC, SaveStationPayload::elements,
                         SaveStationPayload::new
                 );
@@ -117,7 +125,7 @@ public class StationBuilder {
         public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
 
-    public record BuildStationPayload(BlockPos pos, int facing, int length, List<StationElement> elements) implements CustomPacketPayload {
+    public record BuildStationPayload(BlockPos pos, int facing, int length, PassageConfig passage, List<StationElement> elements) implements CustomPacketPayload {
         public static final Type<BuildStationPayload> TYPE =
                 new Type<>(ResourceLocation.fromNamespaceAndPath(MOD_ID, "build_station"));
         public static final StreamCodec<FriendlyByteBuf, BuildStationPayload> STREAM_CODEC =
@@ -125,6 +133,7 @@ public class StationBuilder {
                         BlockPos.STREAM_CODEC, BuildStationPayload::pos,
                         ByteBufCodecs.VAR_INT, BuildStationPayload::facing,
                         ByteBufCodecs.VAR_INT, BuildStationPayload::length,
+                        PASSAGE_CODEC, BuildStationPayload::passage,
                         ELEMENTS_CODEC, BuildStationPayload::elements,
                         BuildStationPayload::new
                 );
@@ -301,6 +310,7 @@ public class StationBuilder {
         context.enqueueWork(() -> {
             if (context.player().level().getBlockEntity(payload.pos()) instanceof StationBuilderBlockEntity be) {
                 be.length = payload.length();
+                be.passage = payload.passage();
                 be.elements = new ArrayList<>(payload.elements());
                 be.setChanged();
             }
@@ -311,6 +321,7 @@ public class StationBuilder {
         context.enqueueWork(() -> {
             if (context.player().level().getBlockEntity(payload.pos()) instanceof StationBuilderBlockEntity be) {
                 be.length = payload.length();
+                be.passage = payload.passage();
                 be.elements = new ArrayList<>(payload.elements());
                 be.setChanged();
             }
@@ -320,6 +331,7 @@ public class StationBuilder {
                     payload.pos(),
                     Direction.from2DDataValue(payload.facing()),
                     payload.length(),
+                    payload.passage(),
                     new ArrayList<>(payload.elements())
             );
         });

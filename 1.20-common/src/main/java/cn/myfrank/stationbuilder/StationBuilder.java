@@ -2,6 +2,7 @@ package cn.myfrank.stationbuilder;
 
 import cn.myfrank.stationbuilder.blocks.ModBlocks;
 import cn.myfrank.stationbuilder.blocks.StationBuilderBlockEntity;
+import cn.myfrank.stationbuilder.elements.PassageConfig;
 import cn.myfrank.stationbuilder.elements.StationElement;
 import cn.myfrank.stationbuilder.generator.StationGenerator;
 import cn.myfrank.stationbuilder.items.*;
@@ -79,12 +80,13 @@ public final class StationBuilder {
         BlockPos pos = buf.readBlockPos();
         buf.readInt();
         int length = buf.readInt();
+        PassageConfig passage = PassageConfig.read(buf);
         int count = buf.readInt();
         List<StationElement> elements = new ArrayList<>();
         for (int i = 0; i < count; i++) elements.add(StationElement.read(buf));
         if (player.getServer() != null) player.getServer().execute(() -> {
             if (player.level().getBlockEntity(pos) instanceof StationBuilderBlockEntity be) {
-                be.length = length; be.elements = elements; be.setChanged();
+                be.length = length; be.passage = passage; be.elements = elements; be.setChanged();
             }
         });
     }
@@ -93,14 +95,15 @@ public final class StationBuilder {
         BlockPos pos = buf.readBlockPos();
         int facingInt = buf.readInt();
         int length = buf.readInt();
+        PassageConfig passage = PassageConfig.read(buf);
         int count = buf.readInt();
         List<StationElement> elements = new ArrayList<>();
         for (int i = 0; i < count; i++) elements.add(StationElement.read(buf));
         if (player.getServer() != null) player.getServer().execute(() -> {
             if (player.level().getBlockEntity(pos) instanceof StationBuilderBlockEntity be) {
-                be.length = length; be.elements = elements; be.setChanged();
+                be.length = length; be.passage = passage; be.elements = elements; be.setChanged();
             }
-            StationGenerator.build(player, player.serverLevel(), pos, Direction.from2DDataValue(facingInt), length, elements);
+            StationGenerator.build(player, player.serverLevel(), pos, Direction.from2DDataValue(facingInt), length, passage, elements);
         });
     }
 

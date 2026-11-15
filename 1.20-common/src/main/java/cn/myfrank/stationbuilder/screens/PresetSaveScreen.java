@@ -36,7 +36,7 @@ public class PresetSaveScreen extends Screen {
             // 4. 将 getText 替换为 getValue
             String name = nameField.getValue().trim();
             if (!name.isEmpty()) {
-                PresetManager.savePreset(name, parent.getStationLength(), parent.getElements());
+                PresetManager.savePreset(name, parent.getStationLength(), parent.getPassage(), parent.getElements());
                 client.setScreen(parent);
             }
         }).bounds(centerX - 82, centerY + 20, 80, 20).build()); // 使用 bounds 替代 dimensions

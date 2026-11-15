@@ -7,6 +7,7 @@ import cn.myfrank.stationbuilder.utils.CommonUtil;
 import cn.myfrank.stationbuilder.utils.SchematicLoaderUtil;
 import cn.myfrank.stationbuilder.StationBuilder;
 import cn.myfrank.stationbuilder.elements.BuildingElement;
+import cn.myfrank.stationbuilder.elements.PassageConfig;
 import cn.myfrank.stationbuilder.elements.PlatformElement;
 import cn.myfrank.stationbuilder.elements.StationElement;
 import cn.myfrank.stationbuilder.elements.TrackElement;
@@ -47,9 +48,19 @@ public class StationEditorScreen extends GuiScreen {
     }
 
     private String initialLength = String.valueOf(StationBuilder.DEFAULT_STATION_LENGTH);
+    private final PassageConfig passage = new PassageConfig();
     private final BlockPos pos;
     private final Direction facing;
     private final List<StationElement> elements = new ArrayList<>();
+
+    private final GuiButton passageModeBtn = new GuiButton(Component.empty(), b -> {
+        passage.nextMode();
+        syncPassageUi();
+    }, 95, BTN_HEIGHT);
+    private final GuiLabelTextField passageWidthField = new GuiLabelTextField(getText("passage_width"),
+            INPUT_WIDTH_S, INPUT_HEIGHT, Component.literal(String.valueOf(PassageConfig.DEFAULT_WIDTH)));
+    private final GuiLabelTextField passageHeightField = new GuiLabelTextField(getText("passage_height"),
+            INPUT_WIDTH_S, INPUT_HEIGHT, Component.literal(String.valueOf(PassageConfig.DEFAULT_HEIGHT)));
 
     private GuiPanel trackProperties;
     private GuiPanel platformProperties;
@@ -293,6 +304,20 @@ public class StationEditorScreen extends GuiScreen {
         return canvas != null ? canvas.getSelectedIndex() : -1;
     }
 
+    private void syncPassageUi() {
+        passageModeBtn.setMessage(getText("passage_" + passage.mode.getName()));
+        if (!passageWidthField.getTextField().isFocused()) {
+            passageWidthField.setText(String.valueOf(passage.width));
+        }
+        if (!passageHeightField.getTextField().isFocused()) {
+            passageHeightField.setText(String.valueOf(passage.height));
+        }
+    }
+
+    public PassageConfig getPassage() {
+        return passage;
+    }
+
     public StationEditorScreen(BlockPos pos, Direction facing, CompoundTag nbt) {
         super(getText("station_builder"));
         this.pos = pos;
@@ -300,6 +325,7 @@ public class StationEditorScreen extends GuiScreen {
 
         if (nbt != null) {
             if (nbt.contains("length")) this.initialLength = String.valueOf(nbt.getInt("length"));
+            if (nbt.contains("passage")) this.passage.fromNbt(nbt.getCompound("passage"));
             ListTag list = nbt.getList("elements", 10);
             for (int i = 0; i < list.size(); i++) {
                 this.elements.add(StationElement.fromNbt(list.getCompound(i)));
@@ -391,11 +417,40 @@ public class StationEditorScreen extends GuiScreen {
         GuiPanel topPanel = new GuiPanel(width, topPanelHeight);
         lengthField.setText(initialLength);
         topPanel.addControl(lengthField);
+
+        passageWidthField.getTextField().setNumberOnly(true);
+        passageWidthField.getTextField().textChanged.clear();
+        passageWidthField.getTextField().textChanged.addHandler((sender, e) -> {
+            try {
+                passage.width = Integer.parseInt(e.newText);
+            } catch (NumberFormatException ignored) {
+            }
+        });
+        passageHeightField.getTextField().setNumberOnly(true);
+        passageHeightField.getTextField().textChanged.clear();
+        passageHeightField.getTextField().textChanged.addHandler((sender, e) -> {
+            try {
+                passage.height = Integer.parseInt(e.newText);
+            } catch (NumberFormatException ignored) {
+            }
+        });
+        syncPassageUi();
+
         topPanel.addControl(new GuiButton(getText("presets"), b -> {
             Minecraft.getInstance().setScreen(new PresetSelectionScreen(this));
         }, BTN_WIDTH_XL, BTN_HEIGHT));
         topPanel.setMajorAlign(GuiPanel.MajorAlignMode.SPACE_BETWEEN);
         addControl(topPanel);
+
+        GuiPanel passagePanel = new GuiPanel(width, topPanelHeight);
+        passagePanel.addControl(new GuiLabel(getText("passage")));
+        passagePanel.addControl(passageModeBtn);
+        passagePanel.addControl(passageWidthField);
+        passagePanel.addControl(passageHeightField);
+        passagePanel.addControl(new GuiButton(getText("passage_blocks"), b -> {
+            Minecraft.getInstance().setScreen(new PassageConfigScreen(this, passage));
+        }, BTN_WIDTH_L, BTN_HEIGHT));
+        addControl(passagePanel);
 
         this.canvas = new GuiRectCanvas(width, 34);
         SyncCanvasWithElements();
@@ -429,7 +484,7 @@ public class StationEditorScreen extends GuiScreen {
 
         addControl(elemOpPanel);
 
-        int middlePanelHeight = height - elemOpPanelHeight - topPanelHeight * 2 - canvas.getHeight() - 4 * rootPanel.getGap();
+        int middlePanelHeight = height - elemOpPanelHeight - topPanelHeight * 3 - canvas.getHeight() - 5 * rootPanel.getGap();
         GuiPanel middlePanel = new GuiPanel(width, middlePanelHeight);
 
         int propertyPanelWidth = width - ghostInventory.getWidth() - middlePanel.getGap();
@@ -890,6 +945,8 @@ public class StationEditorScreen extends GuiScreen {
         if (this.lengthField != null) {
             this.lengthField.setText(String.valueOf(data.length()));
         }
+        this.passage.copyFrom(data.passage());
+        syncPassageUi();
         SyncCanvasWithElements();
         refreshPropertyArea();
     }
@@ -915,7 +972,7 @@ public class StationEditorScreen extends GuiScreen {
         try {
             int length = Integer.parseInt(lengthField.getText());
             net.neoforged.neoforge.network.PacketDistributor.sendToServer(
-                    new StationBuilder.SaveStationPayload(pos, facing.get2DDataValue(), length, new ArrayList<>(elements))
+                    new StationBuilder.SaveStationPayload(pos, facing.get2DDataValue(), length, passage, new ArrayList<>(elements))
             );
         } catch (Exception ignored) {
         }
@@ -925,7 +982,7 @@ public class StationEditorScreen extends GuiScreen {
         try {
             int length = Integer.parseInt(lengthField.getText());
             net.neoforged.neoforge.network.PacketDistributor.sendToServer(
-                    new StationBuilder.BuildStationPayload(pos, facing.get2DDataValue(), length, new ArrayList<>(elements))
+                    new StationBuilder.BuildStationPayload(pos, facing.get2DDataValue(), length, passage, new ArrayList<>(elements))
             );
         } catch (Exception ignored) {
         }
