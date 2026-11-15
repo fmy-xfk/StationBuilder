@@ -11,9 +11,9 @@ import java.util.Set;
 /**
  * Client-side state of the in-game MTR schedule planner.
  *
- * <p>Everything in this class is a snapshot obtained from MTR's HTTP API; the planner is strictly
- * read-only with respect to MTR. Departure edits, follow relations and depot offsets only exist in
- * this session and in exported text.</p>
+ * <p>Everything in this class is a snapshot obtained from MTR's in-game data; the planner is strictly
+ * read from MTR with the read-only {@code list_data} operation. Departure edits and follow relations
+ * only exist in this session; saving offsets writes them to MTR's depot real-time schedules.</p>
  *
  * <p>The instance is shared by all screens so closing and reopening the planner keeps the loaded
  * network, the analysis window and the user's edits.</p>
@@ -27,20 +27,32 @@ public final class SchedulerSession {
         ERROR
     }
 
+    /**
+     * Loader-specific bridge that asks the server for an MTR snapshot. The server answers through
+     * {@link #acceptSnapshot(int, String, String)} or {@link #acceptError(int, String)} with the same token.
+     */
+    public interface Transport {
+        void request(int token);
+
+        void write(int token, Map<String, Long> offsets);
+    }
+
     private static final SchedulerSession INSTANCE = new SchedulerSession();
 
     /** Longest layover still considered a continuation when auto-detecting follow relations. */
     private static final long AUTO_FOLLOW_MAX_TURNAROUND_MS = 2L * TimeFormat.HOUR_MS;
+    private static final long REQUEST_TIMEOUT_MS = 15_000L;
 
     private final Object lock = new Object();
 
-    private String host = MtrApiClient.DEFAULT_HOST;
-    private int dimension = 0;
+    private volatile Transport transport;
     private LoadState state = LoadState.IDLE;
     private String status = "";
     private MtrNetwork network;
     private int generation;
     private int modCount;
+    private long loadingSince;
+    private boolean pendingWrite;
 
     private final Map<String, String> follows = new LinkedHashMap<>();
     /** Route ids whose follow relation was created explicitly by the player and derives its times. */
@@ -81,39 +93,134 @@ public final class SchedulerSession {
         }
     }
 
-    /** Fetches both MTR endpoints on a background thread and adopts the result when it arrives. */
+    /**
+     * Asks the server for a fresh MTR snapshot through the loader-specific {@link Transport}. The
+     * response is delivered on the client thread through {@link #acceptSnapshot} /
+     * {@link #acceptError}, or fails after {@link #REQUEST_TIMEOUT_MS}.
+     */
     public void refresh() {
-        final String targetHost;
-        final int targetDimension;
-        final int currentGeneration;
+        final Transport currentTransport;
+        final int token;
         synchronized (lock) {
-            targetHost = host;
-            targetDimension = dimension;
-            currentGeneration = ++generation;
+            currentTransport = transport;
+            token = ++generation;
             state = LoadState.LOADING;
-            status = "Reading " + MtrApiClient.normalizeBase(targetHost) + " …";
+            loadingSince = System.currentTimeMillis();
+            status = "Requesting MTR data from the server…";
             modCount++;
         }
 
-        MtrApiClient.fetchAsync(targetHost, targetDimension, result -> {
+        if (currentTransport == null) {
             synchronized (lock) {
-                if (currentGeneration != generation) {
-                    return;
-                }
-                if (result.isSuccess()) {
-                    adoptNetwork(result.network);
-                    state = LoadState.READY;
-                    int warnings = result.network.warnings().size();
-                    status = result.network.summary()
-                            + (warnings == 0 ? "" : " · " + warnings + " warning(s)")
-                            + " · " + TimeFormat.hms(TimeFormat.localDayMillis(result.network.fetchedAt));
-                } else {
+                if (token == generation) {
                     state = LoadState.ERROR;
-                    status = result.error;
+                    status = "MTR data transport is not available";
+                    modCount++;
                 }
+            }
+            return;
+        }
+
+        try {
+            currentTransport.request(token);
+        } catch (Throwable throwable) {
+            acceptError(token, "Could not request MTR data: " + throwable.getMessage());
+        }
+    }
+
+    /** Called by the client networking layer with the server-provided snapshot. */
+    public void acceptSnapshot(int token, String stationsAndRoutesJson, String departuresJson) {
+        synchronized (lock) {
+            if (token != generation || state != LoadState.LOADING) {
+                return;
+            }
+            try {
+                MtrNetwork loaded = MtrNetwork.parse(
+                        stationsAndRoutesJson,
+                        departuresJson,
+                        0,
+                        System.currentTimeMillis()
+                );
+                adoptNetwork(loaded);
+                state = LoadState.READY;
+                int warnings = loaded.warnings().size();
+                status = (pendingWrite ? "Saved to MTR · " : "")
+                        + loaded.summary()
+                        + (warnings == 0 ? "" : " · " + warnings + " warning(s)")
+                        + " · " + TimeFormat.hms(TimeFormat.localDayMillis(loaded.fetchedAt));
+                pendingWrite = false;
+            } catch (RuntimeException exception) {
+                state = LoadState.ERROR;
+                status = "Could not read MTR data: " + exception.getMessage();
+                pendingWrite = false;
+            }
+            modCount++;
+        }
+    }
+
+    /** Called by the client networking layer when the server cannot provide a snapshot. */
+    public void acceptError(int token, String message) {
+        synchronized (lock) {
+            if (token != generation || state != LoadState.LOADING) {
+                return;
+            }
+            state = LoadState.ERROR;
+            status = message == null || message.isBlank() ? "Could not read MTR data" : message;
+            pendingWrite = false;
+            modCount++;
+        }
+    }
+
+    /** Called from the screen tick to surface a silent server-side failure. */
+    public void poll() {
+        synchronized (lock) {
+            if (state == LoadState.LOADING && System.currentTimeMillis() - loadingSince > REQUEST_TIMEOUT_MS) {
+                state = LoadState.ERROR;
+                status = "Timed out waiting for MTR data from the server";
+                pendingWrite = false;
+                generation++;
                 modCount++;
             }
-        });
+        }
+    }
+
+    public void setTransport(Transport value) {
+        synchronized (lock) {
+            transport = value;
+        }
+    }
+
+    /** Writes the current depot offsets into MTR and refreshes the routes afterwards. */
+    public void writeOffsets() {        SchedulerAnalysis current = analysis();
+        if (!current.solvable()) {
+            return;
+        }
+        Map<String, Long> offsets = new LinkedHashMap<>(current.depotOffsetsMs());
+        final Transport currentTransport;
+        final int token;
+        synchronized (lock) {
+            currentTransport = transport;
+            token = ++generation;
+            state = LoadState.LOADING;
+            loadingSince = System.currentTimeMillis();
+            pendingWrite = true;
+            status = "Writing depot offsets to MTR…";
+            modCount++;
+        }
+        if (currentTransport == null) {
+            acceptError(token, "MTR data transport is not available");
+            return;
+        }
+        try {
+            currentTransport.write(token, offsets);
+        } catch (Throwable throwable) {
+            acceptError(token, "Could not write to MTR: " + throwable.getMessage());
+        }
+    }
+
+    /** Top-bar shortcut: save the current planner offsets to the MTR depot schedules. */
+    public void writeCurrentSchedule() {
+        writeOffsets();
     }
 
     private void adoptNetwork(MtrNetwork loaded) {
@@ -265,40 +372,6 @@ public final class SchedulerSession {
     public int modCount() {
         synchronized (lock) {
             return modCount;
-        }
-    }
-
-    public String host() {
-        synchronized (lock) {
-            return host;
-        }
-    }
-
-    public void setHost(String newHost) {
-        synchronized (lock) {
-            String normalized = MtrApiClient.normalizeBase(newHost);
-            if (!normalized.equals(MtrApiClient.normalizeBase(host))) {
-                host = newHost == null || newHost.isBlank() ? MtrApiClient.DEFAULT_HOST : newHost.trim();
-                modCount++;
-            }
-        }
-    }
-
-    public int dimension() {
-        synchronized (lock) {
-            return dimension;
-        }
-    }
-
-    /** Changes the dimension and reloads; the follow relations are kept when they still apply. */
-    public void setDimension(int newDimension) {
-        synchronized (lock) {
-            int clamped = Math.max(0, Math.min(15, newDimension));
-            if (clamped != dimension) {
-                dimension = clamped;
-                modCount++;
-                refresh();
-            }
         }
     }
 
@@ -605,25 +678,6 @@ public final class SchedulerSession {
             modCount++;
         }
     }
-
-    // ------------------------------------------------------------------
-    // Export
-    // ------------------------------------------------------------------
-
-    public String exportDepotPlan() {
-        synchronized (lock) {
-            return network == null ? "" : ScheduleExport.depotPlan(
-                    network, host, dimension, windowStartMs, windowEndMs, follows);
-        }
-    }
-
-    public String exportProjectJson() {
-        synchronized (lock) {
-            return network == null ? "" : ScheduleExport.projectJson(
-                    network, host, dimension, windowStartMs, windowEndMs, follows);
-        }
-    }
-
 
     // ------------------------------------------------------------------
     // Follow helpers

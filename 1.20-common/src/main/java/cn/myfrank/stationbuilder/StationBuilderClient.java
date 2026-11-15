@@ -11,6 +11,8 @@ import cn.myfrank.stationbuilder.items.ModItems;
 import cn.myfrank.stationbuilder.items.RailBuilderItem;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
+import cn.myfrank.stationbuilder.mtr.MtrSchedulerClientTransport;
+import cn.myfrank.stationbuilder.scheduler.SchedulerSession;
 import cn.myfrank.stationbuilder.items.BuildingPlacerConfig;
 import cn.myfrank.stationbuilder.items.RailBuilderConfig;
 import cn.myfrank.stationbuilder.items.RailBuilderState;
@@ -53,6 +55,8 @@ public class StationBuilderClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		StationBuilderKeyBindings.register();
+		MtrSchedulerClientTransport.registerReceiver();
+		SchedulerSession.get().setTransport(new MtrSchedulerClientTransport());
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (StationBuilderKeyBindings.CLEAR_RAIL_STATE.wasPressed() && client.player != null && client.player.getMainHandStack().getItem() instanceof RailBuilderItem) {

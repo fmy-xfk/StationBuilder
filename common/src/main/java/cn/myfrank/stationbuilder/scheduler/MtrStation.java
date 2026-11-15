@@ -1,7 +1,7 @@
 package cn.myfrank.stationbuilder.scheduler;
 
 /**
- * A station as reported by {@code /mtr/api/map/stations-and-routes}.
+ * A station as reported by MTR's in-game {@code list_data} operation.
  *
  * <p>Only the fields the planner actually renders are kept; the planner never talks to MTR
  * classes, so this is a plain snapshot of the JSON payload.</p>

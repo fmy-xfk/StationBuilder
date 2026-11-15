@@ -25,6 +25,6 @@ Minecraft API differences are intentionally not forced into a single implementat
 
 ## MTR schedule planner
 
-The repository also ships an in-game MTR schedule planner: a read-only analysis tool that reads the
-MTR web API (never MTR Java data), draws platform occupancy, reports platform conflicts and exports
+The repository also ships an in-game MTR schedule planner: an analysis tool that reads the
+MTR in-game data on the server, draws platform occupancy, reports platform conflicts and saves
 MTR depot real-time departure plans. See [docs/mtr-scheduler.md](docs/mtr-scheduler.md).

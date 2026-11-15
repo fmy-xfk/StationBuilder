@@ -7,6 +7,8 @@ import cn.myfrank.stationbuilder.create.CreateClientIntegration;
 import cn.myfrank.stationbuilder.generator.RailGenerator;
 import cn.myfrank.stationbuilder.items.*;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
+import cn.myfrank.stationbuilder.mtr.MtrSchedulerClientTransport;
+import cn.myfrank.stationbuilder.scheduler.SchedulerSession;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
 import cn.myfrank.stationbuilder.screens.BuildingPlacerScreen;
 import cn.myfrank.stationbuilder.screens.BuildingSelectorScreen;
@@ -45,6 +47,8 @@ public class StationBuilderClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		StationBuilderKeyBindings.register();
+		MtrSchedulerClientTransport.registerReceiver();
+		SchedulerSession.get().setTransport(new MtrSchedulerClientTransport());
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			if (StationBuilderKeyBindings.CLEAR_RAIL_STATE.wasPressed()

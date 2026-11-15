@@ -10,6 +10,11 @@ import cn.myfrank.stationbuilder.generator.StationGenerator;
 import cn.myfrank.stationbuilder.items.*;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.manager.PlacerHistoryManager;
+import cn.myfrank.stationbuilder.mtr.MtrDepotOffsetWriter;
+import cn.myfrank.stationbuilder.mtr.MtrGameDataSource;
+import cn.myfrank.stationbuilder.mtr.MtrSchedulerNetworking;
+import cn.myfrank.stationbuilder.scheduler.Json;
+import cn.myfrank.stationbuilder.scheduler.PayloadCompression;
 import cn.myfrank.stationbuilder.utils.TickScheduler;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
@@ -23,6 +28,7 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.tag.BlockTags;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.structure.StructureTemplate;
 import net.minecraft.text.Text;
@@ -37,7 +43,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class StationBuilder implements ModInitializer {
 	public static final String MOD_ID = "stationbuilder";
@@ -413,6 +421,80 @@ public class StationBuilder implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(SavePlacerPayload.ID, StationBuilder.SavePlacerPayload.CODEC);
 		PayloadTypeRegistry.playC2S().register(UndoPlacerPayload.ID, StationBuilder.UndoPlacerPayload.CODEC);
 
+		// In-game MTR schedule planner: C2S snapshot request, S2C chunked snapshot data.
+		PayloadTypeRegistry.playC2S().register(
+				MtrSchedulerNetworking.RequestPayload.ID,
+				MtrSchedulerNetworking.RequestPayload.CODEC
+		);
+		PayloadTypeRegistry.playC2S().register(
+				MtrSchedulerNetworking.WritePayload.ID,
+				MtrSchedulerNetworking.WritePayload.CODEC
+		);
+		PayloadTypeRegistry.playS2C().register(
+				MtrSchedulerNetworking.DataPayload.ID,
+				MtrSchedulerNetworking.DataPayload.CODEC
+		);
+		ServerPlayNetworking.registerGlobalReceiver(MtrSchedulerNetworking.RequestPayload.ID, (payload, context) ->
+				context.server().execute(() -> {
+					ServerPlayerEntity player = context.player();
+					int token = payload.token;
+					if (!CommonUtil.isMtrLoaded()) {
+						sendSchedulerError(player, token, "MTR is not installed on this server");
+						return;
+					}
+					try {
+						MtrGameDataSource.collect(context.server(), player.getServerWorld(),
+								snapshot -> sendSchedulerSnapshot(player, token, snapshot));
+					} catch (Throwable throwable) {
+						sendSchedulerSnapshot(player, token,
+								MtrGameDataSource.Snapshot.error("Could not request MTR data: " + throwable.getMessage()));
+					}
+				})
+		);
+
+		ServerPlayNetworking.registerGlobalReceiver(MtrSchedulerNetworking.WritePayload.ID, (payload, context) ->
+				context.server().execute(() -> {
+					ServerPlayerEntity player = context.player();
+					int token = payload.token;
+					if (!CommonUtil.isMtrLoaded()) {
+						sendSchedulerError(player, token, "MTR is not installed on this server");
+						return;
+					}
+					Map<String, Long> offsets;
+					try {
+						offsets = new LinkedHashMap<>();
+						for (Map.Entry<String, Object> entry
+								: Json.object(Json.parse(payload.offsetsJson)).entrySet()) {
+							offsets.put(entry.getKey(), Json.longValue(entry.getValue(), 0L));
+						}
+					} catch (RuntimeException exception) {
+						sendSchedulerSnapshot(player, token,
+								MtrGameDataSource.Snapshot.error("Invalid depot offsets: " + exception.getMessage()));
+						return;
+					}
+					try {
+						MtrGameDataSource.collect(context.server(), player.getServerWorld(), snapshot -> {
+							if (!snapshot.isSuccess()) {
+								sendSchedulerSnapshot(player, token, snapshot);
+								return;
+							}
+							MtrDepotOffsetWriter.Result result =
+									MtrDepotOffsetWriter.write(snapshot.response(), offsets);
+							if (!result.success()) {
+								sendSchedulerSnapshot(player, token,
+										MtrGameDataSource.Snapshot.error(result.message()));
+								return;
+							}
+							MtrGameDataSource.collect(context.server(), player.getServerWorld(),
+									fresh -> sendSchedulerSnapshot(player, token, fresh));
+						});
+					} catch (Throwable throwable) {
+						sendSchedulerSnapshot(player, token,
+								MtrGameDataSource.Snapshot.error("Could not write MTR data: " + throwable.getMessage()));
+					}
+				})
+		);
+
 		ServerPlayNetworking.registerGlobalReceiver(UndoPlacerPayload.ID, (payload, context) -> {
 			context.server().execute(() -> {
 				net.minecraft.server.network.ServerPlayerEntity player = context.player();
@@ -552,5 +634,38 @@ public class StationBuilder implements ModInitializer {
 	}
 	public static String getRotName(BlockRotation rotation) {
 		return Text.translatable("gui.stationbuilder.rotation_" + rotation.name()).getString();
+	}
+
+	private static void sendSchedulerError(ServerPlayerEntity player, int token, String message) {
+		ServerPlayNetworking.send(player, new MtrSchedulerNetworking.DataPayload(
+				token, 0, 1, false, message, new byte[0]
+		));
+	}
+
+	private static void sendSchedulerSnapshot(
+			ServerPlayerEntity player,
+			int token,
+			MtrGameDataSource.Snapshot snapshot
+	) {
+		if (!snapshot.isSuccess()) {
+			ServerPlayNetworking.send(player, new MtrSchedulerNetworking.DataPayload(
+					token, 0, 1, false, snapshot.error(), new byte[0]
+			));
+			return;
+		}
+		Map<String, Object> envelope = new LinkedHashMap<>();
+		envelope.put("stations", snapshot.stationsAndRoutesJson());
+		envelope.put("departures", snapshot.departuresJson());
+		byte[] compressed = PayloadCompression.compress(Json.writeCompact(envelope));
+		int chunkSize = 30_000;
+		int parts = Math.max(1, (compressed.length + chunkSize - 1) / chunkSize);
+		for (int part = 0; part < parts; part++) {
+			int from = part * chunkSize;
+			int to = Math.min(compressed.length, from + chunkSize);
+			byte[] chunk = java.util.Arrays.copyOfRange(compressed, from, to);
+			ServerPlayNetworking.send(player, new MtrSchedulerNetworking.DataPayload(
+					token, part, parts, true, "", chunk
+			));
+		}
 	}
 }
