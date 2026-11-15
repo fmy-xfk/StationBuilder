@@ -31,9 +31,17 @@ public class ModItems {
             CommonUtil.itemSettings(new Item.Settings().maxCount(1), BUILDING_PLACER_ITEM_KEY)
     );
 
+    public static final Identifier MTR_SCHEDULER_ID = Identifier.of("stationbuilder", "mtr_scheduler");
+    public static final RegistryKey<Item> MTR_SCHEDULER_ITEM_KEY =
+            RegistryKey.of(RegistryKeys.ITEM, MTR_SCHEDULER_ID);
+    public static final Item MTR_SCHEDULER_ITEM = new MtrSchedulerItem(
+            CommonUtil.itemSettings(new Item.Settings().maxCount(1), MTR_SCHEDULER_ITEM_KEY)
+    );
+
     public static void register() {
         Registry.register(Registries.ITEM, RAIL_BUILDER_ID, RAIL_BUILDER_ITEM);
         Registry.register(Registries.ITEM, BUILDING_SELECTOR_ID, BUILDING_SELECTOR_ITEM);
         Registry.register(Registries.ITEM, BUILDING_PLACER_ID, BUILDING_PLACER_ITEM);
+        Registry.register(Registries.ITEM, MTR_SCHEDULER_ID, MTR_SCHEDULER_ITEM);
     }
 }

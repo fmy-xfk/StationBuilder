@@ -66,6 +66,7 @@ public class StationBuilder implements ModInitializer {
 						entries.add(ModItems.RAIL_BUILDER_ITEM);
 						entries.add(ModItems.BUILDING_SELECTOR_ITEM); // 新增选取器
 						entries.add(ModItems.BUILDING_PLACER_ITEM);   // 新增放置器
+						entries.add(ModItems.MTR_SCHEDULER_ITEM);
 					})
 					.build());
 

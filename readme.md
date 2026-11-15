@@ -22,3 +22,9 @@ cd ../1.21.4 && ./gradlew build
 ```
 
 Minecraft API differences are intentionally not forced into a single implementation where that would make the code fail to compile: patch-specific shims such as `CommonUtil`, `ClientUtil`, the 1.20 GUI scroll signatures, `StationBuilderBlock`, and Create integration remain target-specific as needed.
+
+## MTR schedule planner
+
+The repository also ships an in-game MTR schedule planner: a read-only analysis tool that reads the
+MTR web API (never MTR Java data), draws platform occupancy, reports platform conflicts and exports
+MTR depot real-time departure plans. See [docs/mtr-scheduler.md](docs/mtr-scheduler.md).
