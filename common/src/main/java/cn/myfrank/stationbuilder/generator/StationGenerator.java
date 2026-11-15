@@ -1180,9 +1180,13 @@ public class StationGenerator {
             // --- 3. 原版接触网沿轨道铺设连续导线 ---
             if (!useMsd && !useCee) {
                 BlockState wireState = CommonUtil.getBlockState(trackCfg.catenaryBlock);
+                BlockState wireStateAbove = CommonUtil.getBlockState(trackCfg.catenaryPillarBlock);
                 for (int t = 0; t < trackCount; t++) {
                     BlockPos centerWire = trackLeftEdges.get(groupStart + t).offset(facing, l).offset(right, 1).up(wireHeight);
                     setBlockIfEmpty(world, centerWire, wireState);
+                    if (isPillarFrame) {
+                        setBlockIfEmpty(world, centerWire.up(), wireStateAbove);
+                    }
                 }
             }
         }
