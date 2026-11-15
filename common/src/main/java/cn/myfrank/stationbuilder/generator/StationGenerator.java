@@ -18,9 +18,12 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.SlabBlock;
+import net.minecraft.block.StairsBlock;
 import net.minecraft.block.WallBlock;
+import net.minecraft.block.enums.BlockHalf;
 import net.minecraft.block.enums.RailShape;
 import net.minecraft.block.enums.SlabType;
+import net.minecraft.block.enums.StairShape;
 import net.minecraft.block.enums.WallShape;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -59,11 +62,19 @@ public class StationGenerator {
     }
 
     public static void build(ServerPlayerEntity player, ServerWorld world, BlockPos origin, Direction facing, int length, List<StationElement> elements) {
+        build(player, world, origin, facing, length, new PassageConfig(), elements);
+    }
+
+    public static void build(ServerPlayerEntity player, ServerWorld world, BlockPos origin, Direction facing, int length,
+                             PassageConfig passage, List<StationElement> elements) {
         PlacerHistoryManager.Recording recording = PlacerHistoryManager.begin(player, world, "station");
         List<Runnable> deferredTasks = new ArrayList<>();
         boolean scheduled = false;
         try {
-            buildInternal(player, world, origin, facing, length, elements, deferredTasks);
+            PassageConfig passageConfig = new PassageConfig();
+            passageConfig.copyFrom(passage);
+            passageConfig.sanitize(length);
+            buildInternal(player, world, origin, facing, length, passageConfig, elements, deferredTasks);
             if (!deferredTasks.isEmpty()) {
                 // MTR track nodes are placed one tick later; keep the same recording
                 // alive so they are part of this construction's undo step.
@@ -87,7 +98,8 @@ public class StationGenerator {
         }
     }
 
-    private static void buildInternal(ServerPlayerEntity player, ServerWorld world, BlockPos origin, Direction facing, int length, List<StationElement> elements, List<Runnable> deferredTasks) {
+    private static void buildInternal(ServerPlayerEntity player, ServerWorld world, BlockPos origin, Direction facing, int length,
+                                      PassageConfig passage, List<StationElement> elements, List<Runnable> deferredTasks) {
         Direction right = facing.rotateYClockwise();
 
         int totalWidth = 0;
@@ -139,6 +151,10 @@ public class StationGenerator {
         BlockPos currentLeftEdge = origin.offset(facing);
         List<BlockPos> trackLeftEdges = new ArrayList<>();
         List<Integer> trackIndices = new ArrayList<>();
+        List<PlatformSpan> platformSpans = new ArrayList<>();
+        List<PidsRecord> pidsRecords = new ArrayList<>();
+        List<Runnable> buildingTasks = new ArrayList<>();
+        int wCursor = 0;
 
         for (int i = 0; i < elements.size(); i++) {
             StationElement element = elements.get(i);
@@ -147,6 +163,7 @@ public class StationGenerator {
                 if (leftNeighbor instanceof TrackElement) {
                     fillTrackGap(world, currentLeftEdge, facing, length, track);
                     currentLeftEdge = currentLeftEdge.offset(right);
+                    wCursor++;
                 }
                 trackLeftEdges.add(currentLeftEdge);
                 trackIndices.add(i);
@@ -154,15 +171,724 @@ public class StationGenerator {
             } else if (element instanceof PlatformElement platform) {
                 StationElement leftNeighbor = (i > 0) ? elements.get(i - 1) : null;
                 StationElement rightNeighbor = (i < elements.size() - 1) ? elements.get(i + 1) : null;
-                generatePlatform(player, world, currentLeftEdge, facing, right, length, platform, leftNeighbor, rightNeighbor);
+                generatePlatform(player, world, currentLeftEdge, facing, right, length, platform, leftNeighbor, rightNeighbor, pidsRecords);
+                if (platform.width > 0) {
+                    platformSpans.add(new PlatformSpan(wCursor, platform));
+                }
             } else if (element instanceof BuildingElement building) {
-                generateBuilding(world, currentLeftEdge, facing, building, length);
+                // 建筑最后生成：通道先建设，避免通道破坏站房。
+                final BlockPos buildingPos = currentLeftEdge;
+                buildingTasks.add(() -> generateBuilding(world, buildingPos, facing, building, length));
             }
             currentLeftEdge = currentLeftEdge.offset(right, element.getWidth());
+            wCursor += element.getWidth();
         }
 
-        // --- 生成接触网 ---
+        // --- 先生成接触网，再生成通道；通道楼梯会清除落在楼梯孔内的接触网/立柱 ---
         generateCatenaries(player, world, origin, facing, right, length, elements, trackLeftEdges, trackIndices);
+
+        // --- 生成连接站台的通道（必须在建筑之前） ---
+        if (passage != null && passage.isEnabled() && !platformSpans.isEmpty()) {
+            generatePassage(world, origin.offset(facing), facing, right, length, elements, platformSpans, passage);
+        }
+
+        // 楼梯墙可能把 PIDS 本体顶掉，留下悬空的 PIDS Pole；这里统一清掉对应立柱。
+        cleanupBrokenPids(world, pidsRecords);
+
+        // --- 最后生成建筑 ---
+        for (Runnable task : buildingTasks) {
+            task.run();
+        }
+    }
+
+    // ========================================================
+    //                   连接站台的通道
+    // ========================================================
+
+    private static final class PidsRecord {
+        final BlockPos pidsPos1;
+        final BlockPos pidsPos2;
+        final Identifier pidsBlockId;
+        final Identifier poleId;
+        final int topY;
+
+        PidsRecord(BlockPos pidsPos1, Direction facing, Identifier pidsBlockId,
+                   Identifier poleId, int canopyHeight) {
+            this.pidsPos1 = pidsPos1;
+            this.pidsPos2 = pidsPos1.offset(facing);
+            this.pidsBlockId = pidsBlockId;
+            this.poleId = poleId;
+            this.topY = canopyHeight + 6;
+        }
+    }
+
+    private static boolean isSameBlock(BlockState state, Identifier id) {
+        return id.equals(net.minecraft.registry.Registries.BLOCK.getId(state.getBlock()));
+    }
+
+    private static void cleanupBrokenPids(ServerWorld world, List<PidsRecord> records) {
+        for (PidsRecord record : records) {
+            boolean intact1 = isSameBlock(world.getBlockState(record.pidsPos1), record.pidsBlockId);
+            boolean intact2 = isSameBlock(world.getBlockState(record.pidsPos2), record.pidsBlockId);
+            if (intact1 && intact2) {
+                continue;
+            }
+            removePoleColumn(world, record.pidsPos1, record.poleId, record.topY);
+            removePoleColumn(world, record.pidsPos2, record.poleId, record.topY);
+        }
+    }
+
+    private static void removePoleColumn(ServerWorld world, BlockPos base, Identifier poleId, int topY) {
+        for (int y = 1; y <= topY; y++) {
+            BlockPos pos = base.up(y);
+            if (isSameBlock(world.getBlockState(pos), poleId)) {
+                clearBlock(world, pos);
+            }
+        }
+    }
+
+    private static final class PlatformSpan {
+        final int w;
+        final PlatformElement platform;
+
+        PlatformSpan(int w, PlatformElement platform) {
+            this.w = w;
+            this.platform = platform;
+        }
+
+        int width() {
+            return Math.max(1, platform.width);
+        }
+
+        int stairWidth() {
+            return stairWidthFor(width());
+        }
+
+        int stairStartW() {
+            return w + (width() - stairWidth()) / 2;
+        }
+
+        int stairEndW() {
+            return stairStartW() + stairWidth() - 1;
+        }
+
+        boolean isStairColumn(int column) {
+            return column >= stairStartW() && column <= stairEndW();
+        }
+
+        /** 窄站台放不下两侧楼梯围墙，此时不生成围墙、支柱和围栏。 */
+        boolean hasStairWalls() {
+            return width() >= 5;
+        }
+    }
+
+    /** 楼梯净宽：奇数站台用 3 格；偶数 2/4/6 用 2 格，其余偶数用 4 格。 */
+    private static int stairWidthFor(int platformWidth) {
+        if (platformWidth <= 1) return 1;
+        if (platformWidth <= 6 && platformWidth % 2 == 0) return 2;
+        if (platformWidth == 3) return 3;
+        if (platformWidth % 2 == 1) return 3;
+        return 4;
+    }
+
+    private static void setBlock(ServerWorld world, BlockPos pos, BlockState state) {
+        if (world.isInBuildLimit(pos)) {
+            world.setBlockState(pos, state, Block.NOTIFY_ALL);
+        }
+    }
+
+    private static void clearBlock(ServerWorld world, BlockPos pos) {
+        setBlock(world, pos, Blocks.AIR.getDefaultState());
+    }
+
+    private static BlockState createStairState(net.minecraft.block.Block stairs, Direction ascendingDirection) {
+        return stairs.getDefaultState()
+                .with(StairsBlock.FACING, ascendingDirection)
+                .with(StairsBlock.HALF, BlockHalf.BOTTOM)
+                .with(StairsBlock.SHAPE, StairShape.STRAIGHT);
+    }
+
+    /** Relative Y of the highest block of a track's catenary support. */
+    private static int catenarySupportRelY(TrackElement track) {
+        if (!track.hasCatenary || track.catenaryState == CatenaryType.None.ordinal()) {
+            return 0;
+        }
+        int wireHeight = Math.max(4, track.catenaryHeight);
+        if (track.catenaryState == CatenaryType.CEE.ordinal()) {
+            return wireHeight + 3;
+        }
+        if (track.catenaryState == CatenaryType.MSD.ordinal()) {
+            int index = Math.max(0, Math.min(track.catenaryModeIndex, CatenaryTypeMapping.values().length - 1));
+            boolean rigid = CatenaryTypeMapping.values()[index] == CatenaryTypeMapping.MSDRigidCatenary;
+            return wireHeight + (rigid ? 1 : 2);
+        }
+        if (track.catenaryState == CatenaryType.CPW.ordinal()) {
+            return wireHeight + 3;
+        }
+        return wireHeight + 2;
+    }
+
+    /** Relative Y of the highest canopy/catenary mast that stands on a platform. */
+    private static int platformSupportRelY(PlatformElement platform) {
+        if (!platform.hasCanopy) {
+            return 0;
+        }
+        int maxHalfY = 0;
+        int width = Math.max(1, platform.width);
+        for (int w = 0; w < width; w++) {
+            maxHalfY = Math.max(maxHalfY, calculateCanopyHalfY(w, width, platform.canopyStyle));
+        }
+        int canopyTop = ((platform.canopyHeight + 1) * 2 + maxHalfY) / 2;
+        return canopyTop + 2;
+    }
+
+    private static int highestSupportRelY(List<StationElement> elements) {
+        int highest = 0;
+        for (StationElement element : elements) {
+            if (element instanceof TrackElement track) {
+                highest = Math.max(highest, catenarySupportRelY(track));
+            } else if (element instanceof PlatformElement platform) {
+                highest = Math.max(highest, platformSupportRelY(platform));
+            }
+        }
+        return highest;
+    }
+
+    private static boolean isDoorwayColumn(int w, List<PlatformSpan> platforms) {
+        for (PlatformSpan platform : platforms) {
+            if (platform.isStairColumn(w)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isOverPlatform(int w, List<PlatformSpan> platforms) {
+        for (PlatformSpan platform : platforms) {
+            if (w >= platform.w && w < platform.w + platform.width()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    private static final class SupportColumn {
+        final BlockPos base;
+        final int topY;
+
+        SupportColumn(BlockPos base, int topY) {
+            this.base = base;
+            this.topY = topY;
+        }
+    }
+
+    /** 通道沿 w（横向）延伸，灯沿 w 均匀、镜像布置；l 方向居中。 */
+    private static void placeSymmetricCeilingLights(ServerWorld world, BlockPos stationStart, Direction facing,
+                                                    Direction right, int startL, int endL,
+                                                    int leftW, int rightW, int y, BlockState lightState) {
+        // 通道沿 w（横向）延伸，因此灯要沿 w 均匀、镜像布置；l 方向只需居中。
+        int span = rightW - leftW + 1;
+        if (span <= 0) {
+            return;
+        }
+        int centerL1 = (startL + endL) / 2;
+        int centerL2 = centerL1 + (((endL - startL + 1) % 2 == 0) ? 1 : 0);
+        for (int i = 0; i <= (span - 1) / 2; i += 3) {
+            int mirror = span - 1 - i;
+            int[] positions = (mirror == i)
+                    ? new int[]{leftW + i}
+                    : new int[]{leftW + i, leftW + mirror};
+            for (int w : positions) {
+                BlockPos base = stationStart.offset(right, w);
+                setBlock(world, base.offset(facing, centerL1).up(y), lightState);
+                if (centerL2 != centerL1 && centerL2 <= endL) {
+                    setBlock(world, base.offset(facing, centerL2).up(y), lightState);
+                }
+            }
+        }
+    }
+
+    /** 后置检查：若柱脚下方为空气，则删除整根柱，避免悬空支柱。 */
+    private static void removeUnsupportedColumns(ServerWorld world, List<SupportColumn> columns) {
+        for (SupportColumn column : columns) {
+            if (!world.getBlockState(column.base).isAir()) {
+                continue;
+            }
+            for (int y = 1; y <= column.topY; y++) {
+                clearBlock(world, column.base.up(y));
+            }
+        }
+    }
+
+    private static void generatePassage(ServerWorld world, BlockPos stationStart, Direction facing, Direction right,
+                                        int length, List<StationElement> elements,
+                                        List<PlatformSpan> platforms, PassageConfig passage) {
+        if (platforms.isEmpty()) {
+            return;
+        }
+
+        int interiorWidth = Math.max(1, Math.min(passage.width, Math.max(1, length)));
+        int height = Math.max(1, Math.min(passage.height, PassageConfig.MAX_HEIGHT));
+        int outerWidth = interiorWidth + 2;
+
+        PlatformSpan firstPlatform = platforms.get(0);
+        PlatformSpan lastPlatform = platforms.get(platforms.size() - 1);
+        int leftW = firstPlatform.w;
+        int rightW = lastPlatform.w + lastPlatform.width() - 1;
+
+        int highestSupport = highestSupportRelY(elements);
+        int maxPlatformSupport = 0;
+        for (PlatformSpan span : platforms) {
+            maxPlatformSupport = Math.max(maxPlatformSupport, platformSupportRelY(span.platform));
+        }
+        // 后置清理高度：覆盖接触网支架和站台雨棚顶部。
+        int clearTop = Math.max(highestSupport + 8, maxPlatformSupport + 4);
+        // Requirement: the lowest skybridge block must be higher than the highest catenary bracket.
+        int bridgeFloorY = Math.max(8, highestSupport + 1);
+        // Requirement: the underground ceiling must stay below the ballast layer (ballast is at Y = -1).
+        int tunnelCeilingY = -2;
+        int tunnelFloorY = -3 - height;
+
+        boolean skybridge = passage.mode == PassageConfig.Mode.SKYBRIDGE;
+        int stairSteps = skybridge ? bridgeFloorY : -tunnelFloorY;
+
+        int startL = Math.max(0, (length - outerWidth) / 2);
+        if (length >= stairSteps * 2 + outerWidth) {
+            startL = Math.max(stairSteps + 1,
+                    Math.min(startL, length - stairSteps - interiorWidth - 1));
+        } else {
+            startL = Math.max(0, Math.min(startL, Math.max(0, length - outerWidth)));
+        }
+        int endL = Math.min(length - 1, startL + interiorWidth - 1);
+
+        if (skybridge) {
+            buildSkybridgePassage(world, stationStart, facing, right, length,
+                    platforms, leftW, rightW, startL, endL, height, bridgeFloorY, stairSteps, passage);
+        } else {
+            buildUndergroundPassage(world, stationStart, facing, right, length,
+                    platforms, leftW, rightW, startL, endL, height, tunnelCeilingY, tunnelFloorY, stairSteps, clearTop, passage);
+        }
+    }
+
+    private static void buildSkybridgePassage(ServerWorld world, BlockPos stationStart, Direction facing, Direction right,
+                                              int length, List<PlatformSpan> platforms, int leftW, int rightW,
+                                              int startL, int endL, int height, int bridgeFloorY, int stairSteps,
+                                              PassageConfig passage) {
+        BlockState floorState = CommonUtil.getBlockState(passage.skybridgeFloorBlock);
+        BlockState roofState = CommonUtil.getBlockState(passage.skybridgeCeilingBlock);
+        BlockState wallState = CommonUtil.getBlockState(passage.skybridgeWallBlock);
+        BlockState pillarState = CommonUtil.getBlockState(passage.skybridgeStairWallBlock);
+        BlockState lightState = CommonUtil.getBlockState(passage.skybridgeLightBlock);
+
+        int outerStart = startL - 1;
+        int outerEnd = endL + 1;
+        int roofY = bridgeFloorY + height + 1;
+        int canopyY = roofY;
+        List<SupportColumn> supportColumns = new ArrayList<>();
+
+        // 内部宽度 = 配置宽度；两端各有一列墙体，所以外轮廓多 2 格。
+        for (int l = outerStart; l <= outerEnd; l++) {
+            for (int w = leftW; w <= rightW; w++) {
+                BlockPos base = stationStart.offset(facing, l).offset(right, w);
+                setBlock(world, base.up(bridgeFloorY), floorState);
+                setBlock(world, base.up(roofY), roofState);
+            }
+        }
+
+        // 天花板灯：纵向镜像对称，横向居中；偶数跨时使用两列中心灯。
+        placeSymmetricCeilingLights(world, stationStart, facing, right, startL, endL, leftW, rightW, roofY, lightState);
+
+        for (int l = startL; l <= endL; l++) {
+            for (int w = leftW; w <= rightW; w++) {
+                BlockPos base = stationStart.offset(facing, l).offset(right, w);
+                for (int y = bridgeFloorY + 1; y <= bridgeFloorY + height; y++) {
+                    clearBlock(world, base.up(y));
+                }
+            }
+        }
+
+        // 两端墙体和门洞。
+        for (int l : new int[]{outerStart, outerEnd}) {
+            for (int w = leftW; w <= rightW; w++) {
+                BlockPos base = stationStart.offset(facing, l).offset(right, w);
+                for (int y = bridgeFloorY + 1; y <= bridgeFloorY + height; y++) {
+                    clearBlock(world, base.up(y));
+                    if (!isDoorwayColumn(w, platforms)) {
+                        setBlock(world, base.up(y), wallState);
+                    }
+                }
+            }
+        }
+
+        // 楼梯位置处的对称结构柱。若两侧没有站台支撑，则改用桥面以上的门架，避免悬空。
+        for (PlatformSpan platform : platforms) {
+            if (!platform.hasStairWalls()) {
+                continue;
+            }
+            int leftSide = platform.stairStartW() - 1;
+            int rightSide = platform.stairEndW() + 1;
+            for (int l : new int[]{outerStart, outerEnd}) {
+                boolean supported = isOverPlatform(leftSide, platforms) && isOverPlatform(rightSide, platforms);
+                if (supported) {
+                    for (int sideW : new int[]{leftSide, rightSide}) {
+                        if (sideW < leftW || sideW > rightW) {
+                            continue;
+                        }
+                        BlockPos base = stationStart.offset(facing, l).offset(right, sideW);
+                        for (int y = 1; y <= roofY; y++) {
+                            setBlock(world, base.up(y), pillarState);
+                        }
+                        supportColumns.add(new SupportColumn(base, roofY));
+                    }
+                } else {
+                    for (int sideW : new int[]{leftSide, rightSide}) {
+                        if (sideW < leftW || sideW > rightW) {
+                            continue;
+                        }
+                        BlockPos base = stationStart.offset(facing, l).offset(right, sideW);
+                        for (int y = bridgeFloorY; y <= roofY; y++) {
+                            setBlock(world, base.up(y), pillarState);
+                        }
+                    }
+                    for (int w = Math.max(leftW, leftSide); w <= Math.min(rightW, rightSide); w++) {
+                        setBlock(world, stationStart.offset(facing, l).offset(right, w).up(roofY), pillarState);
+                    }
+                }
+            }
+        }
+
+        // 通道两侧都有楼梯，从两端对称进入通道。
+        for (PlatformSpan platform : platforms) {
+            buildSkybridgeStairRun(world, stationStart, facing, right, platform, length,
+                    startL - stairSteps - 1, 1, stairSteps, canopyY, leftW, rightW, passage, supportColumns);
+            buildSkybridgeStairRun(world, stationStart, facing, right, platform, length,
+                    endL + stairSteps + 1, -1, stairSteps, canopyY, leftW, rightW, passage, supportColumns);
+        }
+
+        // 建设完成后再做一次支撑检查，删除下方为空气的悬空柱/立柱。
+        removeUnsupportedColumns(world, supportColumns);
+    }
+
+    private static void buildSkybridgeStairRun(ServerWorld world, BlockPos stationStart, Direction facing, Direction right,
+                                               PlatformSpan platform, int length, int bottomL, int lStep, int steps,
+                                               int canopyY, int leftW, int rightW, PassageConfig passage,
+                                               List<SupportColumn> supportColumns) {
+        BlockState stepState = createStairState(CommonUtil.getBlock(passage.skybridgeStairBlock),
+                lStep > 0 ? facing : facing.getOpposite());
+        BlockState sideState = CommonUtil.getBlockState(passage.skybridgeStairWallBlock);
+        int stairStartW = platform.stairStartW();
+        int stairEndW = platform.stairEndW();
+        boolean walls = platform.hasStairWalls();
+
+        for (int i = 1; i <= steps; i++) {
+            int l = bottomL + (i - 1) * lStep;
+            if (l < 0 || l >= length) {
+                continue;
+            }
+            int stepY = i;
+            for (int w = stairStartW; w <= stairEndW; w++) {
+                BlockPos base = stationStart.offset(facing, l).offset(right, w);
+                for (int y = stepY + 1; y <= canopyY; y++) {
+                    clearBlock(world, base.up(y));
+                }
+                setBlock(world, base.up(stepY), stepState);
+            }
+            if (walls) {
+                for (int sideW : new int[]{stairStartW - 1, stairEndW + 1}) {
+                    if (sideW < leftW || sideW > rightW) {
+                        continue;
+                    }
+                    BlockPos base = stationStart.offset(facing, l).offset(right, sideW);
+                    for (int y = 1; y <= canopyY; y++) {
+                        clearBlock(world, base.up(y));
+                    }
+                    for (int y = 1; y < canopyY; y++) {
+                        setBlock(world, base.up(y), sideState);
+                    }
+                    if ((i - 1) % 3 == 0) {
+                        int lightY = Math.max(2, canopyY - 4);
+                        BlockPos lightPos = base.up(lightY);
+                        if (world.getBlockState(lightPos).getBlock() == sideState.getBlock()) {
+                            setBlock(world, lightPos,
+                                    CommonUtil.getBlockState(passage.skybridgeLightBlock));
+                        }
+                    }
+                }
+            }
+        }
+
+        int minL = Math.min(bottomL, bottomL + (steps - 1) * lStep);
+        int maxL = Math.max(bottomL, bottomL + (steps - 1) * lStep);
+        minL = Math.max(0, minL);
+        maxL = Math.min(length - 1, maxL);
+        if (minL > maxL) {
+            return;
+        }
+
+        // 楼梯雨棚。
+        int canopyLeft = walls ? Math.max(leftW, stairStartW - 1) : stairStartW;
+        int canopyRight = walls ? Math.min(rightW, stairEndW + 1) : stairEndW;
+        for (int l = minL; l <= maxL; l++) {
+            for (int w = canopyLeft; w <= canopyRight; w++) {
+                setBlock(world, stationStart.offset(facing, l).offset(right, w).up(canopyY), roofState(passage));
+            }
+        }
+
+        // 雨棚两端立柱：与楼梯围墙使用同一种方块。
+        if (walls) {
+            for (int l : new int[]{minL, maxL}) {
+                for (int sideW : new int[]{stairStartW - 1, stairEndW + 1}) {
+                    if (sideW < leftW || sideW > rightW) {
+                        continue;
+                    }
+                    BlockPos post = stationStart.offset(facing, l).offset(right, sideW);
+                    for (int y = 1; y < canopyY; y++) {
+                        setBlock(world, post.up(y), sideState);
+                    }
+                    supportColumns.add(new SupportColumn(post, canopyY - 1));
+                }
+            }
+        }
+    }
+
+    private static BlockState roofState(PassageConfig passage) {
+        return CommonUtil.getBlockState(passage.skybridgeCeilingBlock);
+    }
+
+    private static void buildUndergroundPassage(ServerWorld world, BlockPos stationStart, Direction facing, Direction right,
+                                                int length, List<PlatformSpan> platforms, int leftW, int rightW,
+                                                int startL, int endL, int height, int ceilingY, int floorY,
+                                                int stairSteps, int clearTop, PassageConfig passage) {
+        BlockState floorState = CommonUtil.getBlockState(passage.undergroundFloorBlock);
+        BlockState wallState = CommonUtil.getBlockState(passage.undergroundWallBlock);
+        BlockState ceilingState = CommonUtil.getBlockState(passage.undergroundCeilingBlock);
+        BlockState lightState = CommonUtil.getBlockState(passage.undergroundLightBlock);
+
+        int outerStart = startL - 1;
+        int outerEnd = endL + 1;
+
+        // 内部宽度 = 配置宽度；两端各一列墙体。
+        for (int l = outerStart; l <= outerEnd; l++) {
+            for (int w = leftW; w <= rightW; w++) {
+                BlockPos base = stationStart.offset(facing, l).offset(right, w);
+                for (int y = floorY + 1; y < ceilingY; y++) {
+                    clearBlock(world, base.up(y));
+                }
+                setBlock(world, base.up(floorY), floorState);
+                setBlock(world, base.up(ceilingY), ceilingState);
+            }
+        }
+
+        // 天花板海晶灯：纵向镜像对称，横向居中；偶数跨时使用两列中心灯。
+        placeSymmetricCeilingLights(world, stationStart, facing, right, startL, endL, leftW, rightW, ceilingY, lightState);
+
+        for (int l : new int[]{outerStart, outerEnd}) {
+            for (int w = leftW; w <= rightW; w++) {
+                BlockPos base = stationStart.offset(facing, l).offset(right, w);
+                // 只补站台下方 y=-1 的孔隙；轨道上方这层是道砟，不能改动。
+                if (isOverPlatform(w, platforms)) {
+                    setBlock(world, base.up(-1), wallState);
+                }
+                if (isDoorwayColumn(w, platforms)) {
+                    continue;
+                }
+                for (int y = floorY + 1; y < ceilingY; y++) {
+                    setBlock(world, base.up(y), wallState);
+                }
+            }
+        }
+
+        // 封住通道横向两端，避免从隧道内直接看到站台/外部。
+        for (int capW : new int[]{leftW - 1, rightW + 1}) {
+            for (int l = outerStart; l <= outerEnd; l++) {
+                BlockPos base = stationStart.offset(facing, l).offset(right, capW);
+                setBlock(world, base.up(floorY), floorState);
+                setBlock(world, base.up(ceilingY), ceilingState);
+                for (int y = floorY + 1; y < ceilingY; y++) {
+                    setBlock(world, base.up(y), wallState);
+                }
+            }
+        }
+
+        for (PlatformSpan platform : platforms) {
+            buildUndergroundStairRun(world, stationStart, facing, right, platform, length,
+                    startL - stairSteps - 1, 1, stairSteps, floorY, ceilingY, clearTop, leftW, rightW, passage);
+            buildUndergroundStairRun(world, stationStart, facing, right, platform, length,
+                    endL + stairSteps + 1, -1, stairSteps, floorY, ceilingY, clearTop, leftW, rightW, passage);
+        }
+    }
+
+    private static int canopySlabY(PlatformSpan platform, int w) {
+        PlatformElement element = platform.platform;
+        if (!element.hasCanopy || element.canopyStyle == PlatformElement.CanopyStyle.PILLAR_ONLY) {
+            return -1;
+        }
+        int halfYOffset = calculateCanopyHalfY(w - platform.w, Math.max(1, element.width), element.canopyStyle);
+        return ((element.canopyHeight + 1) * 2 + halfYOffset) / 2;
+    }
+
+    private static void restoreCanopySlabIfMissing(ServerWorld world, PlatformSpan platform, BlockPos base,
+                                                   int w, int slabY) {
+        if (!world.getBlockState(base.up(slabY)).isAir()) {
+            return;
+        }
+        PlatformElement element = platform.platform;
+        int halfYOffset = calculateCanopyHalfY(w - platform.w, Math.max(1, element.width), element.canopyStyle);
+        int totalHalfY = (element.canopyHeight + 1) * 2 + halfYOffset;
+        setBlock(world, base.up(slabY), getSlabState(element.canopySlabId, totalHalfY));
+    }
+
+    /** 只清理连续 2 格以上的竖直柱；单格灯、雨棚板等不会被误删。 */
+    private static void clearVerticalPillarRuns(ServerWorld world, BlockPos base, int fromY, int toY, int minRun) {
+        int y = fromY;
+        while (y <= toY) {
+            BlockState state = world.getBlockState(base.up(y));
+            if (state.isAir()) {
+                y++;
+                continue;
+            }
+            int runStart = y;
+            while (y + 1 <= toY
+                    && world.getBlockState(base.up(y + 1)).getBlock() == state.getBlock()) {
+                y++;
+            }
+            int runEnd = y;
+            if (runEnd - runStart + 1 >= minRun) {
+                for (int yy = runStart; yy <= runEnd; yy++) {
+                    clearBlock(world, base.up(yy));
+                }
+            }
+            y++;
+        }
+    }
+
+    private static void buildUndergroundStairRun(ServerWorld world, BlockPos stationStart, Direction facing, Direction right,
+                                                 PlatformSpan platform, int length, int bottomL, int lStep, int steps,
+                                                 int floorY, int ceilingY, int clearTop, int leftW, int rightW,
+                                                 PassageConfig passage) {
+        BlockState stepState = createStairState(CommonUtil.getBlock(passage.undergroundStairBlock),
+                lStep > 0 ? facing.getOpposite() : facing);
+        BlockState sideState = CommonUtil.getBlockState(passage.undergroundStairWallBlock);
+        BlockState railState = CommonUtil.getBlockState(passage.undergroundStairRailBlock);
+        int stairStartW = platform.stairStartW();
+        int stairEndW = platform.stairEndW();
+        boolean walls = platform.hasStairWalls();
+
+        for (int i = 1; i <= steps; i++) {
+            int l = bottomL + (i - 1) * lStep;
+            if (l < 0 || l >= length) {
+                continue;
+            }
+            // 全部楼梯上移一格：入口第一级与站台面齐平，最后一级落在通道地板上方。
+            int stepY = -(i - 1);
+            for (int w = stairStartW; w <= stairEndW; w++) {
+                BlockPos base = stationStart.offset(facing, l).offset(right, w);
+                for (int y = floorY; y <= 0; y++) {
+                    clearBlock(world, base.up(y));
+                }
+                setBlock(world, base.up(stepY), stepState);
+            }
+            if (walls) {
+                for (int sideW : new int[]{stairStartW - 1, stairEndW + 1}) {
+                    if (sideW < leftW || sideW > rightW) {
+                        continue;
+                    }
+                    BlockPos base = stationStart.offset(facing, l).offset(right, sideW);
+                    for (int y = floorY; y <= 0; y++) {
+                        clearBlock(world, base.up(y));
+                    }
+                    for (int y = floorY; y <= 0; y++) {
+                        setBlock(world, base.up(y), sideState);
+                    }
+                    if ((i - 1) % 3 == 0) {
+                        int lightY = floorY + 2;
+                        BlockPos lightPos = base.up(lightY);
+                        if (world.getBlockState(lightPos).getBlock() == sideState.getBlock()) {
+                            setBlock(world, lightPos,
+                                    CommonUtil.getBlockState(passage.undergroundLightBlock));
+                        }
+                    }
+                }
+            }
+
+            // 只删除竖直柱子（雨棚柱、接触网柱、吊柱），灯和雨棚板保持不动。
+            for (int w = stairStartW; w <= stairEndW; w++) {
+                BlockPos base = stationStart.offset(facing, l).offset(right, w);
+                clearVerticalPillarRuns(world, base, 1, clearTop, 2);
+                int slabY = canopySlabY(platform, w);
+                if (slabY >= 0) {
+                    restoreCanopySlabIfMissing(world, platform, base, w, slabY);
+                }
+            }
+            if (walls) {
+                for (int sideW : new int[]{stairStartW - 1, stairEndW + 1}) {
+                    if (sideW < leftW || sideW > rightW) {
+                        continue;
+                    }
+                    BlockPos base = stationStart.offset(facing, l).offset(right, sideW);
+                    clearVerticalPillarRuns(world, base, 2, clearTop, 2);
+                    int slabY = canopySlabY(platform, sideW);
+                    if (slabY >= 0) {
+                        restoreCanopySlabIfMissing(world, platform, base, sideW, slabY);
+                    }
+                }
+            }
+
+            // 没有站台雨棚时，用通道天花板方块给楼梯孔补一个水平顶盖，遮住孔隙。
+            if (!platform.platform.hasCanopy) {
+                int coverY = Math.max(4, platform.platform.canopyHeight);
+                int coverLeft = Math.max(leftW, stairStartW - (walls ? 1 : 0));
+                int coverRight = Math.min(rightW, stairEndW + (walls ? 1 : 0));
+                for (int w = coverLeft; w <= coverRight; w++) {
+                    BlockPos base = stationStart.offset(facing, l).offset(right, w);
+                    if (world.getBlockState(base.up(coverY)).isAir()) {
+                        setBlock(world, base.up(coverY),
+                                CommonUtil.getBlockState(passage.undergroundCeilingBlock));
+                    }
+                }
+            }
+        }
+
+        if (!walls) {
+            return;
+        }
+
+        int minL = Math.max(0, Math.min(bottomL, bottomL + (steps - 1) * lStep));
+        int maxL = Math.min(length - 1, Math.max(bottomL, bottomL + (steps - 1) * lStep));
+        if (minL > maxL) {
+            return;
+        }
+
+        // 楼梯入口 3 面围栏：两侧全长 + 通道端封口，入口端保持敞开。
+        for (int l = minL; l <= maxL; l++) {
+            for (int sideW : new int[]{stairStartW - 1, stairEndW + 1}) {
+                if (sideW < leftW || sideW > rightW) {
+                    continue;
+                }
+                setBlock(world, stationStart.offset(facing, l).offset(right, sideW).up(1), railState);
+            }
+        }
+        int corridorEndL = bottomL + (steps - 1) * lStep;
+        if (corridorEndL >= 0 && corridorEndL < length) {
+            for (int w = stairStartW; w <= stairEndW; w++) {
+                BlockPos base = stationStart.offset(facing, corridorEndL).offset(right, w);
+                setBlock(world, base.up(0), sideState);
+                setBlock(world, base.up(1), railState);
+            }
+        }
+
+        // 第三面楼梯墙：位于楼梯与隧道交界处，只从站台面往下延伸一格，
+        // 封住“隧道天花板比道砟低一格、站台比道砟高一格”形成的水平孔隙。
+        int outerWallL = bottomL + steps * lStep;
+        if (outerWallL >= 0 && outerWallL < length) {
+            int fromW = walls ? stairStartW - 1 : stairStartW;
+            int toW = walls ? stairEndW + 1 : stairEndW;
+            for (int w = Math.max(leftW, fromW); w <= Math.min(rightW, toW); w++) {
+                BlockPos base = stationStart.offset(facing, outerWallL).offset(right, w);
+                setBlock(world, base.up(-1), sideState);
+            }
+        }
     }
 
     private static void generateCatenaries(
@@ -888,7 +1614,8 @@ public class StationGenerator {
     }
 
     private static void generatePlatform(ServerPlayerEntity player, ServerWorld world, BlockPos start, Direction facing,
-             Direction right, int length, PlatformElement p, StationElement leftN, StationElement rightN) {
+             Direction right, int length, PlatformElement p, StationElement leftN, StationElement rightN,
+             List<PidsRecord> pidsRecords) {
         boolean pidsFail = false, psdFail = false;
         int minW = 0;
         int maxW = p.width - 1;
@@ -959,6 +1686,7 @@ public class StationGenerator {
                         if (MTRIntegration.placePIDS(world, pos, newFacing, p.pidBlockId)) {
                             addPidsPole(world, pos, newFacing, p.canopyHeight, p.pidPoleId);
                             addPidsPole(world, pos.offset(newFacing), newFacing.getOpposite(), p.canopyHeight, p.pidPoleId);
+                            pidsRecords.add(new PidsRecord(pos, newFacing, p.pidBlockId, p.pidPoleId, p.canopyHeight));
                         } else {
                             pidsFail = true;
                         }
@@ -969,6 +1697,7 @@ public class StationGenerator {
                         if (MTRIntegration.placePIDS(world, pos, newFacing, p.pidBlockId)) {
                             addPidsPole(world, pos, newFacing, p.canopyHeight, p.pidPoleId);
                             addPidsPole(world, pos.offset(newFacing), newFacing.getOpposite(), p.canopyHeight, p.pidPoleId);
+                            pidsRecords.add(new PidsRecord(pos, newFacing, p.pidBlockId, p.pidPoleId, p.canopyHeight));
                         } else {
                             pidsFail = true;
                         }

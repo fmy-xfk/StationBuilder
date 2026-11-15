@@ -4,6 +4,7 @@ import cn.myfrank.stationbuilder.utils.CommonUtil;
 
 import cn.myfrank.stationbuilder.blocks.ModBlocks;
 import cn.myfrank.stationbuilder.blocks.StationBuilderBlockEntity;
+import cn.myfrank.stationbuilder.elements.PassageConfig;
 import cn.myfrank.stationbuilder.elements.StationElement;
 import cn.myfrank.stationbuilder.generator.StationGenerator;
 import cn.myfrank.stationbuilder.items.*;
@@ -100,6 +101,7 @@ public class StationBuilder implements ModInitializer {
 							buf.writeBlockPos(payload.pos);
 							buf.writeInt(payload.facing);
 							buf.writeInt(payload.length);
+							payload.passage.write(buf);
 							buf.writeInt(payload.elements.size());
 							for (StationElement element : payload.elements) {
 								element.write(buf);
@@ -109,24 +111,27 @@ public class StationBuilder implements ModInitializer {
 							BlockPos pos = buf.readBlockPos();
 							int facing = buf.readInt();
 							int length = buf.readInt();
+							PassageConfig passage = PassageConfig.read(buf);
 							int count = buf.readInt();
 							List<StationElement> elements = new ArrayList<>();
 							for (int i = 0; i < count; i++) {
 								elements.add(StationElement.read(buf));
 							}
-							return new SaveStationPayload(pos, facing, length, elements);
+							return new SaveStationPayload(pos, facing, length, passage, elements);
 						}
 				);
 
 		public final BlockPos pos;
 		public final int facing;
 		public final int length;
+		public final PassageConfig passage;
 		public final List<StationElement> elements;
 
-		public SaveStationPayload(BlockPos pos, int facing, int length, List<StationElement> elements) {
+		public SaveStationPayload(BlockPos pos, int facing, int length, PassageConfig passage, List<StationElement> elements) {
 			this.pos = pos;
 			this.facing = facing;
 			this.length = length;
+			this.passage = passage;
 			this.elements = List.copyOf(elements);
 		}
 
@@ -145,6 +150,7 @@ public class StationBuilder implements ModInitializer {
 							buf.writeBlockPos(payload.pos);
 							buf.writeInt(payload.facing);
 							buf.writeInt(payload.length);
+							payload.passage.write(buf);
 							buf.writeInt(payload.elements.size());
 							for (StationElement element : payload.elements) {
 								element.write(buf);
@@ -154,24 +160,27 @@ public class StationBuilder implements ModInitializer {
 							BlockPos pos = buf.readBlockPos();
 							int facing = buf.readInt();
 							int length = buf.readInt();
+							PassageConfig passage = PassageConfig.read(buf);
 							int count = buf.readInt();
 							List<StationElement> elements = new ArrayList<>();
 							for (int i = 0; i < count; i++) {
 								elements.add(StationElement.read(buf));
 							}
-							return new BuildStationPayload(pos, facing, length, elements);
+							return new BuildStationPayload(pos, facing, length, passage, elements);
 						}
 				);
 
 		public final BlockPos pos;
 		public final int facing;
 		public final int length;
+		public final PassageConfig passage;
 		public final List<StationElement> elements;
 
-		public BuildStationPayload(BlockPos pos, int facing, int length, List<StationElement> elements) {
+		public BuildStationPayload(BlockPos pos, int facing, int length, PassageConfig passage, List<StationElement> elements) {
 			this.pos = pos;
 			this.facing = facing;
 			this.length = length;
+			this.passage = passage;
 			this.elements = List.copyOf(elements);
 		}
 
@@ -428,6 +437,7 @@ public class StationBuilder implements ModInitializer {
 			context.server().execute(() -> {
 				if (context.player().getWorld().getBlockEntity(payload.pos) instanceof StationBuilderBlockEntity be) {
 					be.length = payload.length;
+					be.passage = payload.passage;
 					be.elements = new ArrayList<>(payload.elements);
 					be.markDirty();
 				}
@@ -438,6 +448,7 @@ public class StationBuilder implements ModInitializer {
 			context.server().execute(() -> {
 				if (context.player().getWorld().getBlockEntity(payload.pos) instanceof StationBuilderBlockEntity be) {
 					be.length = payload.length;
+					be.passage = payload.passage;
 					be.elements = new ArrayList<>(payload.elements);
 					be.markDirty();
 				}
@@ -447,6 +458,7 @@ public class StationBuilder implements ModInitializer {
 						payload.pos,
 						CommonUtil.fromHorizontal(payload.facing),
 						payload.length,
+						payload.passage,
 						new ArrayList<>(payload.elements)
 				);
 			});

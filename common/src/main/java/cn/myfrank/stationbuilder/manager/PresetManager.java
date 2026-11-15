@@ -1,5 +1,6 @@
 package cn.myfrank.stationbuilder.manager;
 
+import cn.myfrank.stationbuilder.elements.PassageConfig;
 import cn.myfrank.stationbuilder.elements.StationElement;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -21,12 +22,17 @@ public class PresetManager {
     private static final Path PRESET_PATH = FabricLoader.getInstance().getConfigDir().resolve("stationbuilder/presets");
 
     public static void savePreset(String name, int length, List<StationElement> elements) {
+        savePreset(name, length, new PassageConfig(), elements);
+    }
+
+    public static void savePreset(String name, int length, PassageConfig passage, List<StationElement> elements) {
         try {
             File dir = PRESET_PATH.toFile();
             if (!dir.exists()) dir.mkdirs();
 
             JsonObject json = new JsonObject();
             json.addProperty("length", length);
+            json.addProperty("passage", (passage == null ? new PassageConfig() : passage).toNbt().toString());
             JsonArray elementArray = new JsonArray();
             for (StationElement e : elements) {
                 // 将 NBT 转为字符串存入 JSON
@@ -58,18 +64,23 @@ public class PresetManager {
             try (FileReader reader = new FileReader(file)) {
                 JsonObject json = GSON.fromJson(reader, JsonObject.class);
                 int length = json.get("length").getAsInt();
+                PassageConfig passage = new PassageConfig();
+                if (json.has("passage")) {
+                    NbtCompound passageNbt = StringNbtReader.parse(json.get("passage").getAsString());
+                    passage.fromNbt(passageNbt);
+                }
                 List<StationElement> elements = new ArrayList<>();
                 JsonArray elementArray = json.getAsJsonArray("elements");
                 for (int i = 0; i < elementArray.size(); i++) {
                     NbtCompound nbt = StringNbtReader.parse(elementArray.get(i).getAsString());
                     elements.add(StationElement.fromNbt(nbt));
                 }
-                return new PresetData(length, elements);
+                return new PresetData(length, passage, elements);
             }
         } catch (Exception e) { e.printStackTrace(); return null; }
     }
 
-    public record PresetData(int length, List<StationElement> elements) {}
+    public record PresetData(int length, PassageConfig passage, List<StationElement> elements) {}
 
     public static Path getPresetPath() {
         return FabricLoader.getInstance().getConfigDir().resolve("stationbuilder/presets");

@@ -1,6 +1,7 @@
 package cn.myfrank.stationbuilder.blocks;
 
 import cn.myfrank.stationbuilder.StationBuilder;
+import cn.myfrank.stationbuilder.elements.PassageConfig;
 import cn.myfrank.stationbuilder.elements.StationElement;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
@@ -14,6 +15,7 @@ import java.util.List;
 public class StationBuilderBlockEntity extends BlockEntity {
     public int length = StationBuilder.DEFAULT_STATION_LENGTH;
     public List<StationElement> elements = new ArrayList<>();
+    public PassageConfig passage = new PassageConfig();
 
     public StationBuilderBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlocks.STATION_BUILDER_ENTITY, pos, state);
@@ -22,6 +24,7 @@ public class StationBuilderBlockEntity extends BlockEntity {
     @Override
     public void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         nbt.putInt("length", length);
+        nbt.put("passage", passage.toNbt());
         NbtList list = new NbtList();
         for (StationElement e : elements) list.add(e.toNbt());
         nbt.put("elements", list);
@@ -32,6 +35,10 @@ public class StationBuilderBlockEntity extends BlockEntity {
     public void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         super.readNbt(nbt, registries);
         this.length = nbt.getInt("length");
+        this.passage = new PassageConfig();
+        if (nbt.contains("passage")) {
+            this.passage.fromNbt(nbt.getCompound("passage"));
+        }
         this.elements.clear();
         NbtList list = nbt.getList("elements", 10);
         for (int i = 0; i < list.size(); i++) {

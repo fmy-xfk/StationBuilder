@@ -14,6 +14,7 @@ import cn.myfrank.stationbuilder.items.RailBuilderConfig;
 import cn.myfrank.stationbuilder.items.RailBuilderState;
 import cn.myfrank.stationbuilder.utils.TickScheduler;
 
+import cn.myfrank.stationbuilder.elements.PassageConfig;
 import cn.myfrank.stationbuilder.elements.StationElement;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
@@ -79,6 +80,7 @@ public class StationBuilder implements ModInitializer {
 			BlockPos pos = buf.readBlockPos();
 			buf.readInt();
 			int length = buf.readInt();
+			PassageConfig passage = PassageConfig.read(buf);
 			int elementCount = buf.readInt();
 
 			List<StationElement> elements = new ArrayList<>();
@@ -89,6 +91,7 @@ public class StationBuilder implements ModInitializer {
 			server.execute(() -> {
 				if (player.getWorld().getBlockEntity(pos) instanceof StationBuilderBlockEntity be) {
 					be.length = length;
+					be.passage = passage;
 					be.elements = elements;
 					be.markDirty();
 				}
@@ -114,6 +117,7 @@ public class StationBuilder implements ModInitializer {
 			BlockPos pos = buf.readBlockPos();
 			int facingInt = buf.readInt();
 			int length = buf.readInt();
+			PassageConfig passage = PassageConfig.read(buf);
 			int elementCount = buf.readInt();
 
 			List<StationElement> elements = new ArrayList<>();
@@ -124,11 +128,12 @@ public class StationBuilder implements ModInitializer {
 			server.execute(() -> {
 				if (player.getWorld().getBlockEntity(pos) instanceof StationBuilderBlockEntity be) {
 					be.length = length;
+					be.passage = passage;
 					be.elements = elements;
 					be.markDirty();
 				}
 				StationGenerator.build(player, player.getServerWorld(), pos,
-						Direction.fromHorizontal(facingInt), length, elements);
+						Direction.fromHorizontal(facingInt), length, passage, elements);
 			});
 		});
 

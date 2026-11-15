@@ -29,7 +29,7 @@ public class PresetSaveScreen extends Screen {
         this.addDrawableChild(ButtonWidget.builder(Text.translatable("gui.stationbuilder.confirm"), b -> {
             String name = nameField.getText().trim();
             if (!name.isEmpty()) {
-                PresetManager.savePreset(name, parent.getStationLength(), parent.getElements());
+                PresetManager.savePreset(name, parent.getStationLength(), parent.getPassage(), parent.getElements());
                 client.setScreen(parent);
             }
         }).dimensions(centerX - 82, centerY + 20, 80, 20).build());
