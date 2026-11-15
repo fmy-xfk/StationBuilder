@@ -22,17 +22,16 @@ import java.util.function.Predicate;
 /**
  * In-game MTR schedule planner.
  *
- * <p>A native Minecraft UI (no embedded browser) that reads the MTR web API through
+ * <p>A native Minecraft UI (no embedded browser) that reads MTR's in-game data through
  * {@link SchedulerSession} and renders:</p>
  * <ul>
  *   <li>a route timetable with editable departures,</li>
  *   <li>a platform occupancy chart (one row per platform),</li>
  *   <li>a platform conflict / headway report with depot-offset suggestions,</li>
- *   <li>copy-to-clipboard exports in MTR depot real-time format.</li>
  * </ul>
  *
  * <p>Only version-stable drawing and input APIs are used, so the same source serves every supported
- * Minecraft version of this loader. Nothing in this screen writes to MTR.</p>
+ * Minecraft version of this loader. Only the explicit save action writes depot offsets to MTR.</p>
  */
 public class MtrSchedulerScreen extends Screen {
 
@@ -58,8 +57,7 @@ public class MtrSchedulerScreen extends Screen {
     private enum Tab {
         ROUTES("routes"),
         STATIONS("stations"),
-        ISSUES("issues"),
-        EXPORT("export");
+        ISSUES("issues");
 
         final String key;
 
@@ -68,19 +66,13 @@ public class MtrSchedulerScreen extends Screen {
         }
     }
 
-    private enum ExportKind {
-        DEPOT_PLAN, PROJECT_JSON
-    }
-
     private final SchedulerSession session = SchedulerSession.get();
 
     private final List<Hit> hits = new ArrayList<>();
     private final List<Field> fields = new ArrayList<>();
 
     private Tab tab = Tab.ROUTES;
-    private ExportKind exportKind = ExportKind.DEPOT_PLAN;
 
-    private Field serverField;
     private Field startField;
     private Field intervalField;
     private Field countField;
@@ -91,7 +83,6 @@ public class MtrSchedulerScreen extends Screen {
     private int routePage;
     private int stationPage;
     private int issuePage;
-    private int exportPage;
     private int tripIndex;
     private int timetableScroll;
     private int lastTimetableRows = 1;
@@ -111,11 +102,6 @@ public class MtrSchedulerScreen extends Screen {
     private int mouseY;
     private String hoverTooltip;
 
-    private String cachedExportText;
-    private List<String> cachedExportLines = List.of();
-    private ExportKind cachedExportKind;
-    private int cachedExportModCount = -1;
-    private MtrNetwork cachedExportNetwork;
 
     public MtrSchedulerScreen() {
         super(Component.translatable("gui.stationbuilder.scheduler.title"));
@@ -134,6 +120,7 @@ public class MtrSchedulerScreen extends Screen {
 
     @Override
     public void tick() {
+        session.poll();
         if (messageTicks > 0) {
             messageTicks--;
             if (messageTicks == 0) {
@@ -184,34 +171,22 @@ public class MtrSchedulerScreen extends Screen {
     private void renderTopBar(GuiGraphics context, int pad, int y, int h) {
         drawPanel(context, pad, y, width - pad * 2, h);
 
-        String title = Component.translatable("gui.stationbuilder.scheduler.title").getString();
+        String title = tr("gui.stationbuilder.scheduler.title");
         drawText(context, title, pad + 5, y + (h - 9) / 2 + 1, COLOR_ACCENT);
 
-        int cursor = pad + 5 + font.width(title) + 8;
         int closeW = 34;
         int reloadW = 38;
-        int dimW = 42;
-        int fieldW = Math.max(60, Math.min(148, width - cursor - dimW - reloadW - closeW - 30));
-
-        serverField.setBounds(cursor, y + 3, fieldW, h - 6);
-        renderField(context, serverField);
-        cursor += fieldW + 4;
-
-        int dim = session.dimension();
-        button(context, cursor, y + 3, 11, h - 6, "-", true,
-                () -> session.setDimension(session.dimension() - 1));
-        drawText(context, "D" + dim, cursor + 13, y + 6, COLOR_TEXT);
-        button(context, cursor + 27, y + 3, 11, h - 6, "+", true,
-                () -> session.setDimension(session.dimension() + 1));
-        cursor += dimW;
-
-        button(context, cursor, y + 3, reloadW, h - 6,
-                Component.translatable("gui.stationbuilder.scheduler.reload").getString(),
+        int saveW = 76;
+        int reloadX = width - pad - closeW - reloadW - 4;
+        int saveX = reloadX - saveW - 4;
+        button(context, saveX, y + 3, saveW, h - 6,
+                tr("gui.stationbuilder.scheduler.save_timetable"),
+                !session.isLoading(), session::writeCurrentSchedule);
+        button(context, reloadX, y + 3, reloadW, h - 6,
+                tr("gui.stationbuilder.scheduler.reload"),
                 !session.isLoading(), session::refresh);
-        cursor += reloadW + 4;
-
-        button(context, cursor, y + 3, closeW, h - 6,
-                Component.translatable("gui.stationbuilder.scheduler.close").getString(),
+        button(context, width - pad - closeW, y + 3, closeW, h - 6,
+                tr("gui.stationbuilder.scheduler.close"),
                 true, this::onClose);
     }
 
@@ -266,7 +241,6 @@ public class MtrSchedulerScreen extends Screen {
                 renderStationPanel(context, bodyY, bodyH, mainX, mainW);
             }
             case ISSUES -> renderIssuesPanel(context, pad, bodyY, bodyH, width - pad * 2);
-            case EXPORT -> renderExportPanel(context, pad, bodyY, bodyH, width - pad * 2);
         }
     }
 
@@ -286,11 +260,6 @@ public class MtrSchedulerScreen extends Screen {
         if (!status.isEmpty()) {
             drawCenteredText(context, trim(status, w - 20), 0, centerY + 14, width, COLOR_TEXT_DIM);
         }
-        drawCenteredText(context,
-                Component.translatable("gui.stationbuilder.scheduler.endpoint_hint").getString(),
-                0, centerY + 30, width, COLOR_TEXT_DIM);
-        drawCenteredText(context, "http://" + session.host(), 0, centerY + 41, width, COLOR_TEXT);
-
         if (error) {
             button(context, width / 2 - 45, centerY + 56, 90, 16,
                     Component.translatable("gui.stationbuilder.scheduler.retry").getString(),
@@ -307,13 +276,8 @@ public class MtrSchedulerScreen extends Screen {
                 Component.translatable("gui.stationbuilder.scheduler.no_routes_title").getString(),
                 0, centerY, width, COLOR_ACCENT);
         drawCenteredText(context,
-                Component.translatable("gui.stationbuilder.scheduler.no_routes_hint", session.dimension()).getString(),
+                Component.translatable("gui.stationbuilder.scheduler.no_routes_hint").getString(),
                 0, centerY + 16, width, COLOR_TEXT_DIM);
-        drawCenteredText(context,
-                Component.translatable("gui.stationbuilder.scheduler.endpoint_hint").getString(),
-                0, centerY + 32, width, COLOR_TEXT_DIM);
-        drawCenteredText(context, "http://" + session.host(), 0, centerY + 43, width, COLOR_TEXT);
-
         if (session.state() == SchedulerSession.LoadState.LOADING) {
             drawCenteredText(context,
                     Component.translatable("gui.stationbuilder.scheduler.loading").getString(),
@@ -457,6 +421,9 @@ public class MtrSchedulerScreen extends Screen {
         String trips = String.valueOf(route.startTimes().size());
         drawText(context, trips, x + w - font.width(trips) - 1, y + 2,
                 route.hasDepartures() ? COLOR_TEXT_DIM : COLOR_WARNING);
+        if (route.repeatInfinitely || route.departuresIgnored()) {
+            drawText(context, "!", x + w - font.width(trips) - 9, y + 2, COLOR_WARNING);
+        }
     }
 
     // ------------------------------------------------------------------
@@ -501,6 +468,17 @@ public class MtrSchedulerScreen extends Screen {
             drawText(context, trim(Component.translatable("gui.stationbuilder.scheduler.follows").getString()
                     + ": " + (preceding == null ? following : preceding.label()) + auto, w - 16),
                     x + 6, y + 25, COLOR_OK);
+        }
+
+        int warningY = following == null ? y + 25 : y + 35;
+        if (route.repeatInfinitely || route.departuresIgnored()) {
+            String warning = route.repeatInfinitely
+                    ? Component.translatable("gui.stationbuilder.scheduler.repeat_warning").getString()
+                    : Component.translatable("gui.stationbuilder.scheduler.abnormal_warning").getString();
+            if (route.repeatInfinitely && !route.repeatDepots.isEmpty()) {
+                warning += " (" + String.join(", ", route.repeatDepots) + ")";
+            }
+            drawText(context, trim(warning, w - 16), x + 6, warningY, COLOR_WARNING);
         }
 
         int controlsY = y + 46;
@@ -562,8 +540,10 @@ public class MtrSchedulerScreen extends Screen {
     private void renderTimetable(GuiGraphics context, int x, int y, int w, int h, MtrRoute route) {
         List<List<StopTime>> timelines = route.timelines();
         if (timelines.isEmpty()) {
-            drawText(context, Component.translatable("gui.stationbuilder.scheduler.no_departures").getString(),
-                    x + 2, y + 2, COLOR_WARNING);
+            String emptyKey = route.repeatInfinitely || route.departuresIgnored()
+                    ? "gui.stationbuilder.scheduler.repeat_no_departures"
+                    : "gui.stationbuilder.scheduler.no_departures";
+            drawText(context, Component.translatable(emptyKey).getString(), x + 2, y + 2, COLOR_WARNING);
             return;
         }
         tripIndex = Math.max(0, Math.min(tripIndex, timelines.size() - 1));
@@ -644,6 +624,12 @@ public class MtrSchedulerScreen extends Screen {
                             ? TimeFormat.hm(stopTime.departureMs())
                             : TimeFormat.hms(stopTime.departureMs()),
                     columnDeparture, rowY, COLOR_TEXT);
+            addHit(x, rowY - 1, w, rowH, () -> {
+                session.selectStation(stop.stationId);
+                tab = Tab.STATIONS;
+                stationPage = 0;
+                choosingFollow = false;
+            });
             drawn++;
         }
         if (maxScroll > 0) {
@@ -877,36 +863,33 @@ public class MtrSchedulerScreen extends Screen {
         SchedulerAnalysis analysis = session.analysis();
         MtrNetwork network = session.network();
 
-        drawText(context, trim(analysis.summary(), w - 88), x + 5, y + 5,
-                analysis.overlapCount() > 0 ? COLOR_ERROR
-                        : (analysis.warningCount() > 0 ? COLOR_WARNING : COLOR_OK));
+        int color = analysis.overlapCount() > 0 ? COLOR_ERROR
+                : (analysis.warningCount() > 0 ? COLOR_WARNING : COLOR_OK);
+        List<String> summaryLines = wrapText(conflictSummary(analysis), w - 10);
+        int cursor = y + 5;
+        for (String line : summaryLines) {
+            drawText(context, line, x + 5, cursor, color);
+            cursor += 10;
+        }
+        cursor += 3;
 
-        button(context, x + w - 74, y + 3, 68, 13,
-                Component.translatable("gui.stationbuilder.scheduler.apply_offsets").getString(),
-                analysis.solvable() && !analysis.depotOffsetsMs().isEmpty(), () -> {
-                    session.applyOffsets();
-                    showMessage(Component.translatable("gui.stationbuilder.scheduler.offsets_applied").getString());
-                });
-
-        StringBuilder offsets = new StringBuilder();
-        offsets.append(Component.translatable("gui.stationbuilder.scheduler.suggested_offsets").getString())
-                .append(": ");
+        String offsets = tr("gui.stationbuilder.scheduler.suggested_offsets") + ": ";
         if (analysis.depotOffsetsMs().isEmpty()) {
-            offsets.append(Component.translatable("gui.stationbuilder.scheduler.none").getString());
+            offsets += tr("gui.stationbuilder.scheduler.none");
         } else {
             List<String> parts = new ArrayList<>();
             analysis.depotOffsetsMs().forEach((depot, offset) ->
                     parts.add(depot + " " + TimeFormat.offset(offset)));
             parts.sort(String.CASE_INSENSITIVE_ORDER);
-            offsets.append(String.join("   ", parts));
+            offsets += String.join("   ", parts);
         }
-        drawText(context, trim(offsets.toString(), w - 10), x + 5, y + 20, COLOR_TEXT_DIM);
+        button(context, x + w - 74, cursor - 2, 68, 13,
+                tr("gui.stationbuilder.scheduler.apply_offsets"),
+                analysis.solvable() && !session.isLoading(), session::writeOffsets);
+        drawText(context, trim(offsets, w - 88), x + 5, cursor, COLOR_TEXT_DIM);
+        cursor += 14;
 
-        int listY = y + 34;
-        if (network != null && !network.warnings().isEmpty()) {
-            drawText(context, trim("! " + network.warnings().get(0), w - 10), x + 5, y + 31, COLOR_WARNING);
-            listY = y + 43;
-        }
+        int listY = cursor;
         int rowH = 11;
         List<SchedulerAnalysis.ConflictGroup> groups = analysis.groups();
         int listBottom = y + h - 4;
@@ -914,7 +897,6 @@ public class MtrSchedulerScreen extends Screen {
         int count = groups.size();
         int pageCount = Math.max(1, (count + rows - 1) / rows);
         if (pageCount > 1) {
-            // Reserve the footer row so the issue rows never overlap the pager.
             listBottom -= 14;
             rows = Math.max(1, (listBottom - listY) / rowH);
             pageCount = Math.max(1, (count + rows - 1) / rows);
@@ -924,17 +906,15 @@ public class MtrSchedulerScreen extends Screen {
         if (pageCount > 1) {
             String pageLabel = (issuePage + 1) + "/" + pageCount;
             drawText(context, pageLabel,
-                    x + w - 36 - font.width(pageLabel), y + h - 12, COLOR_TEXT_DIM);
+                    x + w - 36 - textWidth(pageLabel), y + h - 12, COLOR_TEXT_DIM);
             button(context, x + w - 30, y + h - 14, 12, 11, "<", issuePage > 0, () -> issuePage--);
             button(context, x + w - 16, y + h - 14, 12, 11, ">", issuePage < pageCount - 1, () -> issuePage++);
         }
 
         if (groups.isEmpty()) {
-            drawText(context, Component.translatable("gui.stationbuilder.scheduler.no_issues").getString(),
-                    x + 5, listY, COLOR_OK);
+            drawText(context, tr("gui.stationbuilder.scheduler.no_issues"), x + 5, listY, COLOR_OK);
             return;
         }
-
         if (listBottom <= listY) {
             return;
         }
@@ -953,16 +933,18 @@ public class MtrSchedulerScreen extends Screen {
             String firstRoute = routeLabel(network, group.firstRouteId);
             String secondRoute = routeLabel(network, group.secondRouteId);
             String gapText = overlap
-                    ? "overlap " + Math.max(0L, -group.worstGapMs) / 1000L + "s"
-                    : "gap " + Math.max(0L, group.worstGapMs) / 1000L + "s";
+                    ? tr("gui.stationbuilder.scheduler.conflict_overlap", Math.max(0L, -group.worstGapMs) / 1000L)
+                    : tr("gui.stationbuilder.scheduler.conflict_gap", Math.max(0L, group.worstGapMs) / 1000L);
             String text = stationName + " · " + group.platform + " · "
-                    + firstRoute + " vs " + secondRoute + " · " + group.occurrences + "× · " + gapText;
+                    + firstRoute + " " + tr("gui.stationbuilder.scheduler.conflict_vs") + " "
+                    + secondRoute + " · " + group.occurrences + "× · " + gapText;
             drawText(context, trim(text, w - 22), x + 13, rowY + 1,
                     overlap ? COLOR_ERROR : COLOR_WARNING);
             if (hovered) {
                 hoverTooltip = stationName + " · " + group.platform + " · "
-                        + firstRoute + " vs " + secondRoute + " · " + group.occurrences + " "
-                        + Component.translatable("gui.stationbuilder.scheduler.trips").getString() + " · "
+                        + firstRoute + " " + tr("gui.stationbuilder.scheduler.conflict_vs") + " "
+                        + secondRoute + " · " + group.occurrences + " "
+                        + tr("gui.stationbuilder.scheduler.trips") + " · "
                         + TimeFormat.hms(group.earliestStartMs) + " - " + TimeFormat.hms(group.latestEndMs)
                         + " · " + gapText;
             }
@@ -976,111 +958,41 @@ public class MtrSchedulerScreen extends Screen {
         context.disableScissor();
     }
 
+    private String conflictSummary(SchedulerAnalysis analysis) {
+        StringBuilder summary = new StringBuilder();
+        summary.append(tr("gui.stationbuilder.scheduler.conflict_summary",
+                analysis.issues().size(), analysis.groups().size()));
+        if (!analysis.solvable()) {
+            summary.append(" · ").append(tr("gui.stationbuilder.scheduler.summary_infeasible"));
+        } else if (analysis.achievableGapMs() > 0
+                && analysis.achievableGapMs() < SchedulerAnalysis.DEFAULT_SAFE_GAP_MS) {
+            summary.append(" · ").append(tr("gui.stationbuilder.scheduler.summary_fallback_10s"));
+        } else if (analysis.hasConstraints()) {
+            summary.append(" · ").append(tr("gui.stationbuilder.scheduler.summary_target_30s"));
+        }
+        if (analysis.solvable()) {
+            if (analysis.depotOffsetsMs().isEmpty()) {
+                summary.append(" · ").append(tr("gui.stationbuilder.scheduler.summary_no_offsets"));
+            } else {
+                summary.append(" · ").append(tr("gui.stationbuilder.scheduler.summary_offsets",
+                        analysis.depotOffsetsMs().size()));
+            }
+        }
+        if (analysis.sameDepotProblems() > 0) {
+            summary.append(" · ").append(tr("gui.stationbuilder.scheduler.summary_same_depot",
+                    analysis.sameDepotProblems()));
+        }
+        MtrNetwork network = session.network();
+        if (network != null && !network.warnings().isEmpty()) {
+            summary.append(" · ").append(tr("gui.stationbuilder.scheduler.summary_warnings",
+                    network.warnings().size()));
+        }
+        return summary.toString();
+    }
+
     private static String routeLabel(MtrNetwork network, String routeId) {
         MtrRoute route = network == null ? null : network.route(routeId);
         return route == null ? routeId : route.label();
-    }
-
-    // ------------------------------------------------------------------
-    // Export tab
-    // ------------------------------------------------------------------
-
-    private void renderExportPanel(GuiGraphics context, int x, int y, int h, int w) {
-        drawPanel(context, x, y, w, h);
-
-        int buttonY = y + 4;
-        int buttonW = Math.max(72, (w - 76) / 2);
-        button(context, x + 4, buttonY, buttonW, 14,
-                Component.translatable("gui.stationbuilder.scheduler.export.depot").getString(), true, () -> {
-                    exportKind = ExportKind.DEPOT_PLAN;
-                    exportPage = 0;
-                });
-        button(context, x + 6 + buttonW, buttonY, buttonW, 14,
-                Component.translatable("gui.stationbuilder.scheduler.export.json").getString(), true, () -> {
-                    exportKind = ExportKind.PROJECT_JSON;
-                    exportPage = 0;
-                });
-        button(context, x + w - 54, buttonY, 50, 14,
-                Component.translatable("gui.stationbuilder.scheduler.copy").getString(),
-                true, this::copyExportToClipboard);
-
-        List<String> lines = currentExportLines();
-        int previewY = buttonY + 20;
-        int lineHeight = 9;
-        int rows = Math.max(1, (y + h - previewY - 16) / lineHeight);
-        int pageCount = Math.max(1, (lines.size() + rows - 1) / rows);
-        exportPage = Math.max(0, Math.min(exportPage, pageCount - 1));
-
-        if (pageCount > 1) {
-            String pageLabel = (exportPage + 1) + "/" + pageCount;
-            drawText(context, pageLabel,
-                    x + w - 36 - font.width(pageLabel), y + h - 11, COLOR_TEXT_DIM);
-            button(context, x + w - 30, y + h - 13, 12, 10, "<", exportPage > 0, () -> exportPage--);
-            button(context, x + w - 16, y + h - 13, 12, 10, ">", exportPage < pageCount - 1, () -> exportPage++);
-        }
-
-        if (y + h - 16 <= previewY) {
-            return;
-        }
-        context.enableScissor(x + 3, previewY, x + w - 3, y + h - 16);
-        int first = exportPage * rows;
-        for (int index = first; index < lines.size() && index < first + rows; index++) {
-            String line = trim(lines.get(index), w - 10);
-            drawText(context, line, x + 4, previewY + (index - first) * lineHeight,
-                    line.startsWith("#") ? COLOR_TEXT_DIM : COLOR_TEXT);
-        }
-        context.disableScissor();
-    }
-
-    /**
-     * Export text is expensive for large networks (the project JSON walks every stop), so it is
-     * generated only when the network, the session state or the selected export kind changes. The
-     * line cache additionally keeps the preview from re-splitting a multi-thousand-line export every
-     * frame.
-     */
-    private String currentExportText() {
-        MtrNetwork network = session.network();
-        int modCount = session.modCount();
-        if (cachedExportText == null
-                || cachedExportKind != exportKind
-                || cachedExportModCount != modCount
-                || cachedExportNetwork != network) {
-            cachedExportText = switch (exportKind) {
-                case DEPOT_PLAN -> session.exportDepotPlan();
-                case PROJECT_JSON -> session.exportProjectJson();
-            };
-            cachedExportLines = splitLines(cachedExportText);
-            cachedExportKind = exportKind;
-            cachedExportModCount = modCount;
-            cachedExportNetwork = network;
-        }
-        return cachedExportText;
-    }
-
-    private List<String> currentExportLines() {
-        currentExportText();
-        return cachedExportLines;
-    }
-
-    private void copyExportToClipboard() {
-        String content = currentExportText();
-        if (content.isEmpty()) {
-            showMessage(Component.translatable("gui.stationbuilder.scheduler.no_data").getString());
-            return;
-        }
-        Minecraft.getInstance().keyboardHandler.setClipboard(content);
-        showMessage(Component.translatable("gui.stationbuilder.scheduler.copied").getString());
-    }
-
-    private static List<String> splitLines(String content) {
-        List<String> lines = new ArrayList<>();
-        if (content == null || content.isEmpty()) {
-            return lines;
-        }
-        for (String line : content.split("\n", -1)) {
-            lines.add(line);
-        }
-        return lines;
     }
 
     // ------------------------------------------------------------------
@@ -1088,7 +1000,24 @@ public class MtrSchedulerScreen extends Screen {
     // ------------------------------------------------------------------
 
     private void renderFooter(GuiGraphics context, int pad, int y) {
-        String status = message != null ? message : session.status();
+        String status;
+        if (message != null) {
+            status = message;
+        } else if (session.state() == SchedulerSession.LoadState.READY && session.network() != null) {
+            MtrNetwork network = session.network();
+            status = tr("gui.stationbuilder.scheduler.status_counts",
+                    network.stations.size(), network.platformCount(),
+                    network.routes.size(), network.tripCount());
+            if (!network.warnings().isEmpty()) {
+                status += " · " + tr("gui.stationbuilder.scheduler.status_warnings",
+                        network.warnings().size());
+            }
+            status += " · " + TimeFormat.hms(TimeFormat.localDayMillis(network.fetchedAt));
+        } else if (session.state() == SchedulerSession.LoadState.LOADING) {
+            status = tr("gui.stationbuilder.scheduler.status_loading");
+        } else {
+            status = session.status();
+        }
         int color = message != null ? COLOR_ACCENT : switch (session.state()) {
             case ERROR -> COLOR_ERROR;
             case LOADING -> COLOR_WARNING;
@@ -1096,15 +1025,11 @@ public class MtrSchedulerScreen extends Screen {
         };
         drawText(context, trim(status, Math.max(30, width - pad * 2 - 130)), pad, y, color);
 
-        String hint = Component.translatable("gui.stationbuilder.scheduler.readonly").getString();
-        drawText(context, hint, width - pad - font.width(hint), y, COLOR_TEXT_DIM);
+        String hint = tr("gui.stationbuilder.scheduler.readonly");
+        drawText(context, hint, width - pad - textWidth(hint), y, COLOR_TEXT_DIM);
     }
 
     private void createFields() {
-        serverField = new Field(session.host(), 48, this::isHostCharacter, value -> {
-            session.setHost(value);
-            session.refresh();
-        });
         startField = new Field("00:00:00", 12, this::isTimeCharacter, value -> { });
         intervalField = new Field("00:10:00", 12, this::isTimeCharacter, value -> { });
         countField = new Field("60", 5, this::isDigitCharacter, value -> { });
@@ -1112,7 +1037,6 @@ public class MtrSchedulerScreen extends Screen {
                 value -> applyWindowFields());
         windowToField = new Field(TimeFormat.hm(session.windowEndMs()), 6, this::isTimeCharacter,
                 value -> applyWindowFields());
-        fields.add(serverField);
         fields.add(startField);
         fields.add(intervalField);
         fields.add(countField);
@@ -1143,6 +1067,7 @@ public class MtrSchedulerScreen extends Screen {
     private void syncDepartureFields(MtrRoute route) {
         lastSyncedNetwork = session.network();
         lastSyncedRouteId = route.id;
+        intervalField.text = "";
         if (route.startTimes().isEmpty()) {
             startField.text = "06:00:00";
             countField.text = "60";
@@ -1165,10 +1090,6 @@ public class MtrSchedulerScreen extends Screen {
                 }
             }
         }
-    }
-
-    private boolean isHostCharacter(char c) {
-        return Character.isLetterOrDigit(c) || c == '.' || c == ':' || c == '-' || c == '_' || c == '/';
     }
 
     private boolean isTimeCharacter(char c) {
@@ -1415,6 +1336,53 @@ public class MtrSchedulerScreen extends Screen {
 
     private static boolean inside(double mouseX, double mouseY, int x, int y, int w, int h) {
         return mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
+    }
+
+    private String tr(String key, Object... args) {
+        return Component.translatable(key, args).getString();
+    }
+
+    private int textWidth(String text) {
+        return font.width(text);
+    }
+
+    private List<String> wrapText(String text, int maxWidth) {
+        List<String> lines = new ArrayList<>();
+        if (text == null || text.isEmpty() || maxWidth <= 0) {
+            return lines;
+        }
+        for (String paragraph : text.split("\n")) {
+            String remaining = paragraph.trim();
+            while (!remaining.isEmpty()) {
+                int end = 0;
+                int width = 0;
+                int lastSpace = -1;
+                while (end < remaining.length()) {
+                    int codePoint = remaining.codePointAt(end);
+                    String character = new String(Character.toChars(codePoint));
+                    int charWidth = textWidth(character);
+                    if (width + charWidth > maxWidth) {
+                        break;
+                    }
+                    width += charWidth;
+                    if (character.equals(" ")) {
+                        lastSpace = end;
+                    }
+                    end += Character.charCount(codePoint);
+                }
+                if (end >= remaining.length()) {
+                    lines.add(remaining);
+                    break;
+                }
+                int cut = lastSpace > 0 ? lastSpace : end;
+                if (cut <= 0) {
+                    cut = end;
+                }
+                lines.add(remaining.substring(0, cut).trim());
+                remaining = remaining.substring(cut).trim();
+            }
+        }
+        return lines;
     }
 
     private String trim(String text, int maxWidth) {

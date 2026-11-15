@@ -10,6 +10,9 @@ import cn.myfrank.stationbuilder.vanilla.VanillaIntegration;
 import cn.myfrank.stationbuilder.items.*;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.mtr.MTRIntegration;
+import cn.myfrank.stationbuilder.mtr.MtrSchedulerClientTransport;
+import cn.myfrank.stationbuilder.mtr.MtrSchedulerNetworking;
+import cn.myfrank.stationbuilder.scheduler.SchedulerSession;
 import cn.myfrank.stationbuilder.screens.BuildingPlacerScreen;
 import cn.myfrank.stationbuilder.screens.BuildingSelectorScreen;
 import cn.myfrank.stationbuilder.screens.RailBuilderScreen;
@@ -59,6 +62,7 @@ public class StationBuilderClient {
     public StationBuilderClient(IEventBus modEventBus) {
         modEventBus.addListener(StationBuilderClient::registerKeyMappings);
         modEventBus.addListener(StationBuilderClient::registerPayloads);
+        SchedulerSession.get().setTransport(new MtrSchedulerClientTransport());
     }
 
     private static void registerKeyMappings(RegisterKeyMappingsEvent event) {
@@ -88,6 +92,8 @@ public class StationBuilderClient {
         registrar.playToClient(StationBuilder.SyncOpenPlacerPayload.TYPE, StationBuilder.SyncOpenPlacerPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() ->
                         Minecraft.getInstance().setScreen(new BuildingPlacerScreen(payload.nbt()))));
+        registrar.playToClient(MtrSchedulerNetworking.DataPayload.TYPE, MtrSchedulerNetworking.DataPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> MtrSchedulerClientTransport.handle(payload)));
     }
 
     @SubscribeEvent

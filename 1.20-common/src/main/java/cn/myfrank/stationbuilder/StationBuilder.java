@@ -8,6 +8,10 @@ import cn.myfrank.stationbuilder.generator.StationGenerator;
 import cn.myfrank.stationbuilder.items.*;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.manager.PlacerHistoryManager;
+import cn.myfrank.stationbuilder.mtr.MtrDepotOffsetWriter;
+import cn.myfrank.stationbuilder.mtr.MtrGameDataSource;
+import cn.myfrank.stationbuilder.scheduler.Json;
+import cn.myfrank.stationbuilder.scheduler.PayloadCompression;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.nbt.CompoundTag;
@@ -19,7 +23,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -45,6 +51,9 @@ public final class StationBuilder {
     public static final ResourceLocation PACKET_SYNC_OPEN_PLACER = ResourceLocation.fromNamespaceAndPath(MOD_ID, "sync_open_placer");
     public static final ResourceLocation PACKET_SAVE_PLACER = ResourceLocation.fromNamespaceAndPath(MOD_ID, "save_placer");
     public static final ResourceLocation PACKET_UNDO_PLACER = ResourceLocation.fromNamespaceAndPath(MOD_ID, "undo_placer");
+    public static final ResourceLocation PACKET_MTR_SCHEDULER_REQUEST = ResourceLocation.fromNamespaceAndPath(MOD_ID, "mtr_scheduler_request");
+    public static final ResourceLocation PACKET_MTR_SCHEDULER_WRITE = ResourceLocation.fromNamespaceAndPath(MOD_ID, "mtr_scheduler_write");
+    public static final ResourceLocation PACKET_MTR_SCHEDULER_DATA = ResourceLocation.fromNamespaceAndPath(MOD_ID, "mtr_scheduler_data");
 
     public StationBuilder() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
@@ -74,6 +83,123 @@ public final class StationBuilder {
         PlatformServices.registerServerReceiver(PACKET_SAVE_SELECTION, StationBuilder::handleSaveSelection);
         PlatformServices.registerServerReceiver(PACKET_SAVE_PLACER, StationBuilder::handleSavePlacer);
         PlatformServices.registerServerReceiver(PACKET_UNDO_PLACER, StationBuilder::handleUndoPlacer);
+        PlatformServices.registerServerReceiver(PACKET_MTR_SCHEDULER_REQUEST, StationBuilder::handleMtrSchedulerRequest);
+        PlatformServices.registerServerReceiver(PACKET_MTR_SCHEDULER_WRITE, StationBuilder::handleMtrSchedulerWrite);
+    }
+
+    private static void handleMtrSchedulerRequest(net.minecraft.server.level.ServerPlayer player, FriendlyByteBuf buf) {
+        int token = buf.readInt();
+        if (player.getServer() == null) {
+            return;
+        }
+        player.getServer().execute(() -> {
+            if (!PlatformServices.isModLoaded("mtr")) {
+                sendSchedulerError(player, token, "MTR is not installed on this server");
+                return;
+            }
+            try {
+                MtrGameDataSource.collect(player.getServer(), (net.minecraft.server.level.ServerLevel) player.level(),
+                        snapshot -> sendSchedulerSnapshot(player, token, snapshot));
+            } catch (Throwable throwable) {
+                sendSchedulerSnapshot(player, token,
+                        MtrGameDataSource.Snapshot.error("Could not request MTR data: " + throwable.getMessage()));
+            }
+        });
+    }
+
+    private static void handleMtrSchedulerWrite(net.minecraft.server.level.ServerPlayer player, FriendlyByteBuf buf) {
+        int token = buf.readInt();
+        String offsetsJson = buf.readUtf();
+        if (player.getServer() == null) {
+            return;
+        }
+        player.getServer().execute(() -> {
+            if (!PlatformServices.isModLoaded("mtr")) {
+                sendSchedulerError(player, token, "MTR is not installed on this server");
+                return;
+            }
+            Map<String, Long> offsets;
+            try {
+                offsets = new LinkedHashMap<>();
+                for (Map.Entry<String, Object> entry : Json.object(Json.parse(offsetsJson)).entrySet()) {
+                    offsets.put(entry.getKey(), Json.longValue(entry.getValue(), 0L));
+                }
+            } catch (RuntimeException exception) {
+                sendSchedulerSnapshot(player, token,
+                        MtrGameDataSource.Snapshot.error("Invalid depot offsets: " + exception.getMessage()));
+                return;
+            }
+            try {
+                MtrGameDataSource.collect(player.getServer(),
+                        (net.minecraft.server.level.ServerLevel) player.level(), snapshot -> {
+                            if (!snapshot.isSuccess()) {
+                                sendSchedulerSnapshot(player, token, snapshot);
+                                return;
+                            }
+                            MtrDepotOffsetWriter.Result result =
+                                    MtrDepotOffsetWriter.write(snapshot.response(), offsets);
+                            if (!result.success()) {
+                                sendSchedulerSnapshot(player, token,
+                                        MtrGameDataSource.Snapshot.error(result.message()));
+                                return;
+                            }
+                            MtrGameDataSource.collect(player.getServer(),
+                                    (net.minecraft.server.level.ServerLevel) player.level(),
+                                    fresh -> sendSchedulerSnapshot(player, token, fresh));
+                        });
+            } catch (Throwable throwable) {
+                sendSchedulerSnapshot(player, token,
+                        MtrGameDataSource.Snapshot.error("Could not write MTR data: " + throwable.getMessage()));
+            }
+        });
+    }
+
+    private static void sendSchedulerError(net.minecraft.server.level.ServerPlayer player, int token, String message) {
+        PlatformServices.sendToPlayer(player, PACKET_MTR_SCHEDULER_DATA, buf(buffer -> {
+            buffer.writeInt(token);
+            buffer.writeInt(0);
+            buffer.writeInt(1);
+            buffer.writeBoolean(false);
+            buffer.writeUtf(message);
+            buffer.writeByteArray(new byte[0]);
+        }));
+    }
+
+    private static void sendSchedulerSnapshot(
+            net.minecraft.server.level.ServerPlayer player,
+            int token,
+            MtrGameDataSource.Snapshot snapshot
+    ) {
+        if (!snapshot.isSuccess()) {
+            PlatformServices.sendToPlayer(player, PACKET_MTR_SCHEDULER_DATA, buf(buffer -> {
+                buffer.writeInt(token);
+                buffer.writeInt(0);
+                buffer.writeInt(1);
+                buffer.writeBoolean(false);
+                buffer.writeUtf(snapshot.error());
+                buffer.writeByteArray(new byte[0]);
+            }));
+            return;
+        }
+        Map<String, Object> envelope = new LinkedHashMap<>();
+        envelope.put("stations", snapshot.stationsAndRoutesJson());
+        envelope.put("departures", snapshot.departuresJson());
+        byte[] compressed = PayloadCompression.compress(Json.writeCompact(envelope));
+        int chunkSize = 30_000;
+        int parts = Math.max(1, (compressed.length + chunkSize - 1) / chunkSize);
+        for (int part = 0; part < parts; part++) {
+            final int from = part * chunkSize;
+            final int to = Math.min(compressed.length, from + chunkSize);
+            final int currentPart = part;
+            PlatformServices.sendToPlayer(player, PACKET_MTR_SCHEDULER_DATA, buf(buffer -> {
+                buffer.writeInt(token);
+                buffer.writeInt(currentPart);
+                buffer.writeInt(parts);
+                buffer.writeBoolean(true);
+                buffer.writeUtf("");
+                buffer.writeByteArray(java.util.Arrays.copyOfRange(compressed, from, to));
+            }));
+        }
     }
 
     private static void handleSaveStation(net.minecraft.server.level.ServerPlayer player, FriendlyByteBuf buf) {

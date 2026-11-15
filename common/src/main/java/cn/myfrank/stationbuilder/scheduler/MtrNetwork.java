@@ -10,14 +10,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Immutable snapshot of one MTR dimension, built exclusively from the MTR web API.
+ * Immutable snapshot of one MTR dimension, built exclusively from MTR's read-only in-game data (`list_data`).
  *
  * <p>Two endpoints are merged:</p>
- * <ul>
- *   <li>{@code /mtr/api/map/stations-and-routes} &mdash; stations, routes, stops, run times, depots;</li>
- *   <li>{@code /mtr/api/map/departures} &mdash; upcoming departures as an offset from
- *       {@code cachedResponseTime}.</li>
- * </ul>
+ * <p>The server-side collector converts MTR's stations, routes, stops, run times, depots and
+ * departures into this compact envelope before sending it to the client.</p>
  *
  * <p>Both the MTR 4.x envelope ({@code status/text/currentTime/data}) and the older
  * {@code code/data} envelope are accepted, and a number of alternative field names are tolerated,
@@ -237,6 +234,26 @@ public final class MtrNetwork {
                 }
             }
 
+            List<String> repeatDepots = new ArrayList<>();
+            for (Object depotValue : Json.array(Json.first(routeObject, "repeatDepots", "ignoredDepots"))) {
+                String depot = Json.string(depotValue, null);
+                if (depot != null && !depot.isEmpty()) {
+                    repeatDepots.add(depot);
+                }
+            }
+            boolean repeatInfinitely = Json.booleanValue(
+                    Json.first(routeObject, "repeatInfinitely", "repeatVehiclesIndefinitely"),
+                    false
+            );
+            boolean repeatOnly = Json.booleanValue(
+                    Json.first(routeObject, "repeatOnly", "allDepotsRepeat"),
+                    false
+            );
+            if (repeatInfinitely) {
+                warnings.add("route " + name
+                        + ": a depot repeats vehicle instructions indefinitely; its departures are excluded");
+            }
+
             routes.add(new MtrRoute(
                     id,
                     name,
@@ -245,7 +262,10 @@ public final class MtrNetwork {
                     Json.intValue(Json.first(routeObject, "color", "colour"), 0xFFFFFF),
                     stops,
                     durations,
-                    depots
+                    depots,
+                    repeatInfinitely,
+                    repeatDepots,
+                    repeatOnly
             ));
         }
 
@@ -315,6 +335,19 @@ public final class MtrNetwork {
             if (route == null) {
                 continue;
             }
+            if (route.repeatOnly) {
+                route.markDeparturesIgnored("every depot of this route repeats vehicle instructions indefinitely");
+                warnings.add("route " + route.label()
+                        + ": all depots repeat vehicle instructions indefinitely; departures are excluded");
+                continue;
+            }
+            if (isSuspiciousDepartureSet(entry.getValue())) {
+                route.markDeparturesIgnored(
+                        "abnormal departure count; the depot may repeat vehicle instructions indefinitely");
+                warnings.add("route " + route.label()
+                        + ": abnormal departure data ignored (possible permanent repeat instruction)");
+                continue;
+            }
             matched++;
             List<Long> epochs = rawDepartureEpochs.computeIfAbsent(route.id, key -> new ArrayList<>());
             for (Long offset : entry.getValue()) {
@@ -336,10 +369,38 @@ public final class MtrNetwork {
         }
     }
 
+
+    /**
+     * Guards against a depot with "repeat vehicles indefinitely". Such a depot can generate
+     * 100k+ departures at identical times, which would otherwise collapse the headway to zero.
+     * The server already skips repeat-depot sidings; this is a second line of defence for older
+     * snapshots or unusual MTR builds.
+     */
+    private static boolean isSuspiciousDepartureSet(List<Long> offsets) {
+        if (offsets == null || offsets.isEmpty()) {
+            return false;
+        }
+        if (offsets.size() > 100_000) {
+            return true;
+        }
+        if (offsets.size() < 200) {
+            return false;
+        }
+        List<Long> sorted = new ArrayList<>(offsets);
+        sorted.sort(Long::compareTo);
+        int duplicates = 0;
+        for (int index = 1; index < sorted.size(); index++) {
+            if (sorted.get(index).equals(sorted.get(index - 1))) {
+                duplicates++;
+            }
+        }
+        return duplicates > sorted.size() / 2;
+    }
+
     /**
      * Recomputes route start times from the raw MTR departures.
      *
-     * <p>MTR's map API reports a departure either at the route's <em>last</em> platform or, when a
+     * <p>MTR's data reports a departure either at the route's <em>last</em> platform or, when a
      * depot chains two routes at the same platform, at the <em>first</em> platform of the next route
      * (see {@code Siding.getDeparturesAtEndOfRoute}). Assuming the last-platform case for every
      * route makes those chained routes appear shifted by the whole route run time. Routes that are
@@ -513,6 +574,24 @@ public final class MtrNetwork {
             }
         }
         return result;
+    }
+
+    /** Number of platforms in the snapshot. */
+    public int platformCount() {
+        int platforms = 0;
+        for (List<String> names : platformsByStation.values()) {
+            platforms += names.size();
+        }
+        return platforms;
+    }
+
+    /** Number of trips currently loaded in the snapshot. */
+    public int tripCount() {
+        int trips = 0;
+        for (MtrRoute route : routes) {
+            trips += route.startTimes().size();
+        }
+        return trips;
     }
 
     /** Number of distinct stations / platforms / trains in the snapshot, for the status line. */

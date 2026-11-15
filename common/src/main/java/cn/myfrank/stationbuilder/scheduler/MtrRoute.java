@@ -23,8 +23,16 @@ public final class MtrRoute {
     /** Run time between consecutive stops, in milliseconds; length is normally {@code stops - 1}. */
     public final List<Long> durations;
     public final List<String> depots;
+    /** True when at least one depot of this route repeats vehicle instructions indefinitely. */
+    public final boolean repeatInfinitely;
+    /** Names of the depots that repeat vehicle instructions indefinitely. */
+    public final List<String> repeatDepots;
+    /** True when every depot of this route repeats indefinitely, so no usable departures remain. */
+    public final boolean repeatOnly;
 
     private final List<Long> startTimes = new ArrayList<>();
+    private boolean departuresIgnored;
+    private String departureWarning;
     private List<List<StopTime>> timelines;
     private long durationMs = -1L;
 
@@ -38,6 +46,22 @@ public final class MtrRoute {
             List<Long> durations,
             List<String> depots
     ) {
+        this(id, name, number, type, color, stops, durations, depots, false, List.of(), false);
+    }
+
+    public MtrRoute(
+            String id,
+            String name,
+            String number,
+            String type,
+            int color,
+            List<MtrStop> stops,
+            List<Long> durations,
+            List<String> depots,
+            boolean repeatInfinitely,
+            List<String> repeatDepots,
+            boolean repeatOnly
+    ) {
         this.id = id;
         this.name = name;
         this.number = number;
@@ -46,6 +70,24 @@ public final class MtrRoute {
         this.stops = List.copyOf(stops);
         this.durations = List.copyOf(durations);
         this.depots = List.copyOf(depots);
+        this.repeatInfinitely = repeatInfinitely;
+        this.repeatDepots = List.copyOf(repeatDepots);
+        this.repeatOnly = repeatOnly;
+    }
+
+    /** True when the parser had to discard this route's departures as unusable. */
+    public boolean departuresIgnored() {
+        return departuresIgnored;
+    }
+
+    /** Human-readable reason for {@link #departuresIgnored()}, or {@code null}. */
+    public String departureWarning() {
+        return departureWarning;
+    }
+
+    void markDeparturesIgnored(String reason) {
+        departuresIgnored = true;
+        departureWarning = reason;
     }
 
     /** Opaque ARGB color used for the occupancy bars. */

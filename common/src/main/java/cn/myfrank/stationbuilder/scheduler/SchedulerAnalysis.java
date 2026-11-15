@@ -30,9 +30,12 @@ import java.util.Set;
  */
 public final class SchedulerAnalysis {
 
-    /** Minimum platform headway the planner considers safe. */
-    public static final long DEFAULT_SAFE_GAP_MS = 60_000L;
-    /** Upper bound for the maximum-gap search; beyond this the result is only reported as "at least". */
+    /** Preferred minimum platform headway. */
+    public static final long DEFAULT_SAFE_GAP_MS = 30_000L;
+    /** Acceptable fallback when 30 seconds is infeasible. */
+    public static final long FALLBACK_GAP_MS = 10_000L;
+    /** Kept for source compatibility with older callers; no longer used by the solver. */
+    @Deprecated
     public static final long MAX_GAP_SEARCH_MS = 10L * TimeFormat.MINUTE_MS;
 
     public enum Kind {
@@ -426,6 +429,7 @@ public final class SchedulerAnalysis {
                     }
                 } else if (isIssue) {
                     // A route without a depot cannot be moved independently.
+                    minimumSameDepotGap = Math.min(minimumSameDepotGap, gap);
                     sameDepotProblems++;
                 }
             }
@@ -437,39 +441,21 @@ public final class SchedulerAnalysis {
         boolean solvable = true;
         boolean hasConstraints = !constraints.isEmpty();
 
+        boolean sameDepotFeasible30 = minimumSameDepotGap == Long.MAX_VALUE
+                || minimumSameDepotGap >= DEFAULT_SAFE_GAP_MS;
+        boolean sameDepotFeasible10 = minimumSameDepotGap == Long.MAX_VALUE
+                || minimumSameDepotGap >= FALLBACK_GAP_MS;
+
         if (hasConstraints) {
             String referenceDepot = chooseReferenceDepot(constraints);
-            if (!feasible(constraints, 0L)) {
+            boolean feasible30 = sameDepotFeasible30 && feasible(constraints, DEFAULT_SAFE_GAP_MS);
+            boolean feasible10 = sameDepotFeasible10
+                    && (feasible30 || feasible(constraints, FALLBACK_GAP_MS));
+            if (!feasible10) {
                 solvable = false;
             } else {
-                long low = 0L;
-                long high = TimeFormat.MINUTE_MS;
-                while (high <= MAX_GAP_SEARCH_MS && feasible(constraints, high)) {
-                    low = high;
-                    high *= 2L;
-                }
-                if (high > MAX_GAP_SEARCH_MS) {
-                    // The search limit is only a lower bound; binary search up to it and flag the result.
-                    high = MAX_GAP_SEARCH_MS + 1L;
-                }
-                while (high - low > 1_000L) {
-                    long mid = low + (high - low) / 2L;
-                    if (feasible(constraints, mid)) {
-                        low = mid;
-                    } else {
-                        high = mid;
-                    }
-                }
-                achievableGap = low;
-                gapAtLimit = achievableGap >= MAX_GAP_SEARCH_MS - 1_000L;
-                if (minimumSameDepotGap != Long.MAX_VALUE && minimumSameDepotGap >= 0L) {
-                    achievableGap = Math.min(achievableGap, minimumSameDepotGap);
-                }
-                // Offsets target the safe headway (not the theoretical maximum), which keeps the
-                // required shifts as small as possible. If the safe headway is unreachable, use the
-                // best gap that was found.
-                long preferredGap = Math.min(DEFAULT_SAFE_GAP_MS, Math.max(0L, achievableGap));
-                long targetGap = feasible(constraints, preferredGap) ? preferredGap : achievableGap;
+                long targetGap = feasible30 ? DEFAULT_SAFE_GAP_MS : FALLBACK_GAP_MS;
+                achievableGap = targetGap;
                 Map<String, Long> distances = solve(constraints, targetGap);
                 if (distances != null) {
                     long referenceDistance = distances.getOrDefault(referenceDepot, 0L);
@@ -483,6 +469,8 @@ public final class SchedulerAnalysis {
                     solvable = false;
                 }
             }
+        } else if (!sameDepotFeasible10) {
+            solvable = false;
         }
 
         return new SchedulerAnalysis(
@@ -494,6 +482,19 @@ public final class SchedulerAnalysis {
                 sameDepotProblems,
                 hasConstraints
         );
+    }
+
+    /** Applies the suggested depot offsets to every route in the snapshot. */
+    public static void applyOffsets(MtrNetwork network, SchedulerAnalysis analysis) {
+        if (network == null || analysis == null || !analysis.solvable()) {
+            return;
+        }
+        for (MtrRoute route : network.routes) {
+            Long offset = analysis.depotOffsetsMs().get(route.primaryDepot());
+            if (offset != null && offset != 0L) {
+                route.offsetStartTimes(offset);
+            }
+        }
     }
 
     /** Picks the depot that appears most often in the constraints as the fixed reference. */
@@ -571,24 +572,20 @@ public final class SchedulerAnalysis {
     ) {
         StringBuilder summary = new StringBuilder();
         summary.append(issueCount).append(" trip conflict(s) in ").append(groupCount).append(" group(s)");
-        if (!hasConstraints) {
+        if (!solvable) {
+            summary.append("; infeasible: even a 10s minimum headway cannot be achieved");
+        } else if (!hasConstraints) {
             summary.append("; no cross-depot constraints");
-        } else if (!solvable) {
-            summary.append("; depot offsets cannot resolve the conflicts at any non-negative gap");
         } else {
-            long targetSeconds = Math.max(0L, Math.min(DEFAULT_SAFE_GAP_MS, achievableGapMs)) / 1000L;
-            if (gapAtSearchLimit) {
-                summary.append("; at least ").append(achievableGapMs / 1000L)
-                        .append("s minimum headway is achievable");
+            if (achievableGapMs < DEFAULT_SAFE_GAP_MS) {
+                summary.append("; 30s infeasible, using the 10s fallback");
             } else {
-                summary.append("; up to ").append(achievableGapMs / 1000L)
-                        .append("s minimum headway is achievable");
+                summary.append("; 30s minimum headway is achievable");
             }
             if (offsetCount == 0) {
-                summary.append("; no depot offset needed for the ").append(targetSeconds).append("s target");
+                summary.append("; no depot offset needed");
             } else {
-                summary.append("; ").append(offsetCount).append(" depot offset(s) reach the ")
-                        .append(targetSeconds).append("s target");
+                summary.append("; ").append(offsetCount).append(" depot offset(s) applied");
             }
         }
         if (sameDepotProblems > 0) {

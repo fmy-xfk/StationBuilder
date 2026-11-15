@@ -8,6 +8,11 @@ import cn.myfrank.stationbuilder.generator.StationGenerator;
 import cn.myfrank.stationbuilder.items.*;
 import cn.myfrank.stationbuilder.manager.BuildingTemplateManager;
 import cn.myfrank.stationbuilder.manager.PlacerHistoryManager;
+import cn.myfrank.stationbuilder.mtr.MtrDepotOffsetWriter;
+import cn.myfrank.stationbuilder.mtr.MtrGameDataSource;
+import cn.myfrank.stationbuilder.mtr.MtrSchedulerNetworking;
+import cn.myfrank.stationbuilder.scheduler.Json;
+import cn.myfrank.stationbuilder.scheduler.PayloadCompression;
 import cn.myfrank.stationbuilder.utils.TickScheduler;
 import cn.myfrank.stationbuilder.utils.CommonUtil;
 import com.mojang.logging.LogUtils;
@@ -40,13 +45,16 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Mod(StationBuilder.MOD_ID)
 public class StationBuilder {
@@ -282,6 +290,102 @@ public class StationBuilder {
         registrar.playToServer(ClearRailStatePayload.TYPE, ClearRailStatePayload.STREAM_CODEC, StationBuilder::handleClearRailState);
         registrar.playToServer(SavePlacerPayload.TYPE, SavePlacerPayload.STREAM_CODEC, StationBuilder::handleSavePlacer);
         registrar.playToServer(SaveSelectionPayload.TYPE, SaveSelectionPayload.STREAM_CODEC, StationBuilder::handleSaveSelection);
+        registrar.playToServer(MtrSchedulerNetworking.RequestPayload.TYPE, MtrSchedulerNetworking.RequestPayload.STREAM_CODEC,
+                StationBuilder::handleMtrSchedulerRequest);
+        registrar.playToServer(MtrSchedulerNetworking.WritePayload.TYPE, MtrSchedulerNetworking.WritePayload.STREAM_CODEC,
+                StationBuilder::handleMtrSchedulerWrite);
+    }
+
+    private static void handleMtrSchedulerRequest(MtrSchedulerNetworking.RequestPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            net.minecraft.server.level.ServerPlayer player = (net.minecraft.server.level.ServerPlayer) context.player();
+            if (!CommonUtil.isMtrLoaded()) {
+                sendSchedulerError(player, payload.token(), "MTR is not installed on this server");
+                return;
+            }
+            try {
+                MtrGameDataSource.collect(player.server, (net.minecraft.server.level.ServerLevel) player.level(),
+                        snapshot -> sendSchedulerSnapshot(player, payload.token(), snapshot));
+            } catch (Throwable throwable) {
+                sendSchedulerSnapshot(player, payload.token(),
+                        MtrGameDataSource.Snapshot.error("Could not request MTR data: " + throwable.getMessage()));
+            }
+        });
+    }
+
+    private static void handleMtrSchedulerWrite(MtrSchedulerNetworking.WritePayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            net.minecraft.server.level.ServerPlayer player = (net.minecraft.server.level.ServerPlayer) context.player();
+            if (!CommonUtil.isMtrLoaded()) {
+                sendSchedulerError(player, payload.token(), "MTR is not installed on this server");
+                return;
+            }
+            Map<String, Long> offsets;
+            try {
+                offsets = new LinkedHashMap<>();
+                for (Map.Entry<String, Object> entry : Json.object(Json.parse(payload.offsetsJson())).entrySet()) {
+                    offsets.put(entry.getKey(), Json.longValue(entry.getValue(), 0L));
+                }
+            } catch (RuntimeException exception) {
+                sendSchedulerSnapshot(player, payload.token(),
+                        MtrGameDataSource.Snapshot.error("Invalid depot offsets: " + exception.getMessage()));
+                return;
+            }
+            try {
+                MtrGameDataSource.collect(player.server,
+                        (net.minecraft.server.level.ServerLevel) player.level(), snapshot -> {
+                            if (!snapshot.isSuccess()) {
+                                sendSchedulerSnapshot(player, payload.token(), snapshot);
+                                return;
+                            }
+                            MtrDepotOffsetWriter.Result result =
+                                    MtrDepotOffsetWriter.write(snapshot.response(), offsets);
+                            if (!result.success()) {
+                                sendSchedulerSnapshot(player, payload.token(),
+                                        MtrGameDataSource.Snapshot.error(result.message()));
+                                return;
+                            }
+                            MtrGameDataSource.collect(player.server,
+                                    (net.minecraft.server.level.ServerLevel) player.level(),
+                                    fresh -> sendSchedulerSnapshot(player, payload.token(), fresh));
+                        });
+            } catch (Throwable throwable) {
+                sendSchedulerSnapshot(player, payload.token(),
+                        MtrGameDataSource.Snapshot.error("Could not write MTR data: " + throwable.getMessage()));
+            }
+        });
+    }
+
+    private static void sendSchedulerError(net.minecraft.server.level.ServerPlayer player, int token, String message) {
+        PacketDistributor.sendToPlayer(player, new MtrSchedulerNetworking.DataPayload(
+                token, 0, 1, false, message, new byte[0]
+        ));
+    }
+
+    private static void sendSchedulerSnapshot(
+            net.minecraft.server.level.ServerPlayer player,
+            int token,
+            MtrGameDataSource.Snapshot snapshot
+    ) {
+        if (!snapshot.isSuccess()) {
+            PacketDistributor.sendToPlayer(player, new MtrSchedulerNetworking.DataPayload(
+                    token, 0, 1, false, snapshot.error(), new byte[0]
+            ));
+            return;
+        }
+        Map<String, Object> envelope = new LinkedHashMap<>();
+        envelope.put("stations", snapshot.stationsAndRoutesJson());
+        envelope.put("departures", snapshot.departuresJson());
+        byte[] compressed = PayloadCompression.compress(Json.writeCompact(envelope));
+        int chunkSize = 30_000;
+        int parts = Math.max(1, (compressed.length + chunkSize - 1) / chunkSize);
+        for (int part = 0; part < parts; part++) {
+            int from = part * chunkSize;
+            int to = Math.min(compressed.length, from + chunkSize);
+            PacketDistributor.sendToPlayer(player, new MtrSchedulerNetworking.DataPayload(
+                    token, part, parts, true, "", java.util.Arrays.copyOfRange(compressed, from, to)
+            ));
+        }
     }
 
     // ============ C2S handlers ============

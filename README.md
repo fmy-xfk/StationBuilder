@@ -33,5 +33,5 @@
 
 ## MTR 排图工具
 
-本工程包含游戏内的 MTR 排图工具：只读取 MTR 网页 API（不读取 MTR 的 Java 数据），绘制站台占用、
-检查站台冲突并导出 MTR 车厂真实时间发车计划。详见 [docs/mtr-scheduler.md](docs/mtr-scheduler.md)。
+本工程包含游戏内的 MTR 排图工具：直接读取服务端的 MTR 游戏内数据，绘制站台占用、
+检查站台冲突并把车厂偏移写入 MTR 真实时间时刻表。详见 [docs/mtr-scheduler.md](docs/mtr-scheduler.md)。

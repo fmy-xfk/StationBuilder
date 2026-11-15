@@ -107,10 +107,6 @@ public class MtrSchedulerIntroScreen extends Screen {
         button(context, cancelX, buttonY, 58, 18,
                 Component.translatable("gui.stationbuilder.scheduler.intro.cancel").getString(),
                 true, mouseX, mouseY);
-
-        String readOnly = Component.translatable("gui.stationbuilder.scheduler.intro.readonly").getString();
-        drawText(context, readOnly, panelX + panelW - 14 - font.width(readOnly),
-                panelY + panelH - 12, COLOR_TEXT_DIM);
     }
 
     private void button(

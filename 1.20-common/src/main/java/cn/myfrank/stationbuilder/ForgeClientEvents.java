@@ -1,6 +1,8 @@
 package cn.myfrank.stationbuilder;
 
 import cn.myfrank.stationbuilder.items.RailBuilderItem;
+import cn.myfrank.stationbuilder.mtr.MtrSchedulerClientTransport;
+import cn.myfrank.stationbuilder.scheduler.SchedulerSession;
 import cn.myfrank.stationbuilder.screens.BuildingPlacerScreen;
 import cn.myfrank.stationbuilder.screens.BuildingSelectorScreen;
 import cn.myfrank.stationbuilder.screens.RailBuilderScreen;
@@ -19,6 +21,8 @@ public final class ForgeClientEvents {
 
     public static void registerReceivers() {
         StationBuilder.LOGGER.info("[Client] Registering packet receivers...");
+        MtrSchedulerClientTransport.registerReceiver();
+        SchedulerSession.get().setTransport(new MtrSchedulerClientTransport());
         PlatformServices.registerClientReceiver(StationBuilder.PACKET_SYNC_OPEN, buf -> {
             var pos = buf.readBlockPos();
             int facing = buf.readInt();
