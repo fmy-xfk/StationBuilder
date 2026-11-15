@@ -1208,9 +1208,13 @@ public class StationGenerator {
             // ========================================================
             if (!useMsd && !useCee) {
                 BlockState wireState = CommonUtil.getBlockState(trackCfg.catenaryBlock);
+                BlockState wireStateAbove = CommonUtil.getBlockState(trackCfg.catenaryPillarBlock);
                 for (int t = 0; t < trackCount; t++) {
                     BlockPos centerWire = trackLeftEdges.get(groupStart + t).relative(facing, l).relative(right, 1).above(wireHeight);
                     setBlockIfEmpty(world, centerWire, wireState);
+                    if (isPillarFrame) {
+                        setBlockIfEmpty(world, centerWire.above(), wireStateAbove);
+                    }
                 }
             }
         }
