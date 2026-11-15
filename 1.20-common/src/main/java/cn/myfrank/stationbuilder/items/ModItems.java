@@ -25,6 +25,9 @@ public class ModItems {
     public static final RegistryObject<Item> BUILDING_PLACER_ITEM = ITEMS.register("building_placer",
             () -> new BuildingPlacerItem(new Item.Properties().stacksTo(1)));
 
+    public static final RegistryObject<Item> MTR_SCHEDULER_ITEM = ITEMS.register("mtr_scheduler",
+            () -> new MtrSchedulerItem(new Item.Properties().stacksTo(1)));
+
     // 3. 事件总线绑定方法
     public static void register(IEventBus bus) {
         ITEMS.register(bus);

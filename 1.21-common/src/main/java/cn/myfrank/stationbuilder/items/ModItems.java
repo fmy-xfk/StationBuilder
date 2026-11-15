@@ -13,4 +13,6 @@ public class ModItems {
             ITEMS.registerItem("building_selector", props -> new BuildingSelectorItem(props.stacksTo(1)));
     public static final DeferredItem<BuildingPlacerItem> BUILDING_PLACER_ITEM =
             ITEMS.registerItem("building_placer", props -> new BuildingPlacerItem(props.stacksTo(1)));
+    public static final DeferredItem<MtrSchedulerItem> MTR_SCHEDULER_ITEM =
+            ITEMS.registerItem("mtr_scheduler", props -> new MtrSchedulerItem(props.stacksTo(1)));
 }

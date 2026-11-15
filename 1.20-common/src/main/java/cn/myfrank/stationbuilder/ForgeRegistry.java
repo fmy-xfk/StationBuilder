@@ -22,6 +22,7 @@ final class ForgeRegistry {
                 output.accept(ModItems.RAIL_BUILDER_ITEM.get());
                 output.accept(ModItems.BUILDING_SELECTOR_ITEM.get());
                 output.accept(ModItems.BUILDING_PLACER_ITEM.get());
+                output.accept(ModItems.MTR_SCHEDULER_ITEM.get());
             })
             .build());
 

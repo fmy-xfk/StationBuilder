@@ -30,3 +30,8 @@
 ## 验证说明
 
 源码与资源按共享层重组并进行静态路径审计。实际 Gradle 编译仍需在能访问 Gradle 发行包及 Minecraft/Forge/NeoForge 依赖仓库的环境中执行；不能将静态检查等同于成功编译。
+
+## MTR 排图工具
+
+本工程包含游戏内的 MTR 排图工具：只读取 MTR 网页 API（不读取 MTR 的 Java 数据），绘制站台占用、
+检查站台冲突并导出 MTR 车厂真实时间发车计划。详见 [docs/mtr-scheduler.md](docs/mtr-scheduler.md)。
