@@ -26,6 +26,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.WallBlock;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.WallSide;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -419,8 +420,12 @@ public class RailGenerator {
     }
 
     private static void clearBlock(ServerLevel world, BlockPos pos, boolean includeCatenary) {
-        if (!includeCatenary && isCatenary(world, pos)) {
-            return;
+        if (isCatenary(world, pos)) {
+            if (!includeCatenary) {
+                return;
+            }
+            BlockState state = world.getBlockState(pos);
+            state.getBlock().playerWillDestroy(world, pos, state, null);
         }
         world.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
     }
