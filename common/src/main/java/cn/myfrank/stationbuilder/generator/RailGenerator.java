@@ -425,8 +425,12 @@ public class RailGenerator {
     }
 
     private static void clearBlock(ServerWorld world, BlockPos pos, boolean includeCatenary) {
-        if (!includeCatenary && isCatenary(world, pos)) {
-            return;
+        if (isCatenary(world, pos)) {
+            if (!includeCatenary) {
+                return;
+            }
+            BlockState state = world.getBlockState(pos);
+            state.getBlock().onBreak(world, pos, state, null);
         }
         world.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
     }
