@@ -633,7 +633,7 @@ public class RailGenerator {
         for (int i = 0; i < count; i++) {
             var pos1 = startPositions.get(i);
             var pos2 = endPositions.get(i);
-            if (i < count / 2) {
+            if (i < count / 2 || count == 1) {
                 var temp = pos1;
                 pos1 = pos2;
                 pos2 = temp;
