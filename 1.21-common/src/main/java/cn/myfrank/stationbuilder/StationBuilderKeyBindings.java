@@ -8,7 +8,7 @@ import net.minecraft.client.util.InputUtil;
 public class StationBuilderKeyBindings {
 
     public static KeyBinding CLEAR_RAIL_STATE;
-    public static KeyBinding UNDO; // Ctrl+Z: global undo shared by all tools
+    public static KeyBinding UNDO; // Ctrl + this key; the key itself is rebindable
 
     public static void register() {
         CLEAR_RAIL_STATE = KeyBindingHelper.registerKeyBinding(
@@ -19,7 +19,8 @@ public class StationBuilderKeyBindings {
                         "category.stationbuilder"
                 )
         );
-        // Ctrl is checked separately; this binding only registers the Z part.
+        // Ctrl is always required; only the key after Ctrl is configurable here.
+        // The default is Ctrl+Z, and rebinding it to K makes it Ctrl+K.
         UNDO = KeyBindingHelper.registerKeyBinding(
                 new KeyBinding(
                         "key.stationbuilder.undo",

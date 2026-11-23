@@ -19,8 +19,8 @@ import java.util.*;
  * Per-player, global undo history shared by every StationBuilder tool.
  *
  * <p>All placements (Building Placer, Station Builder construction and Rail Builder)
- * push their own {@link UndoStep} onto the same stack, so Ctrl+Z always rolls back
- * the most recent action regardless of which tool performed it.</p>
+ * push their own {@link UndoStep} onto the same stack, so Ctrl + the Undo key
+ * always rolls back the most recent action regardless of which tool performed it.</p>
  *
  * <p>Block changes are captured by {@code WorldBlockEditMixin}, which calls
  * {@link #capture(World, BlockPos)} before every {@code World.setBlockState}.

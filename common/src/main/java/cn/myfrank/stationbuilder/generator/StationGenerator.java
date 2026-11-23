@@ -40,8 +40,10 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public class StationGenerator {
 
@@ -98,6 +100,57 @@ public class StationGenerator {
         }
     }
 
+    private static final class MtrTrackNodes {
+        final BlockPos start;
+        final BlockPos end;
+
+        MtrTrackNodes(BlockPos start, BlockPos end) {
+            this.start = start;
+            this.end = end;
+        }
+    }
+
+    /**
+     * 计算本车站所有 MTR 轨道两端 RailNode 的目标位置。
+     * 布局计算必须与 {@link #buildInternal} 中的元素遍历保持一致。
+     */
+    private static List<MtrTrackNodes> collectMtrTrackNodes(List<StationElement> elements, BlockPos origin,
+                                                            Direction facing, Direction right, int length) {
+        if (!CommonUtil.isMtrLoaded()) {
+            return List.of();
+        }
+        List<MtrTrackNodes> result = new ArrayList<>();
+        BlockPos edge = origin.offset(facing);
+        for (int i = 0; i < elements.size(); i++) {
+            StationElement element = elements.get(i);
+            if (element instanceof TrackElement track) {
+                if (i > 0 && elements.get(i - 1) instanceof TrackElement) {
+                    edge = edge.offset(right);
+                }
+                if (MTRIntegration.isValidRailType(track.track)) {
+                    BlockPos start = edge.offset(right);
+                    result.add(new MtrTrackNodes(start, start.offset(facing, length - 1)));
+                }
+            }
+            edge = edge.offset(right, element.getWidth());
+        }
+        return result;
+    }
+
+    /** 两端 RailNode 都存在且方向与本次建设一致时，这些节点在清理旧车站时必须原样保留。 */
+    private static Set<BlockPos> findPreservedMtrNodes(ServerWorld world, List<StationElement> elements,
+                                                       BlockPos origin, Direction facing, Direction right, int length) {
+        Set<BlockPos> preserved = new HashSet<>();
+        for (MtrTrackNodes nodes : collectMtrTrackNodes(elements, origin, facing, right, length)) {
+            if (MTRIntegration.isRailNodeFacing(world, nodes.start, facing)
+                    && MTRIntegration.isRailNodeFacing(world, nodes.end, facing)) {
+                preserved.add(nodes.start);
+                preserved.add(nodes.end);
+            }
+        }
+        return preserved;
+    }
+
     private static void buildInternal(ServerPlayerEntity player, ServerWorld world, BlockPos origin, Direction facing, int length,
                                       PassageConfig passage, List<StationElement> elements, List<Runnable> deferredTasks) {
         Direction right = facing.rotateYClockwise();
@@ -120,12 +173,18 @@ public class StationGenerator {
         }
 
         List<BlockPos> mtrRails = new ArrayList<>();
+        // MTR 轨道两端的 RailNode 若仍在原位且方向一致，重建时不能拆除：
+        // 拆除节点会同时移除节点上的既有线路连接，导致线路损坏。
+        Set<BlockPos> preservedMtrNodes = findPreservedMtrNodes(world, elements, origin, facing, right, length);
         int deltaL = elements.get(0) instanceof TrackElement ? 1 : 0;
         int deltaR = elements.get(elements.size() - 1) instanceof TrackElement ? 1 : 0;
         for (int l = 1; l <= length; l++) {
             for (int w = -deltaL; w < totalWidth + deltaR; w++) {
                 for (int y = 0; y <= maxConstHeight; y++) {
                     BlockPos p = origin.offset(facing, l).offset(right, w).up(y);
+                    if (preservedMtrNodes.contains(p)) {
+                        continue;
+                    }
                     BlockState state = world.getBlockState(p);
                     if (state.isAir()) continue;
 
@@ -1832,8 +1891,15 @@ public class StationGenerator {
             BlockPos nodeEnd = nodeStart.offset(facing, length - 1);
             var playerUuid = player.getUuid();
             deferredTasks.add(() -> {
-                MTRIntegration.placeRailNode(world, nodeStart, facing);
-                MTRIntegration.placeRailNode(world, nodeEnd, facing);
+                // 方向、位置一致的既有节点保持原样，不重新放置；缺失或方向不符的节点才补建。
+                if (!MTRIntegration.isRailNodeFacing(world, nodeStart, facing)) {
+                    MTRIntegration.placeRailNode(world, nodeStart, facing);
+                }
+                if (!MTRIntegration.isRailNodeFacing(world, nodeEnd, facing)) {
+                    MTRIntegration.placeRailNode(world, nodeEnd, facing);
+                }
+                // MTR 的轨道类型（platform / 不同限速等）无法从节点方块状态分辨，
+                // 因此始终重新连接，确保轨道类型与当前车站配置一致。
                 MTRIntegration.connectRailNodes(playerUuid, world, nodeStart, nodeEnd, t.track);
             });
         }

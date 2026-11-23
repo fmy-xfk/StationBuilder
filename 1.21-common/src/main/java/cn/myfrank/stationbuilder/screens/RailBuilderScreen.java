@@ -59,6 +59,7 @@ public class RailBuilderScreen extends GuiScreen {
         }
         syncCatenaryState();
     }, BUTTON_WIDTH, INPUT_HEIGHT);
+    private final GuiButton catenaryResetButton = new GuiButton(Text.literal("\u21BA"), (button) -> resetCatenaryBlocks(), INPUT_HEIGHT, INPUT_HEIGHT);
     private final GuiLabelSlot catenaryLineBlockInput = new GuiLabelSlot(getText("catenary_line_block"), INPUT_WIDTH_S, INPUT_HEIGHT, Identifier.of("minecraft", "cobweb"), false);
     private final GuiLabelTextField catenarySpacingInput = new GuiLabelTextField(getText("catenary_spacing"), INPUT_WIDTH_S, INPUT_HEIGHT, Text.literal("50"));
     private int msdModeIndex = CatenaryTypeMapping.MSDCatenary.ordinal();
@@ -78,6 +79,39 @@ public class RailBuilderScreen extends GuiScreen {
 
     private void syncClearMode() {
         clearModeButton.setMessage(getText(clearFullHeight ? "clear_mode_v" : "clear_mode_tunnel"));
+    }
+
+    /**
+     * Restores the catenary block slots to the defaults of the currently
+     * selected catenary mode. The mode itself and the spacing are left alone.
+     */
+    private void resetCatenaryBlocks() {
+        Identifier line;
+        Identifier bridgePillar;
+        Identifier tunnelPillar;
+
+        if (catenaryTypeIndex == CatenaryType.MSD.ordinal()) {
+            line = Identifier.of("msd", "catenary_connector");
+            bridgePillar = Identifier.of("msd", "catenary_with_long");
+            tunnelPillar = Identifier.of("msd", "catenary_with_long_top");
+        } else if (catenaryTypeIndex == CatenaryType.CEE.ordinal()) {
+            line = Identifier.of("electroenergetics", "copper_wire_spool");
+            bridgePillar = Identifier.of("electroenergetics", "concrete_pole");
+            tunnelPillar = Identifier.of("electroenergetics", "concrete_pole");
+        } else if (catenaryTypeIndex == CatenaryType.CPW.ordinal()) {
+            line = Identifier.of("pantographsandwires", "wire_coil");
+            bridgePillar = Identifier.of("pantographsandwires", "lattice_mast");
+            tunnelPillar = Identifier.of("pantographsandwires", "cantilever_brown");
+        } else {
+            line = Identifier.of("minecraft", "cobweb");
+            bridgePillar = Identifier.of("minecraft", "stone_brick_wall");
+            tunnelPillar = Identifier.of("minecraft", "stone_brick_wall");
+        }
+
+        catenaryLineBlockInput.setBlockId(line);
+        catenaryBridgePillarInput.setBlockId(bridgePillar);
+        catenaryTunnelPillarInput.setBlockId(tunnelPillar);
+        syncCatenaryState();
     }
 
     private void syncCatenaryState() {
@@ -131,6 +165,11 @@ public class RailBuilderScreen extends GuiScreen {
             catenaryBridgePillarInput.setLabelText(getText("catenary_cpw_mast"));
             catenaryTunnelPillarInput.setLabelText(getText("catenary_cpw_cantilever"));
         }
+
+        // The reset control only makes sense while at least one block slot is visible.
+        catenaryResetButton.setVisible(catenaryLineBlockInput.isVisible()
+                || catenaryBridgePillarInput.isVisible()
+                || catenaryTunnelPillarInput.isVisible());
     }
 
     private static Text getText(String key) {
@@ -322,10 +361,15 @@ public class RailBuilderScreen extends GuiScreen {
         tunnelPanel.setCrossAlign(CrossAlignMode.START);
         tunnelPanel.setGap(2);
 
+        var catenaryButtonRow = new GuiPanel(w * 2, INPUT_HEIGHT);
+        catenaryButtonRow.setDirection(PanelDirection.HORIZONTAL);
+        catenaryButtonRow.setGap(2);
+        catenaryButtonRow.addControl(catenaryStateButton).addControl(catenaryResetButton);
+
         var catenaryPanel = new GuiPanel(w * 2, h);
         catenaryPanel
                 .addControl(new GuiLabel(getText("catenary")))
-                .addControl(catenaryStateButton)
+                .addControl(catenaryButtonRow)
                 .addControl(catenarySpacingInput)
                 .addControl(catenaryModeButton)
                 .addControl(catenaryLineBlockInput)

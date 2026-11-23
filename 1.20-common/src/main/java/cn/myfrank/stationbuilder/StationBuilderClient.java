@@ -62,7 +62,9 @@ public class StationBuilderClient implements ClientModInitializer {
             if (StationBuilderKeyBindings.CLEAR_RAIL_STATE.wasPressed() && client.player != null && client.player.getMainHandStack().getItem() instanceof RailBuilderItem) {
                 ClientPlayNetworking.send(StationBuilder.CLEAR_RAIL_PACKET, PacketByteBufs.empty());
             }
-			// Global undo: Ctrl+Z rolls back the latest action of any StationBuilder tool.
+			// Global undo: Ctrl + the configured Undo key rolls back the latest
+			// action of any StationBuilder tool. Ctrl is fixed; the key after it is
+			// freely rebindable (default Ctrl+Z).
 			if (StationBuilderKeyBindings.UNDO.wasPressed()
 					&& client.currentScreen == null
 					&& Screen.hasControlDown()) {
