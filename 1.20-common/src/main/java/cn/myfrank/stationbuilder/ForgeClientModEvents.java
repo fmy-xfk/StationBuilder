@@ -16,6 +16,7 @@ import org.lwjgl.glfw.GLFW;
 @Mod.EventBusSubscriber(modid = StationBuilder.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class ForgeClientModEvents {
     public static final KeyMapping CLEAR_RAIL_STATE = new KeyMapping("key.stationbuilder.clear_rail_state", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "category.stationbuilder");
+    // Ctrl is always required; the bound key is the part after Ctrl (default Z).
     public static final KeyMapping UNDO = new KeyMapping("key.stationbuilder.undo", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_Z, "category.stationbuilder");
 
     @SubscribeEvent

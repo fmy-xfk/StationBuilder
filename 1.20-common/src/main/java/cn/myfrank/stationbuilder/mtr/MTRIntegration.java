@@ -56,6 +56,17 @@ public class MTRIntegration {
         return state.getBlock() == Blocks.RAIL_NODE.get().data;
     }
 
+    /** 该位置是否为方向与 {@code facing} 一致的 MTR RailNode（用于重建时判断节点能否保留）。 */
+    public static boolean isRailNodeFacing(Level world, BlockPos pos, Direction facing) {
+        BlockState state = world.getBlockState(pos);
+        if (!isRailNode(state)) {
+            return false;
+        }
+        return state.getValue(BlockNode.FACING.data) == (facing == Direction.EAST || facing == Direction.WEST)
+                && !state.getValue(BlockNode.IS_45.data)
+                && !state.getValue(BlockNode.IS_22_5.data);
+    }
+
     public static void placeRailNode(ServerLevel world, BlockPos pos, Direction facing) {
         var mtrNodeState = Blocks.RAIL_NODE.get().data.defaultBlockState()
                 .setValue(BlockNode.FACING.data, facing == Direction.EAST || facing == Direction.WEST)

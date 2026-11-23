@@ -10,6 +10,7 @@ public class StationBuilderKeyBindings {
             org.lwjgl.glfw.GLFW.GLFW_KEY_V,
             "category.stationbuilder"
     );
+    // Ctrl is always required; the bound key is the part after Ctrl (default Z).
     public static final KeyMapping UNDO = new KeyMapping(
             "key.stationbuilder.undo",
             InputConstants.Type.KEYSYM,

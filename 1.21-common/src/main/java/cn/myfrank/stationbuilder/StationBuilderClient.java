@@ -105,7 +105,9 @@ public class StationBuilderClient {
             PacketDistributor.sendToServer(new StationBuilder.ClearRailStatePayload());
         }
 
-        // Global undo: Ctrl+Z rolls back the latest action of any StationBuilder tool.
+        // Global undo: Ctrl + the configured Undo key rolls back the latest action
+        // of any StationBuilder tool. Ctrl is fixed; the key after it is rebindable
+        // (default Ctrl+Z).
         if (StationBuilderKeyBindings.UNDO.consumeClick()
                 && client.screen == null
                 && Screen.hasControlDown()) {

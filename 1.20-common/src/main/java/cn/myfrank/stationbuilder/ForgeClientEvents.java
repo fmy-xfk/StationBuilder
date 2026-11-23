@@ -65,7 +65,9 @@ public final class ForgeClientEvents {
         if (ForgeClientModEvents.CLEAR_RAIL_STATE.consumeClick() && client.player != null && client.player.getMainHandItem().getItem() instanceof RailBuilderItem) {
             PlatformServices.sendToServer(StationBuilder.PACKET_CLEAR_RAIL, StationBuilder.buf(b -> {}));
         }
-        // Global undo: Ctrl+Z rolls back the latest action of any StationBuilder tool.
+        // Global undo: Ctrl + the configured Undo key rolls back the latest action
+        // of any StationBuilder tool. Ctrl is fixed; the key after it is rebindable
+        // (default Ctrl+Z).
         if (ForgeClientModEvents.UNDO.consumeClick() && client.screen == null && Screen.hasControlDown()) {
             PlatformServices.sendToServer(StationBuilder.PACKET_UNDO_PLACER, StationBuilder.buf(b -> {}));
         }
